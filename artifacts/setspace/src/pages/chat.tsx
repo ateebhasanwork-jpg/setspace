@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Send } from "lucide-react";
+import { playMessageSound } from "@/lib/sounds";
 
 export default function TeamChat() {
   const { data: messages } = useListMessages({
@@ -15,6 +16,27 @@ export default function TeamChat() {
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastSeenIdRef = useRef<number | null>(null);
+  const isInitialRef = useRef(true);
+
+  useEffect(() => {
+    if (!messages || !user) return;
+    const real = messages.filter((m: any) => !m._optimistic);
+    if (!real.length) return;
+    const latest = real[real.length - 1];
+    if (isInitialRef.current) {
+      lastSeenIdRef.current = latest.id;
+      isInitialRef.current = false;
+      return;
+    }
+    if (lastSeenIdRef.current === null || latest.id > lastSeenIdRef.current) {
+      const newFromOthers = real.filter(
+        (m: any) => m.id > (lastSeenIdRef.current ?? 0) && m.authorId !== user.id
+      );
+      if (newFromOthers.length > 0) playMessageSound();
+      lastSeenIdRef.current = latest.id;
+    }
+  }, [messages, user]);
 
   const mut = useCreateMessage({
     mutation: {

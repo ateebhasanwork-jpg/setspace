@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
+import { useListNotifications } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
+import { playNotificationSound } from "@/lib/sounds";
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -136,8 +138,32 @@ function SidebarInner() {
   );
 }
 
+function useGlobalNotificationSound() {
+  const { data: notifications } = useListNotifications({
+    query: { refetchInterval: 5000 }
+  });
+  const lastCountRef = useRef<number | null>(null);
+  const isInitialRef = useRef(true);
+
+  useEffect(() => {
+    if (!notifications) return;
+    const unread = notifications.filter((n: any) => !n.isRead);
+    const count = unread.length;
+    if (isInitialRef.current) {
+      lastCountRef.current = count;
+      isInitialRef.current = false;
+      return;
+    }
+    if (lastCountRef.current !== null && count > lastCountRef.current) {
+      playNotificationSound();
+    }
+    lastCountRef.current = count;
+  }, [notifications]);
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  useGlobalNotificationSound();
 
   const style = {
     "--sidebar-width": "16rem",
