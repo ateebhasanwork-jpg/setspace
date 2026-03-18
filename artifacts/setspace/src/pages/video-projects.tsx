@@ -97,11 +97,13 @@ export default function VideoProjects() {
                   </div>
                   <div className="absolute top-3 right-3">
                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold shadow-lg border border-white/10 backdrop-blur-md ${
-                      proj.status === 'Approved' ? 'bg-green-500/20 text-green-400' :
-                      proj.status === 'Needs Revision' ? 'bg-red-500/20 text-red-400' :
+                      proj.latestVersionStatus === 'approved' ? 'bg-green-500/20 text-green-400' :
+                      proj.latestVersionStatus === 'needs_revision' ? 'bg-red-500/20 text-red-400' :
                       'bg-blue-500/20 text-blue-400'
                     }`}>
-                      {proj.status}
+                      {proj.latestVersionStatus === 'approved' ? 'Approved' :
+                       proj.latestVersionStatus === 'needs_revision' ? 'Needs Revision' :
+                       proj.latestVersionStatus ?? 'In Progress'}
                     </span>
                   </div>
                 </div>

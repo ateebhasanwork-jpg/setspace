@@ -36,7 +36,7 @@ export default function VideoStudio() {
   }, [versions, selectedVersionId]);
 
   const selectedVersion = versions.find(v => v.id === selectedVersionId);
-  const { data: comments } = useListVideoComments(selectedVersionId || 0, { query: { queryKey: getListVideoCommentsQueryKey(selectedVersionId || 0), enabled: !!selectedVersionId } });
+  const { data: comments } = useListVideoComments(selectedVersionId || 0, { query: { queryKey: getListVideoCommentsQueryKey(selectedVersionId || 0), enabled: !!selectedVersionId, refetchInterval: 5000 } });
 
   // Upload Logic
   const createVersionMut = useCreateVideoVersion({

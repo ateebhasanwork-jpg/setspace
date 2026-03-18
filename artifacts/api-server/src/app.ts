@@ -16,14 +16,14 @@ app.use(authMiddleware);
 app.use("/api", (req: Request, res: Response, next: NextFunction) => {
   const path = req.path;
   const isPublic =
-    path === "/health" ||
+    path === "/healthz" ||
     path === "/login" ||
     path === "/callback" ||
     path === "/logout" ||
     path.startsWith("/auth/") ||
     path.startsWith("/mobile-auth/") ||
-    /^\/review\/[^/]+$/.test(path) ||
-    path.startsWith("/storage/objects/");
+    /^\/review\/[^/]+/.test(path) ||
+    (path.startsWith("/storage/objects/") && !!req.query.reviewToken);
 
   if (isPublic || req.isAuthenticated()) {
     next();

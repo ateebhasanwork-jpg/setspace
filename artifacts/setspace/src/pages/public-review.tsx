@@ -75,7 +75,7 @@ export default function PublicReview() {
           <div className="flex-1 relative flex flex-col items-center justify-center bg-black">
             <video 
               ref={videoRef}
-              src={`/api/storage${reviewData.objectPath}`}
+              src={`/api/storage${reviewData.objectPath}?reviewToken=${token}`}
               className="w-full h-full object-contain"
               onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
               onLoadedMetadata={e => setDuration(e.currentTarget.duration)}

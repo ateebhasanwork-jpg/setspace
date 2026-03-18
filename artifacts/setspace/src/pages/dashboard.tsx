@@ -8,7 +8,7 @@ import {
   useListUsers,
   useListAttendance,
 } from "@workspace/api-client-react";
-import type { Task, User } from "@workspace/api-client-react";
+import type { Task, User, AttendanceRecord } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Card } from "@/components/ui/card";
 import {
@@ -29,6 +29,7 @@ import {
 import { Link } from "wouter";
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null; assignee?: User | null };
+type AttendanceWithSeconds = AttendanceRecord & { totalSeconds: number };
 
 /* ── helpers ─────────────────────────────────────────────────── */
 function initials(u: { firstName?: string | null; lastName?: string | null }) {
@@ -137,9 +138,9 @@ function AdminDashboard() {
     const uQCs = periodQC.filter(q => q.submitterId === u.id);
     const uRating = uQCs.length > 0 ? uQCs.reduce((s, q) => s + q.rating, 0) / uQCs.length : null;
 
-    const uAttd = periodAttendance.filter(a => a.userId === u.id);
+    const uAttd = (periodAttendance as AttendanceWithSeconds[]).filter(a => a.userId === u.id);
     const daysPresent = uAttd.length;
-    const totalSeconds = uAttd.reduce((sum, a) => sum + ((a as any).totalSeconds ?? 0), 0);
+    const totalSeconds = uAttd.reduce((sum, a) => sum + (a.totalSeconds ?? 0), 0);
     const hoursWorked = totalSeconds / 3600;
 
     const todayRec = todayAttendance.find(a => a.userId === u.id);
