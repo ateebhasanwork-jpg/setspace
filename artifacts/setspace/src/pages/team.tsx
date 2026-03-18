@@ -20,6 +20,13 @@ import { Input } from "@/components/ui/input";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
+function resolveProfileImage(profileImage: string | null | undefined): string | null {
+  if (!profileImage) return null;
+  if (profileImage.startsWith("http")) return profileImage;
+  const subPath = profileImage.replace(/^\/objects\//, "");
+  return `/api/storage/objects/${subPath}`;
+}
+
 type Role = "admin" | "hr" | "employee";
 
 const ROLE_CONFIG: Record<Role, { label: string; icon: React.ElementType; cls: string }> = {
@@ -194,7 +201,7 @@ export default function TeamManagement() {
           <p className="text-muted-foreground text-sm mt-1">Manage roles, access, and team members.</p>
         </div>
         <Button onClick={copyInviteLink}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold">
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
           {copied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
           {copied ? "Copied!" : "Copy Invite Link"}
         </Button>
@@ -258,10 +265,10 @@ export default function TeamManagement() {
                     {/* Member */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {u.profileImage ? (
-                          <img src={u.profileImage} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0" />
+                        {resolveProfileImage(u.profileImage) ? (
+                          <img src={resolveProfileImage(u.profileImage)!} alt="" className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0" />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300 shrink-0">
                             {initial(u)}
                           </div>
                         )}
