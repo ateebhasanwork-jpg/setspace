@@ -247,7 +247,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <UnreadCountsCtx.Provider value={counts}>
-      <SidebarProvider style={style as React.CSSProperties}>
+      <SidebarProvider style={style as React.CSSProperties} className="h-full">
         <div className="flex h-full w-full bg-background overflow-hidden selection:bg-primary/30">
           <SidebarInner />
           <main className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
