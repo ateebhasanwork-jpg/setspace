@@ -4,3 +4,4 @@ export * from "./attendance";
 export * from "./quality";
 export * from "./communication";
 export * from "./videos";
+export * from "./settings";

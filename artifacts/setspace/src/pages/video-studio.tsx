@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { 
   useGetVideoProject, 
   useCreateVideoVersion,
@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, Film, MapPin, Copy, ExternalLink, Clock, Loader2, AlertCircle } from "lucide-react";
+import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, Film, MapPin, Copy, ExternalLink, Clock, Loader2, AlertCircle, Settings } from "lucide-react";
 import { Link, useParams } from "wouter";
 
 function fmtTime(s: number) {
@@ -52,6 +52,46 @@ export default function VideoStudio() {
     }
   });
   
+  // Frame.io
+  const [framioStatus, setFramioStatus] = useState<{ configured: boolean; rootAssetId: string | null; rootAssetName: string | null } | null>(null);
+  const [framioProjects, setFramioProjects] = useState<{ id: string; name: string; root_asset_id: string; teamName: string }[]>([]);
+  const [showFramioPicker, setShowFramioPicker] = useState(false);
+  const [framioLoading, setFramioLoading] = useState(false);
+  const [framioSaving, setFramioSaving] = useState(false);
+
+  const loadFramioStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/frameio/status");
+      if (res.ok) setFramioStatus(await res.json());
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadFramioStatus(); }, [loadFramioStatus]);
+
+  const openFramioPicker = async () => {
+    setShowFramioPicker(true);
+    setFramioLoading(true);
+    try {
+      const res = await fetch("/api/frameio/projects");
+      if (res.ok) setFramioProjects(await res.json());
+    } catch {}
+    setFramioLoading(false);
+  };
+
+  const selectFramioProject = async (project: { id: string; name: string; root_asset_id: string }) => {
+    setFramioSaving(true);
+    try {
+      await fetch("/api/frameio/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rootAssetId: project.root_asset_id, rootAssetName: project.name }),
+      });
+      await loadFramioStatus();
+      setShowFramioPicker(false);
+    } catch {}
+    setFramioSaving(false);
+  };
+
   const [pendingMime, setPendingMime] = useState<string>("video/mp4");
   const { uploadFile, isUploading, progress } = useUpload({
     onSuccess: (res) => {
@@ -263,6 +303,80 @@ export default function VideoStudio() {
               </div>
             )}
           </div>
+
+          {/* Frame.io Project Picker Panel */}
+          {framioStatus?.configured && (
+            <div className="bg-card rounded-2xl border border-white/5 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20 flex items-center justify-center">
+                    <ExternalLink className="w-4 h-4 text-[#5865F2]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Frame.io</p>
+                    <p className="text-xs text-muted-foreground">
+                      {framioStatus.rootAssetName
+                        ? <>Uploading to <span className="text-[#5865F2] font-medium">{framioStatus.rootAssetName}</span></>
+                        : "No project linked — new uploads won't sync"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openFramioPicker}
+                  className="bg-white/5 border-white/10 hover:bg-white/10 text-sm"
+                >
+                  <Settings className="w-3.5 h-3.5 mr-1.5" />
+                  {framioStatus.rootAssetId ? "Change" : "Link Project"}
+                </Button>
+              </div>
+
+              {/* Project picker dropdown */}
+              {showFramioPicker && (
+                <div className="mt-4 border-t border-white/5 pt-4">
+                  <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Choose a Frame.io project</p>
+                  {framioLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Fetching your Frame.io projects…
+                    </div>
+                  ) : framioProjects.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No projects found. Make sure your API token has the right permissions.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                      {framioProjects.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => selectFramioProject(p)}
+                          disabled={framioSaving}
+                          className={`flex items-center justify-between p-3 rounded-xl border text-left transition-colors ${
+                            framioStatus.rootAssetId === p.root_asset_id
+                              ? "bg-[#5865F2]/10 border-[#5865F2]/30 text-foreground"
+                              : "bg-black/20 border-white/5 hover:bg-white/5"
+                          }`}
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{p.teamName}</p>
+                          </div>
+                          {framioStatus.rootAssetId === p.root_asset_id && (
+                            <Check className="w-4 h-4 text-[#5865F2] shrink-0" />
+                          )}
+                          {framioSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setShowFramioPicker(false)}
+                    className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Version List with Share Links */}
           <div className="bg-card rounded-2xl border border-white/5 p-4">

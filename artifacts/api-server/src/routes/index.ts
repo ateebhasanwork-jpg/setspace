@@ -12,6 +12,7 @@ import notificationsRouter from "./notifications";
 import leaderboardRouter from "./leaderboard";
 import storageRouter from "./storage";
 import videosRouter from "./videos";
+import framioRouter from "./frameio";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(notificationsRouter);
 router.use(leaderboardRouter);
 router.use(storageRouter);
 router.use(videosRouter);
+router.use(framioRouter);
 
 export default router;

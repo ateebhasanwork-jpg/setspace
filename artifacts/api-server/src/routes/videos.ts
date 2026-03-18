@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { requireAdminOrHR } from "../middleware/roles";
 import { syncToFrameio, isFrameioConfigured } from "../lib/frameio";
+import { getFrameioRootAssetId } from "./frameio";
 import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
@@ -164,6 +165,13 @@ async function syncVersionToFrameio(
   mimeType: string
 ) {
   try {
+    const rootAssetId = await getFrameioRootAssetId();
+    if (!rootAssetId) {
+      console.log(`Frame.io sync skipped for version ${versionId}: no project selected`);
+      await db.update(videoVersionsTable).set({ framioSyncStatus: "none" }).where(eq(videoVersionsTable.id, versionId));
+      return;
+    }
+
     await db.update(videoVersionsTable).set({ framioSyncStatus: "syncing" }).where(eq(videoVersionsTable.id, versionId));
 
     // Download file from GCS into a buffer
@@ -177,7 +185,7 @@ async function syncVersionToFrameio(
     });
     const buffer = Buffer.concat(chunks);
 
-    const result = await syncToFrameio(fileName, fileSize, mimeType, buffer);
+    const result = await syncToFrameio(rootAssetId, fileName, fileSize, mimeType, buffer);
     if (!result) {
       await db.update(videoVersionsTable).set({ framioSyncStatus: "error" }).where(eq(videoVersionsTable.id, versionId));
       return;
