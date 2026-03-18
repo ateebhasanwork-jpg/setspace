@@ -6,6 +6,7 @@ import {
   useListKpiEntries,
   useListTasks,
   useListQualityChecks,
+  useGetCurrentUser,
   getListKpisQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ import {
   AlertTriangle,
   Award,
   BarChart3,
+  Trash2,
 } from "lucide-react";
 import type { Task, User } from "@workspace/api-client-react";
 
@@ -57,12 +59,19 @@ export default function KPIs() {
   const { data: kpiEntries } = useListKpiEntries();
   const { data: tasks } = useListTasks();
   const { data: qualityChecks } = useListQualityChecks();
+  const { data: currentUser } = useGetCurrentUser();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const [name, setName] = useState("");
   const [targetValue, setTargetValue] = useState("");
   const [unit, setUnit] = useState("videos");
   const [userId, setUserId] = useState("");
+  const [confirmDeleteKpiId, setConfirmDeleteKpiId] = useState<number | null>(null);
+  const [deletingKpiId, setDeletingKpiId] = useState<number | null>(null);
+
+  const isManager =
+    (currentUser as { role?: string } | undefined)?.role === "admin" ||
+    (currentUser as { role?: string } | undefined)?.role === "hr";
 
   const queryClient = useQueryClient();
   const createMut = useCreateKpi({
@@ -77,6 +86,20 @@ export default function KPIs() {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     createMut.mutate({ data: { name, targetValue: Number(targetValue), unit, userId, period: "Monthly" } });
+  };
+
+  const handleDeleteKpi = async (id: number) => {
+    setDeletingKpiId(id);
+    try {
+      await fetch(`${import.meta.env.BASE_URL?.replace(/\/$/, "") || ""}/api/kpis/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      queryClient.invalidateQueries({ queryKey: getListKpisQueryKey() });
+    } finally {
+      setDeletingKpiId(null);
+      setConfirmDeleteKpiId(null);
+    }
   };
 
   const actualByKpi = (kpiEntries ?? []).reduce<Record<number, number>>((acc, entry) => {
@@ -211,9 +234,38 @@ export default function KPIs() {
                 <div className="relative z-10">
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="font-display font-bold text-lg">{kpi.name}</h3>
-                    <span className="text-xs font-semibold bg-white/10 px-2 py-1 rounded-md text-muted-foreground">
-                      {kpi.period}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold bg-white/10 px-2 py-1 rounded-md text-muted-foreground">
+                        {kpi.period}
+                      </span>
+                      {isManager && (
+                        confirmDeleteKpiId === kpi.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDeleteKpi(kpi.id)}
+                              disabled={deletingKpiId === kpi.id}
+                              className="text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 transition-colors disabled:opacity-50"
+                            >
+                              {deletingKpiId === kpi.id ? "…" : "Delete"}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteKpiId(null)}
+                              className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-white/10 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteKpiId(kpi.id)}
+                            className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete KPI"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Progress</span>
