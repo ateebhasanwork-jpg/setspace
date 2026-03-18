@@ -1,45 +1,109 @@
 import React, { useState } from "react";
-import { useListTasks, useCreateTask, useUpdateTask, getListTasksQueryKey } from "@workspace/api-client-react";
+import {
+  useListTasks,
+  useListUsers,
+  useCreateTask,
+  useUpdateTask,
+  getListTasksQueryKey,
+} from "@workspace/api-client-react";
+import type { Task, User } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, LayoutGrid, List as ListIcon, Clock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle } from "lucide-react";
+
+type TaskWithDerived = Task & { completedOnTime?: boolean | null };
+
+const COLUMNS = ["To Do", "In Progress", "Review", "Done"];
+
+const PRIORITY_STYLES: Record<string, string> = {
+  High: "bg-red-500/20 text-red-400",
+  Medium: "bg-yellow-500/20 text-yellow-400",
+  Low: "bg-blue-500/20 text-blue-400",
+};
+
+function AssigneeAvatar({ user }: { user: User | null | undefined }) {
+  if (!user) return null;
+  const initials = `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase();
+  return (
+    <div
+      className="w-6 h-6 rounded-full bg-primary/30 text-primary flex items-center justify-center text-[10px] font-bold shrink-0"
+      title={`${user.firstName} ${user.lastName}`}
+    >
+      {initials}
+    </div>
+  );
+}
 
 export default function Tasks() {
   const { data: tasks, isLoading } = useListTasks();
+  const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
-  
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDate, setDueDate] = useState("");
+
   const queryClient = useQueryClient();
+
   const createMut = useCreateTask({
     mutation: {
       onSuccess: () => {
         setIsCreateOpen(false);
         setTitle("");
         setDescription("");
+        setPriority("Medium");
+        setAssigneeId("");
+        setDueDate("");
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-      }
-    }
+      },
+    },
   });
 
   const updateMut = useUpdateTask({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() })
-    }
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }),
+    },
   });
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    createMut.mutate({ data: { title, description, priority, status: "To Do" } });
+    createMut.mutate({
+      data: {
+        title,
+        description: description || undefined,
+        priority,
+        status: "To Do",
+        assigneeId: assigneeId || null,
+        dueDate: dueDate || null,
+      },
+    });
   };
 
-  const columns = ["To Do", "In Progress", "Review", "Done"];
+  function OnTimeBadge({ task }: { task: TaskWithDerived }) {
+    if (task.status !== "Done") return null;
+    if (task.completedOnTime === null || task.completedOnTime === undefined) return null;
+    return task.completedOnTime ? (
+      <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+        <CheckCircle2 className="w-3 h-3" /> On Time
+      </span>
+    ) : (
+      <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">
+        <XCircle className="w-3 h-3" /> Late
+      </span>
+    );
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -48,16 +112,16 @@ export default function Tasks() {
           <h1 className="text-3xl font-display font-bold text-foreground">Task Management</h1>
           <p className="text-muted-foreground mt-1">Track deliverables and assignments.</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-black/20 p-1 rounded-lg border border-white/5">
-            <button 
+            <button
               onClick={() => setViewMode("board")}
               className={`p-2 rounded-md transition-colors ${viewMode === "board" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
-            <button 
+            <button
               onClick={() => setViewMode("list")}
               className={`p-2 rounded-md transition-colors ${viewMode === "list" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
             >
@@ -78,28 +142,67 @@ export default function Tasks() {
               <form onSubmit={handleCreate} className="space-y-4 mt-4">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Title</label>
-                  <Input required value={title} onChange={e => setTitle(e.target.value)} className="bg-black/20 border-white/10 focus:border-primary" placeholder="Video Edit - Project X" />
+                  <Input
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="bg-black/20 border-white/10 focus:border-primary"
+                    placeholder="Video Edit – Project X"
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-                  <textarea 
-                    value={description} onChange={e => setDescription(e.target.value)} 
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     className="w-full h-24 rounded-md bg-black/20 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary p-3 text-sm resize-none"
                     placeholder="Details..."
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Priority</label>
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                      className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Due Date</label>
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="bg-black/20 border-white/10 focus:border-primary text-sm"
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Priority</label>
-                  <select 
-                    value={priority} onChange={e => setPriority(e.target.value)}
+                  <label className="text-sm font-medium text-foreground mb-1 block">Assign To</label>
+                  <select
+                    value={assigneeId}
+                    onChange={(e) => setAssigneeId(e.target.value)}
                     className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
                   >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
+                    <option value="">— Unassigned —</option>
+                    {users?.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName}
+                        {u.title ? ` (${u.title})` : ""}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <Button type="submit" disabled={createMut.isPending} className="w-full rounded-xl mt-2 font-semibold">
+                <Button
+                  type="submit"
+                  disabled={createMut.isPending}
+                  className="w-full rounded-xl mt-2 font-semibold"
+                >
                   {createMut.isPending ? "Creating..." : "Create Task"}
                 </Button>
               </form>
@@ -114,40 +217,67 @@ export default function Tasks() {
         </div>
       ) : viewMode === "board" ? (
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto pb-4">
-          {columns.map(col => (
-            <div key={col} className="flex flex-col bg-black/10 rounded-2xl p-4 border border-white/5 h-full">
+          {COLUMNS.map((col) => (
+            <div
+              key={col}
+              className="flex flex-col bg-black/10 rounded-2xl p-4 border border-white/5 h-full"
+            >
               <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="font-semibold text-foreground">{col}</h3>
                 <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
-                  {tasks?.filter(t => t.status === col).length || 0}
+                  {tasks?.filter((t) => t.status === col).length || 0}
                 </span>
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto">
-                {tasks?.filter(t => t.status === col).map(task => (
-                  <Card key={task.id} className="p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md cursor-grab active:cursor-grabbing">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-sm ${
-                        task.priority === 'High' ? 'bg-red-500/20 text-red-400' : 
-                        task.priority === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' : 
-                        'bg-blue-500/20 text-blue-400'
-                      }`}>{task.priority}</span>
-                      <select 
-                        className="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer"
-                        value={task.status}
-                        onChange={(e) => updateMut.mutate({ taskId: task.id, data: { status: e.target.value } })}
-                      >
-                        {columns.map(c => <option key={c} value={c} className="bg-card">{c}</option>)}
-                      </select>
-                    </div>
-                    <h4 className="font-medium text-foreground leading-snug">{task.title}</h4>
-                    {task.dueDate && (
-                      <div className="flex items-center text-xs text-muted-foreground mt-3 pt-3 border-t border-white/5">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {new Date(task.dueDate).toLocaleDateString()}
+                {(tasks as TaskWithDerived[] | undefined)
+                  ?.filter((t) => t.status === col)
+                  .map((task) => (
+                    <Card
+                      key={task.id}
+                      className="p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span
+                          className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-sm ${PRIORITY_STYLES[task.priority] ?? "bg-white/10 text-white"}`}
+                        >
+                          {task.priority}
+                        </span>
+                        <select
+                          className="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer"
+                          value={task.status}
+                          onChange={(e) =>
+                            updateMut.mutate({ taskId: task.id, data: { status: e.target.value } })
+                          }
+                        >
+                          {COLUMNS.map((c) => (
+                            <option key={c} value={c} className="bg-card">
+                              {c}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    )}
-                  </Card>
-                ))}
+                      <h4 className="font-medium text-foreground leading-snug mb-2">{task.title}</h4>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+                        <div className="flex items-center gap-2">
+                          <AssigneeAvatar user={task.assignee} />
+                          {task.assignee && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[80px]">
+                              {task.assignee.firstName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <OnTimeBadge task={task} />
+                          {task.dueDate && task.status !== "Done" && (
+                            <div className="flex items-center text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {new Date(task.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
               </div>
             </div>
           ))}
@@ -158,33 +288,57 @@ export default function Tasks() {
             <thead className="text-xs text-muted-foreground uppercase bg-black/20 border-b border-white/5">
               <tr>
                 <th className="px-6 py-4 font-medium">Title</th>
+                <th className="px-6 py-4 font-medium">Assignee</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium">Priority</th>
                 <th className="px-6 py-4 font-medium">Due Date</th>
+                <th className="px-6 py-4 font-medium">On Time</th>
               </tr>
             </thead>
             <tbody>
-              {tasks?.map(task => (
+              {(tasks as TaskWithDerived[] | undefined)?.map((task) => (
                 <tr key={task.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4 font-medium text-foreground">{task.title}</td>
                   <td className="px-6 py-4">
-                    <select 
+                    {task.assignee ? (
+                      <div className="flex items-center gap-2">
+                        <AssigneeAvatar user={task.assignee} />
+                        <span className="text-sm text-foreground">
+                          {task.assignee.firstName} {task.assignee.lastName}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-xs italic">Unassigned</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <select
                       className="bg-transparent text-sm text-muted-foreground outline-none cursor-pointer p-1 rounded hover:bg-white/10"
                       value={task.status}
-                      onChange={(e) => updateMut.mutate({ taskId: task.id, data: { status: e.target.value } })}
+                      onChange={(e) =>
+                        updateMut.mutate({ taskId: task.id, data: { status: e.target.value } })
+                      }
                     >
-                      {columns.map(c => <option key={c} value={c} className="bg-card">{c}</option>)}
+                      {COLUMNS.map((c) => (
+                        <option key={c} value={c} className="bg-card">
+                          {c}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-sm ${
-                      task.priority === 'High' ? 'bg-red-500/20 text-red-400' : 
-                      task.priority === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' : 
-                      'bg-blue-500/20 text-blue-400'
-                    }`}>{task.priority}</span>
+                    <span
+                      className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-sm ${PRIORITY_STYLES[task.priority] ?? "bg-white/10 text-white"}`}
+                    >
+                      {task.priority}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="px-6 py-4">
+                    <OnTimeBadge task={task} />
+                    {task.status !== "Done" && <span className="text-muted-foreground text-xs">—</span>}
                   </td>
                 </tr>
               ))}

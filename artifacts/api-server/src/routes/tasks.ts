@@ -10,14 +10,21 @@ router.get("/tasks", async (req, res) => {
     const tasks = await db.select().from(tasksTable).orderBy(tasksTable.createdAt);
     const users = await db.select().from(usersTable);
     const userMap = Object.fromEntries(users.map(u => [u.id, u]));
-    const result = tasks.map(t => ({
-      ...t,
-      dueDate: t.dueDate?.toISOString() ?? null,
-      completedAt: t.completedAt?.toISOString() ?? null,
-      createdAt: t.createdAt.toISOString(),
-      updatedAt: t.updatedAt.toISOString(),
-      assignee: t.assigneeId ? (userMap[t.assigneeId] ?? null) : null,
-    }));
+    const result = tasks.map(t => {
+      const completedOnTime =
+        t.completedAt != null && t.dueDate != null
+          ? t.completedAt <= t.dueDate
+          : null;
+      return {
+        ...t,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        completedAt: t.completedAt?.toISOString() ?? null,
+        completedOnTime,
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString(),
+        assignee: t.assigneeId ? (userMap[t.assigneeId] ?? null) : null,
+      };
+    });
     if (req.query.assigneeId) {
       res.json(result.filter(t => t.assigneeId === req.query.assigneeId));
       return;
@@ -79,7 +86,19 @@ router.patch("/tasks/:taskId", async (req, res) => {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
-    if (status !== undefined) updates.status = status;
+    if (status !== undefined) {
+      updates.status = status;
+      // Auto-set completedAt when task is marked Done
+      if (status === "Done") {
+        const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, parseInt(req.params.taskId)));
+        if (existing[0] && !existing[0].completedAt) {
+          updates.completedAt = new Date();
+        }
+      } else if (status !== "Done") {
+        // If un-done, clear completedAt
+        updates.completedAt = null;
+      }
+    }
     if (priority !== undefined) updates.priority = priority;
     if (assigneeId !== undefined) updates.assigneeId = assigneeId;
     if (dueDate !== undefined) updates.dueDate = dueDate ? new Date(dueDate) : null;
