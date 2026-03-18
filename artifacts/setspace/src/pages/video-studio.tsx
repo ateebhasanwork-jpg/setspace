@@ -210,7 +210,7 @@ function TreeNode({
 /* ── Main component ───────────────────────────────────────────── */
 export default function VideoStudio() {
   const { data: user } = useGetCurrentUser();
-  const isAdmin = user?.username === "ateebhasanwork" || (user as { isAdmin?: boolean })?.isAdmin === true;
+  const isAdmin = (user as { role?: string } | undefined)?.role === "admin" || (user as { role?: string } | undefined)?.role === "hr";
 
   const [status, setStatus] = useState<Status | null>(null);
   const [rootId, setRootId] = useState<string | null>(null);
