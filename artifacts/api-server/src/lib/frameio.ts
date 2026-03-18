@@ -253,6 +253,23 @@ export async function getFrameioReviewLink(assetId: string): Promise<string | nu
   }
 }
 
+/** Create a subfolder inside a parent asset. */
+export async function createFolder(parentAssetId: string, name: string): Promise<FrameioAsset | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${FRAMEIO_BASE}/assets/${parentAssetId}/children`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ name, type: "folder" }),
+    });
+    if (!res.ok) return null;
+    return await res.json() as FrameioAsset;
+  } catch {
+    return null;
+  }
+}
+
 /** Full pipeline: upload buffer to Frame.io, return { assetId, reviewLink }. */
 export async function syncToFrameio(
   rootAssetId: string,

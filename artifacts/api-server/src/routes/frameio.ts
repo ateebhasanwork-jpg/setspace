@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { appSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
-import { listProjects, isFrameioConfigured, getToken, listAssetChildren, getAsset, getOrCreateReviewLink, deleteAsset } from "../lib/frameio";
+import { listProjects, isFrameioConfigured, getToken, listAssetChildren, getAsset, getOrCreateReviewLink, deleteAsset, createFolder, createFrameioAsset, uploadBufferToFrameio } from "../lib/frameio";
 
 const router: IRouter = Router();
 
@@ -102,6 +102,48 @@ router.get("/frameio/assets/:assetId/review-link", async (req: Request, res: Res
     res.json({ link });
   } catch {
     res.status(500).json({ error: "Failed to get review link" });
+  }
+});
+
+/** POST /api/frameio/assets/:assetId/folders — create a subfolder */
+router.post("/frameio/assets/:assetId/folders", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    if (!isFrameioConfigured()) { res.status(400).json({ error: "Frame.io not configured" }); return; }
+    const { assetId } = req.params as { assetId: string };
+    const { name } = req.body as { name: string };
+    if (!name?.trim()) { res.status(400).json({ error: "name required" }); return; }
+    const folder = await createFolder(assetId, name.trim());
+    if (!folder) { res.status(500).json({ error: "Failed to create folder" }); return; }
+    res.status(201).json(folder);
+  } catch {
+    res.status(500).json({ error: "Failed to create folder" });
+  }
+});
+
+/** POST /api/frameio/assets/:assetId/upload — upload a file to Frame.io under a folder */
+router.post("/frameio/assets/:assetId/upload", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    if (!isFrameioConfigured()) { res.status(400).json({ error: "Frame.io not configured" }); return; }
+    const { assetId } = req.params as { assetId: string };
+    const fileName = req.headers["x-file-name"] ? decodeURIComponent(req.headers["x-file-name"] as string) : "upload";
+    const mimeType = (req.headers["content-type"] as string) || "application/octet-stream";
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const buffer = Buffer.concat(chunks);
+
+    const asset = await createFrameioAsset(assetId, fileName, buffer.length, mimeType);
+    if (!asset) { res.status(500).json({ error: "Failed to create Frame.io asset" }); return; }
+
+    const ok = await uploadBufferToFrameio(asset.upload_urls, buffer, mimeType);
+    if (!ok) { res.status(500).json({ error: "Upload to Frame.io failed" }); return; }
+
+    res.status(201).json({ id: asset.id, name: asset.name, type: asset.type });
+  } catch (err) {
+    console.error("Frame.io upload error:", err);
+    res.status(500).json({ error: "Upload failed" });
   }
 });
 
