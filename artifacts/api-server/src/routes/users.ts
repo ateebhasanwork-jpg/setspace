@@ -40,13 +40,14 @@ router.patch("/users/:userId", async (req, res) => {
     return;
   }
   try {
-    const { firstName, lastName, role, department, title, profileImage } = req.body;
+    const { firstName, lastName, role, department, title, profileImage, profileSetup } = req.body;
     const updateFields: Record<string, unknown> = { updatedAt: new Date() };
     if (firstName !== undefined) updateFields.firstName = firstName;
     if (lastName !== undefined) updateFields.lastName = lastName;
     if (department !== undefined) updateFields.department = department;
     if (title !== undefined) updateFields.title = title;
     if (profileImage !== undefined) updateFields.profileImage = profileImage;
+    if (profileSetup !== undefined && isSelf) updateFields.profileSetup = profileSetup;
     // Only admins/hr can change roles
     if (role !== undefined && isManager) updateFields.role = role;
 

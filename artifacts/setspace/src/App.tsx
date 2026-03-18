@@ -7,6 +7,7 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
 
 import { AppLayout } from "./components/layout";
+import { OnboardingGate } from "./components/onboarding";
 import Dashboard from "./pages/dashboard";
 import Tasks from "./pages/tasks";
 import VideoProjects from "./pages/video-projects";
@@ -64,7 +65,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
     );
   }
   
-  return <>{children}</>;
+  return <OnboardingGate>{children}</OnboardingGate>;
 }
 
 function Router() {

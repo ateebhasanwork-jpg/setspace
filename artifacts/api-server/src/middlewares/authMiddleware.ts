@@ -18,6 +18,7 @@ declare global {
       role: string;
       department?: string | null;
       title?: string | null;
+      profileSetup?: boolean | null;
     }
 
     interface Request {
@@ -105,6 +106,7 @@ export async function authMiddleware(
     profileImage: dbUser.profileImage,
     department: dbUser.department,
     title: dbUser.title,
+    profileSetup: dbUser.profileSetup,
   };
   next();
 }
