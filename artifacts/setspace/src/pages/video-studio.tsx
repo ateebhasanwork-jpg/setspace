@@ -141,7 +141,7 @@ function AddLinkDialog({ projectId, onClose, onAdd }: { projectId: number; onClo
   const submit = async () => {
     const trimmed = url.trim();
     if (!trimmed) { setErr("Paste a Frame.io review link."); return; }
-    if (!trimmed.includes("frame.io")) { setErr("This doesn't look like a Frame.io link."); return; }
+    if (!trimmed.includes("frame.io") && !trimmed.includes("f.io")) { setErr("This doesn't look like a Frame.io link."); return; }
     setSaving(true); setErr("");
     try {
       const res = await fetch(`${BASE}/api/video-projects/${projectId}/versions/from-link`, {
@@ -170,7 +170,7 @@ function AddLinkDialog({ projectId, onClose, onAdd }: { projectId: number; onClo
           <div>
             <label className="text-xs text-zinc-400 font-medium uppercase tracking-wide block mb-1.5">Frame.io Review URL *</label>
             <Input autoFocus value={url} onChange={e => setUrl(e.target.value)}
-              placeholder="https://app.frame.io/reviews/…"
+              placeholder="https://f.io/… or https://app.frame.io/reviews/…"
               className="bg-zinc-800 border-zinc-600 text-white font-mono text-sm focus:border-[#5B53FF] focus-visible:ring-[#5B53FF]"
               onKeyDown={e => e.key === "Enter" && submit()} />
           </div>
