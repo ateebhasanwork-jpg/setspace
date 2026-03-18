@@ -51,7 +51,8 @@ function getSafeReturnTo(value: unknown): string {
   return value;
 }
 
-// Replit usernames that should be auto-assigned the "hr" role on first login.
+// Replit usernames auto-assigned roles on first login (never overwritten on re-login).
+const ADMIN_USERNAMES = ["ateebhasanwork"];
 const HR_USERNAMES = ["laiba"];
 
 async function upsertUser(claims: Record<string, unknown>) {
@@ -69,7 +70,9 @@ async function upsertUser(claims: Record<string, unknown>) {
     profileImage: (claims.profile_image_url || claims.picture) as string | null,
   };
 
-  const autoRole = HR_USERNAMES.includes(username.toLowerCase()) ? "hr" as const : undefined;
+  const autoRole = ADMIN_USERNAMES.includes(username.toLowerCase()) ? "admin" as const
+    : HR_USERNAMES.includes(username.toLowerCase()) ? "hr" as const
+    : undefined;
 
   const [user] = await db
     .insert(usersTable)
