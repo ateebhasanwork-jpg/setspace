@@ -45,7 +45,7 @@ export default function VideoStudio() {
     }
   });
   
-  const { uploadFile, isUploading } = useUpload({
+  const { uploadFile, isUploading, progress } = useUpload({
     onSuccess: (res) => {
       createVersionMut.mutate({
         projectId,
@@ -158,13 +158,25 @@ export default function VideoStudio() {
             ))}
           </select>
 
-          <label className="cursor-pointer">
-            <input type="file" className="hidden" accept="video/*" onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} />
-            <div className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm text-foreground">
-              {isUploading || createVersionMut.isPending ? (
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              ) : <Upload className="w-4 h-4" />}
-              Upload New Version
+          <label className={`cursor-pointer ${isUploading || createVersionMut.isPending ? "pointer-events-none" : ""}`}>
+            <input type="file" className="hidden" accept="video/*" onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} disabled={isUploading || createVersionMut.isPending} />
+            <div className="flex flex-col min-w-[160px] bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm text-foreground overflow-hidden">
+              <div className="flex items-center gap-2">
+                {isUploading || createVersionMut.isPending ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                ) : <Upload className="w-4 h-4 shrink-0" />}
+                <span>
+                  {createVersionMut.isPending ? "Saving..." : isUploading ? `Uploading ${progress}%` : "Upload New Version"}
+                </span>
+              </div>
+              {isUploading && (
+                <div className="mt-2 h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              )}
             </div>
           </label>
         </div>
