@@ -295,7 +295,7 @@ export default function VideoStudio() {
 
   /* ── Render ──────────────────────────────────────────────────── */
   return (
-    <div className="flex h-full bg-[#0e0e0e] text-white overflow-hidden" style={{ fontFamily: "inherit" }}>
+    <div className="flex flex-1 min-h-0 bg-[#0e0e0e] text-white overflow-hidden" style={{ fontFamily: "inherit" }}>
 
       {/* ── LEFT: Project list ─────────────────────────────────── */}
       <div className="w-64 flex-shrink-0 border-r border-zinc-800 flex flex-col bg-[#111]">

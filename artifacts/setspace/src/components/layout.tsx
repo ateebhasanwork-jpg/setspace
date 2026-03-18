@@ -250,12 +250,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarProvider style={style as React.CSSProperties}>
         <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/30">
           <SidebarInner />
-          <main className={`flex-1 flex flex-col h-screen relative min-w-0 ${(location.startsWith("/videos") || location.startsWith("/chat")) ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <main className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0">
             <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-white/3 blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-white/2 blur-[100px] pointer-events-none" />
 
             {/* Mobile top bar */}
-            <header className="md:hidden sticky top-0 z-20 flex items-center gap-3 px-4 py-3 bg-background/80 backdrop-blur-md border-b border-white/5 shrink-0">
+            <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-background/80 backdrop-blur-md border-b border-white/5 shrink-0">
               <SidebarTrigger className="text-foreground" />
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-primary overflow-hidden shrink-0">
@@ -266,20 +266,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </header>
 
             {(location.startsWith("/videos") || location.startsWith("/chat")) ? (
-              <div className="absolute inset-0 z-10 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                 {children}
               </div>
             ) : (
-              <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 flex-1">
-                <motion.div
-                  key={location}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="h-full flex flex-col"
-                >
-                  {children}
-                </motion.div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10">
+                  <motion.div
+                    key={location}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="flex flex-col"
+                  >
+                    {children}
+                  </motion.div>
+                </div>
               </div>
             )}
           </main>

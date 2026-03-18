@@ -361,7 +361,7 @@ export default function TeamChat() {
   const currentDMUser = view !== "group" ? otherUsers.find(u => u.id === view) : null;
 
   return (
-    <div className="h-full flex gap-6 p-4 sm:p-6 md:p-8 min-h-0 overflow-hidden">
+    <div className="flex-1 flex gap-6 p-4 sm:p-6 md:p-8 min-h-0 overflow-hidden">
       {/* Sidebar */}
       <div className="w-56 shrink-0 flex flex-col gap-1">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-3 mb-2">Channels</p>
