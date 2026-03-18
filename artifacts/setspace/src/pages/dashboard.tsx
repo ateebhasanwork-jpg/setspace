@@ -139,12 +139,14 @@ function AdminDashboard() {
 
     const uAttd = periodAttendance.filter(a => a.userId === u.id);
     const daysPresent = uAttd.length;
+    const totalSeconds = uAttd.reduce((sum, a) => sum + ((a as any).totalSeconds ?? 0), 0);
+    const hoursWorked = totalSeconds / 3600;
 
     const todayRec = todayAttendance.find(a => a.userId === u.id);
     const clockedIn = !!todayRec?.clockIn && !todayRec?.clockOut;
     const shiftDone = !!todayRec?.clockIn && !!todayRec?.clockOut;
 
-    return { user: u, tasksAssigned: uTasks.length, tasksDone: uPeriodDone.length, onTimeRate: uRate, avgRating: uRating, daysPresent, clockedIn, shiftDone, todayRec };
+    return { user: u, tasksAssigned: uTasks.length, tasksDone: uPeriodDone.length, onTimeRate: uRate, avgRating: uRating, daysPresent, hoursWorked, clockedIn, shiftDone, todayRec };
   }), [users, tasks, periodTasks, periodQC, periodAttendance, todayAttendance]);
 
   const isCurrentMonth = selYear === now.getFullYear() && selMonth === now.getMonth() + 1;
@@ -208,6 +210,7 @@ function AdminDashboard() {
               <tr className="text-xs text-muted-foreground uppercase tracking-wider border-b border-white/5 bg-white/2">
                 <th className="px-5 py-3 text-left font-medium">Employee</th>
                 <th className="px-5 py-3 text-center font-medium">Days In</th>
+                <th className="px-5 py-3 text-center font-medium">Hours</th>
                 <th className="px-5 py-3 text-center font-medium">Tasks Done</th>
                 <th className="px-5 py-3 text-center font-medium">On-Time</th>
                 <th className="px-5 py-3 text-left font-medium">Quality Rating</th>
@@ -216,9 +219,9 @@ function AdminDashboard() {
             </thead>
             <tbody>
               {teamStats.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">No team members yet</td></tr>
+                <tr><td colSpan={isCurrentMonth ? 7 : 6} className="px-5 py-12 text-center text-muted-foreground">No team members yet</td></tr>
               )}
-              {teamStats.map(({ user: u, tasksAssigned, tasksDone, onTimeRate: uRate, avgRating: uRating, daysPresent, clockedIn, shiftDone, todayRec }) => (
+              {teamStats.map(({ user: u, tasksAssigned, tasksDone, onTimeRate: uRate, avgRating: uRating, daysPresent, hoursWorked, clockedIn, shiftDone, todayRec }) => (
                 <tr key={u.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -232,6 +235,16 @@ function AdminDashboard() {
                   <td className="px-5 py-4 text-center">
                     <span className="font-semibold">{daysPresent}</span>
                     <span className="text-xs text-muted-foreground"> days</span>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    {hoursWorked > 0 ? (
+                      <>
+                        <span className="font-semibold">{hoursWorked.toFixed(1)}</span>
+                        <span className="text-xs text-muted-foreground"> hrs</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-center">
                     <span className="font-semibold">{tasksDone}</span>
