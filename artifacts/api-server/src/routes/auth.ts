@@ -52,14 +52,17 @@ function getSafeReturnTo(value: unknown): string {
 }
 
 async function upsertUser(claims: Record<string, unknown>) {
+  const sub = claims.sub as string;
+  const firstName = (claims.first_name as string) || "";
+  const lastName = (claims.last_name as string) || "";
+  const username = (claims.preferred_username || claims.username || `${firstName.toLowerCase()}_${sub.slice(-6)}`) as string;
   const userData = {
-    id: claims.sub as string,
+    id: sub,
+    username,
     email: (claims.email as string) || null,
-    firstName: (claims.first_name as string) || null,
-    lastName: (claims.last_name as string) || null,
-    profileImageUrl: (claims.profile_image_url || claims.picture) as
-      | string
-      | null,
+    firstName: firstName || "User",
+    lastName: lastName || sub.slice(-6),
+    profileImage: (claims.profile_image_url || claims.picture) as string | null,
   };
 
   const [user] = await db
@@ -163,7 +166,7 @@ router.get("/callback", async (req: Request, res: Response) => {
       email: dbUser.email,
       firstName: dbUser.firstName,
       lastName: dbUser.lastName,
-      profileImageUrl: dbUser.profileImageUrl,
+      profileImage: dbUser.profileImage,
     },
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
@@ -231,7 +234,7 @@ router.post(
           email: dbUser.email,
           firstName: dbUser.firstName,
           lastName: dbUser.lastName,
-          profileImageUrl: dbUser.profileImageUrl,
+          profileImage: dbUser.profileImage,
         },
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,

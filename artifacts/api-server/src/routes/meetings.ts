@@ -46,7 +46,7 @@ async function getMeetingWithAttendees(meetingId: number) {
     scheduledAt: meeting.scheduledAt.toISOString(),
     createdAt: meeting.createdAt.toISOString(),
     updatedAt: meeting.updatedAt.toISOString(),
-    organizer: organizer ?? null,
+    organizer: organizer ? { ...organizer, createdAt: organizer.createdAt.toISOString(), updatedAt: organizer.updatedAt.toISOString() } : null,
     attendees: attendees.map(u => ({ ...u, createdAt: u.createdAt.toISOString(), updatedAt: u.updatedAt.toISOString() }))
   };
 }
@@ -62,8 +62,11 @@ router.get("/meetings", async (req, res) => {
 });
 
 router.post("/meetings", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     const { title, description, scheduledAt, duration, meetingUrl, attendeeIds } = req.body;
     const [meeting] = await db.insert(meetingsTable).values({
       title, description: description ?? null,
@@ -103,7 +106,10 @@ router.post("/meetings", async (req, res) => {
 router.get("/meetings/:meetingId", async (req, res) => {
   try {
     const result = await getMeetingWithAttendees(parseInt(req.params.meetingId));
-    if (!result) return res.status(404).json({ error: "Meeting not found" });
+    if (!result) {
+      res.status(404).json({ error: "Meeting not found" });
+      return;
+    }
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Failed to get meeting" });
@@ -111,6 +117,10 @@ router.get("/meetings/:meetingId", async (req, res) => {
 });
 
 router.patch("/meetings/:meetingId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const id = parseInt(req.params.meetingId);
     const { title, description, scheduledAt, duration, meetingUrl, attendeeIds } = req.body;
@@ -128,6 +138,25 @@ router.patch("/meetings/:meetingId", async (req, res) => {
         await db.insert(meetingAttendeesTable).values(
           attendeeIds.map((uid: string) => ({ meetingId: id, userId: uid }))
         );
+        const [updatedMeeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+        const newAttendees = await db.select().from(usersTable).where(inArray(usersTable.id, attendeeIds));
+        for (const attendee of newAttendees) {
+          await db.insert(notificationsTable).values({
+            userId: attendee.id,
+            type: "meeting_invite",
+            title: `Meeting Updated: ${updatedMeeting?.title ?? title ?? ""}`,
+            body: `The meeting has been updated`,
+            linkUrl: `/meetings`
+          });
+          if (attendee.email && (scheduledAt || title)) {
+            await sendMeetingEmail(attendee.email, attendee.firstName, {
+              title: updatedMeeting?.title ?? title ?? "",
+              scheduledAt: updatedMeeting?.scheduledAt ?? new Date(scheduledAt),
+              description: updatedMeeting?.description,
+              meetingUrl: updatedMeeting?.meetingUrl
+            });
+          }
+        }
       }
     }
     const result = await getMeetingWithAttendees(id);
@@ -138,6 +167,10 @@ router.patch("/meetings/:meetingId", async (req, res) => {
 });
 
 router.delete("/meetings/:meetingId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     await db.delete(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, parseInt(req.params.meetingId)));
     await db.delete(meetingsTable).where(eq(meetingsTable.id, parseInt(req.params.meetingId)));

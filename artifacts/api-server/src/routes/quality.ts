@@ -25,8 +25,11 @@ router.get("/quality-checks", async (req, res) => {
 });
 
 router.post("/quality-checks", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     const { taskId, submitterId, rating, feedback, status, videoVersionId } = req.body;
     const [check] = await db.insert(qualityChecksTable).values({
       taskId: taskId ?? null,
@@ -44,6 +47,10 @@ router.post("/quality-checks", async (req, res) => {
 });
 
 router.patch("/quality-checks/:checkId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const id = parseInt(req.params.checkId);
     const { rating, feedback, status } = req.body;
@@ -52,7 +59,10 @@ router.patch("/quality-checks/:checkId", async (req, res) => {
     if (feedback !== undefined) updates.feedback = feedback;
     if (status !== undefined) updates.status = status;
     const [updated] = await db.update(qualityChecksTable).set(updates).where(eq(qualityChecksTable.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: "Quality check not found" });
+    if (!updated) {
+      res.status(404).json({ error: "Quality check not found" });
+      return;
+    }
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update quality check" });

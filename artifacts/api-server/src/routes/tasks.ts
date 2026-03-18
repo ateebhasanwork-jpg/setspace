@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tasksTable, usersTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -16,13 +16,15 @@ router.get("/tasks", async (req, res) => {
       completedAt: t.completedAt?.toISOString() ?? null,
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
-      assignee: t.assigneeId ? userMap[t.assigneeId] ?? null : null,
+      assignee: t.assigneeId ? (userMap[t.assigneeId] ?? null) : null,
     }));
     if (req.query.assigneeId) {
-      return res.json(result.filter(t => t.assigneeId === req.query.assigneeId));
+      res.json(result.filter(t => t.assigneeId === req.query.assigneeId));
+      return;
     }
     if (req.query.status) {
-      return res.json(result.filter(t => t.status === req.query.status));
+      res.json(result.filter(t => t.status === req.query.status));
+      return;
     }
     res.json(result);
   } catch (err) {
@@ -31,8 +33,11 @@ router.get("/tasks", async (req, res) => {
 });
 
 router.post("/tasks", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     const { title, description, status, priority, assigneeId, dueDate } = req.body;
     const [task] = await db.insert(tasksTable).values({
       title,
@@ -53,7 +58,10 @@ router.get("/tasks/:taskId", async (req, res) => {
   try {
     const id = parseInt(req.params.taskId);
     const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
-    if (!task) return res.status(404).json({ error: "Task not found" });
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
     res.json({ ...task, createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to get task" });
@@ -61,6 +69,10 @@ router.get("/tasks/:taskId", async (req, res) => {
 });
 
 router.patch("/tasks/:taskId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const id = parseInt(req.params.taskId);
     const { title, description, status, priority, assigneeId, dueDate, completedAt } = req.body;
@@ -74,7 +86,10 @@ router.patch("/tasks/:taskId", async (req, res) => {
     if (completedAt !== undefined) updates.completedAt = completedAt ? new Date(completedAt) : null;
 
     const [updated] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: "Task not found" });
+    if (!updated) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update task" });
@@ -82,6 +97,10 @@ router.patch("/tasks/:taskId", async (req, res) => {
 });
 
 router.delete("/tasks/:taskId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const id = parseInt(req.params.taskId);
     await db.delete(tasksTable).where(eq(tasksTable.id, id));

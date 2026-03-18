@@ -8,7 +8,7 @@ const router: IRouter = Router();
 router.get("/users", async (req, res) => {
   try {
     const users = await db.select().from(usersTable).orderBy(usersTable.firstName);
-    res.json(users);
+    res.json(users.map(u => ({ ...u, createdAt: u.createdAt.toISOString(), updatedAt: u.updatedAt.toISOString() })));
   } catch (err) {
     res.status(500).json({ error: "Failed to list users" });
   }
@@ -17,14 +17,21 @@ router.get("/users", async (req, res) => {
 router.get("/users/:userId", async (req, res) => {
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.params.userId));
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ ...user, createdAt: user.createdAt.toISOString(), updatedAt: user.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to get user" });
   }
 });
 
 router.patch("/users/:userId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const { firstName, lastName, role, department, title } = req.body;
     const [updated] = await db
@@ -32,8 +39,11 @@ router.patch("/users/:userId", async (req, res) => {
       .set({ firstName, lastName, role, department, title, updatedAt: new Date() })
       .where(eq(usersTable.id, req.params.userId))
       .returning();
-    if (!updated) return res.status(404).json({ error: "User not found" });
-    res.json(updated);
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update user" });
   }

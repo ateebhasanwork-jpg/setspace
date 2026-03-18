@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { messagesTable, usersTable } from "@workspace/db/schema";
-import { eq, lt, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -14,7 +14,7 @@ router.get("/messages", async (req, res) => {
     const result = messages.reverse().map(m => ({
       ...m,
       createdAt: m.createdAt.toISOString(),
-      author: userMap[m.authorId] ?? null
+      author: m.authorId ? (userMap[m.authorId] ?? null) : null
     }));
     res.json(result);
   } catch (err) {
@@ -23,8 +23,11 @@ router.get("/messages", async (req, res) => {
 });
 
 router.post("/messages", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     const { content, parentId } = req.body;
     const [message] = await db.insert(messagesTable).values({
       content, authorId: req.user.id, parentId: parentId ?? null

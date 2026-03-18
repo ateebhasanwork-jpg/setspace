@@ -159,9 +159,9 @@ export default function PublicReview() {
                 <div key={c.id} className="p-4 rounded-xl bg-white/5 border border-white/5">
                   <div className="flex items-start justify-between mb-2">
                     <span className="text-sm font-bold text-foreground">{c.authorName}</span>
-                    {c.timestampSeconds !== null && (
-                      <button onClick={() => { if(videoRef.current) { videoRef.current.currentTime = c.timestampSeconds!; setCurrentTime(c.timestampSeconds!); } }} className="text-xs font-mono bg-black/40 px-2 py-1 rounded text-primary hover:bg-primary hover:text-white transition-colors">
-                        {Math.floor(c.timestampSeconds / 60)}:{(Math.floor(c.timestampSeconds % 60)).toString().padStart(2, '0')}
+                    {c.timestampSeconds != null && (
+                      <button onClick={() => { if(videoRef.current) { videoRef.current.currentTime = c.timestampSeconds as number; setCurrentTime(c.timestampSeconds as number); } }} className="text-xs font-mono bg-black/40 px-2 py-1 rounded text-primary hover:bg-primary hover:text-white transition-colors">
+                        {Math.floor((c.timestampSeconds as number) / 60)}:{(Math.floor((c.timestampSeconds as number) % 60)).toString().padStart(2, '0')}
                       </button>
                     )}
                   </div>

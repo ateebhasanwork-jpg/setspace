@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, User as UserIcon } from "lucide-react";
+import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, User as UserIcon, Film } from "lucide-react";
 import { Link, useParams } from "wouter";
 
 export default function VideoStudio() {
@@ -36,7 +36,7 @@ export default function VideoStudio() {
   }, [versions, selectedVersionId]);
 
   const selectedVersion = versions.find(v => v.id === selectedVersionId);
-  const { data: comments } = useListVideoComments(selectedVersionId || 0, { query: { enabled: !!selectedVersionId } });
+  const { data: comments } = useListVideoComments(selectedVersionId || 0, { query: { queryKey: getListVideoCommentsQueryKey(selectedVersionId || 0), enabled: !!selectedVersionId } });
 
   // Upload Logic
   const createVersionMut = useCreateVideoVersion({
@@ -49,7 +49,7 @@ export default function VideoStudio() {
     onSuccess: (res) => {
       createVersionMut.mutate({
         projectId,
-        data: { objectPath: res.objectPath, fileName: res.name, fileSize: res.size }
+        data: { objectPath: res.objectPath, fileName: res.metadata.name, fileSize: res.metadata.size }
       });
     }
   });
@@ -220,7 +220,7 @@ export default function VideoStudio() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
-              <Video className="w-16 h-16 mb-4 opacity-20" />
+              <Film className="w-16 h-16 mb-4 opacity-20" />
               <h3 className="text-xl font-display text-white mb-2">No Versions Yet</h3>
               <p>Upload a video file to begin the review process.</p>
             </div>
@@ -249,9 +249,9 @@ export default function VideoStudio() {
                     <span className="text-xs font-semibold text-foreground">{c.authorName}</span>
                     {c.authorType === 'client' && <span className="text-[9px] bg-accent/20 text-accent px-1.5 rounded uppercase tracking-wider">Client</span>}
                   </div>
-                  {c.timestampSeconds !== null && (
-                    <button onClick={() => handleSeek(c.timestampSeconds!)} className="text-xs font-mono bg-black/40 px-2 py-0.5 rounded text-primary hover:bg-primary hover:text-white transition-colors">
-                      {Math.floor(c.timestampSeconds / 60)}:{(Math.floor(c.timestampSeconds % 60)).toString().padStart(2, '0')}
+                  {c.timestampSeconds != null && (
+                    <button onClick={() => handleSeek(c.timestampSeconds as number)} className="text-xs font-mono bg-black/40 px-2 py-0.5 rounded text-primary hover:bg-primary hover:text-white transition-colors">
+                      {Math.floor((c.timestampSeconds as number) / 60)}:{(Math.floor((c.timestampSeconds as number) % 60)).toString().padStart(2, '0')}
                     </button>
                   )}
                 </div>

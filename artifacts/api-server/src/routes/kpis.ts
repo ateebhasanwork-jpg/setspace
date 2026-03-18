@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { kpisTable, kpiEntriesTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -15,6 +15,10 @@ router.get("/kpis", async (req, res) => {
 });
 
 router.post("/kpis", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const { name, description, unit, targetValue, userId, period } = req.body;
     const [kpi] = await db.insert(kpisTable).values({
@@ -27,6 +31,10 @@ router.post("/kpis", async (req, res) => {
 });
 
 router.patch("/kpis/:kpiId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const id = parseInt(req.params.kpiId);
     const { name, description, unit, targetValue, period } = req.body;
@@ -37,7 +45,10 @@ router.patch("/kpis/:kpiId", async (req, res) => {
     if (targetValue !== undefined) updates.targetValue = String(targetValue);
     if (period !== undefined) updates.period = period;
     const [updated] = await db.update(kpisTable).set(updates).where(eq(kpisTable.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: "KPI not found" });
+    if (!updated) {
+      res.status(404).json({ error: "KPI not found" });
+      return;
+    }
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), targetValue: parseFloat(updated.targetValue) });
   } catch (err) {
     res.status(500).json({ error: "Failed to update KPI" });
@@ -45,6 +56,10 @@ router.patch("/kpis/:kpiId", async (req, res) => {
 });
 
 router.delete("/kpis/:kpiId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     await db.delete(kpisTable).where(eq(kpisTable.id, parseInt(req.params.kpiId)));
     res.status(204).send();
@@ -58,10 +73,8 @@ router.get("/kpi-entries", async (req, res) => {
     let entries = await db.select().from(kpiEntriesTable).orderBy(kpiEntriesTable.recordedAt);
     if (req.query.userId) entries = entries.filter(e => e.userId === req.query.userId);
     if (req.query.kpiId) entries = entries.filter(e => e.kpiId === parseInt(req.query.kpiId as string));
-    
     const kpis = await db.select().from(kpisTable);
     const kpiMap = Object.fromEntries(kpis.map(k => [k.id, k]));
-    
     res.json(entries.map(e => ({
       ...e,
       actualValue: parseFloat(e.actualValue),
@@ -75,6 +88,10 @@ router.get("/kpi-entries", async (req, res) => {
 });
 
 router.post("/kpi-entries", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const { kpiId, userId, actualValue, notes, recordedAt } = req.body;
     const [entry] = await db.insert(kpiEntriesTable).values({
