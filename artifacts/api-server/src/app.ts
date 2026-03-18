@@ -23,7 +23,7 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
     path.startsWith("/auth/") ||
     path.startsWith("/mobile-auth/") ||
     /^\/review\/[^/]+/.test(path) ||
-    false; // /storage/objects/* is handled with auth in storage.ts
+    (path.startsWith("/storage/objects/") && !!req.query.reviewToken); // token validated in storage.ts
 
   if (isPublic || req.isAuthenticated()) {
     next();
