@@ -32,6 +32,7 @@ import {
   Bell, 
   LogOut,
   UserCircle,
+  Users,
 } from "lucide-react";
 
 /* ── Unread Counts Context ────────────────────────────────────── */
@@ -44,16 +45,17 @@ const UnreadCountsCtx = createContext<UnreadCounts>({ notifCount: 0, dmCount: 0,
 
 /* ── Nav config ───────────────────────────────────────────────── */
 const NAV_ITEMS = [
-  { title: "Dashboard",    href: "/",             icon: LayoutDashboard, badge: null as null | "notif" | "dm" | "task" },
-  { title: "Tasks",        href: "/tasks",         icon: CheckSquare,     badge: "task"  as const },
-  { title: "Video Studio", href: "/videos",        icon: Video,           badge: null },
-  { title: "KPIs",         href: "/kpis",          icon: TrendingUp,      badge: null },
-  { title: "Attendance",   href: "/attendance",    icon: Clock,           badge: null },
-  { title: "Quality Check",href: "/quality",       icon: Star,            badge: null },
-  { title: "Leaderboard",  href: "/leaderboard",   icon: Trophy,          badge: null },
-  { title: "Team Chat",    href: "/chat",          icon: MessageSquare,   badge: "dm"    as const },
-  { title: "Meetings",     href: "/meetings",      icon: Calendar,        badge: null },
-  { title: "Notifications",href: "/notifications", icon: Bell,            badge: "notif" as const },
+  { title: "Dashboard",    href: "/",             icon: LayoutDashboard, badge: null as null | "notif" | "dm" | "task", managerOnly: false },
+  { title: "Tasks",        href: "/tasks",         icon: CheckSquare,     badge: "task"  as const,                       managerOnly: false },
+  { title: "Video Studio", href: "/videos",        icon: Video,           badge: null,                                   managerOnly: false },
+  { title: "KPIs",         href: "/kpis",          icon: TrendingUp,      badge: null,                                   managerOnly: false },
+  { title: "Attendance",   href: "/attendance",    icon: Clock,           badge: null,                                   managerOnly: false },
+  { title: "Quality Check",href: "/quality",       icon: Star,            badge: null,                                   managerOnly: false },
+  { title: "Leaderboard",  href: "/leaderboard",   icon: Trophy,          badge: null,                                   managerOnly: false },
+  { title: "Team Chat",    href: "/chat",          icon: MessageSquare,   badge: "dm"    as const,                       managerOnly: false },
+  { title: "Meetings",     href: "/meetings",      icon: Calendar,        badge: null,                                   managerOnly: false },
+  { title: "Notifications",href: "/notifications", icon: Bell,            badge: "notif" as const,                       managerOnly: false },
+  { title: "Team",         href: "/team",          icon: Users,           badge: null,                                   managerOnly: true  },
 ];
 
 /* ── Profile image helper ─────────────────────────────────────── */
@@ -117,6 +119,7 @@ function SidebarInner() {
   const { setOpenMobile } = useSidebar();
   const imgUrl = profileImageUrl(user?.profileImage);
   const initial = user?.firstName?.[0] ?? user?.username?.[0] ?? "U";
+  const isManager = (user as { role?: string } | null)?.role === "admin" || (user as { role?: string } | null)?.role === "hr";
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar/95 backdrop-blur-md">
@@ -132,7 +135,7 @@ function SidebarInner() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => {
+              {NAV_ITEMS.filter(item => !item.managerOnly || isManager).map((item) => {
                 const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
                 return <NavItem key={item.title} item={item} isActive={isActive} />;
               })}

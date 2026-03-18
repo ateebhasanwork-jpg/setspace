@@ -27,6 +27,18 @@ router.get("/users/:userId", async (req, res) => {
   }
 });
 
+router.delete("/users/:userId", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  if (req.user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
+  if (req.params.userId === req.user.id) { res.status(400).json({ error: "Cannot delete yourself" }); return; }
+  try {
+    await db.delete(usersTable).where(eq(usersTable.id, req.params.userId));
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
 router.patch("/users/:userId", async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
