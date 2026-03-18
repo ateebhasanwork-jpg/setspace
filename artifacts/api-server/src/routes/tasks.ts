@@ -134,6 +134,25 @@ router.patch("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
       }).catch(() => {});
     }
 
+    // Notify assignee whenever status changes (and assignee isn't the one making the change)
+    const statusChanged = status !== undefined && status !== existing?.status;
+    if (statusChanged && updated.assigneeId && updated.assigneeId !== req.user!.id) {
+      const statusLabel: Record<string, string> = {
+        "In Progress": "moved to In Progress",
+        "Review": "sent to Review",
+        "Done": "marked as Done",
+        "To Do": "moved back to To Do",
+      };
+      const label = statusLabel[status] ?? `updated to ${status}`;
+      await db.insert(notificationsTable).values({
+        userId: updated.assigneeId,
+        type: "task_status",
+        title: `Task ${label}`,
+        body: `"${updated.title}" has been ${label}.`,
+        linkUrl: "/tasks",
+      }).catch(() => {});
+    }
+
     if (status === "Done" && existing?.status !== "Done" && updated.createdById && updated.createdById !== req.user!.id) {
       await db.insert(notificationsTable).values({
         userId: updated.createdById,

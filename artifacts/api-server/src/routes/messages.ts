@@ -1,9 +1,28 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, directMessagesTable, usersTable } from "@workspace/db/schema";
+import { messagesTable, directMessagesTable, usersTable, notificationsTable } from "@workspace/db/schema";
 import { eq, or, and, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+/** Parse @mentions from message content, return matched userIds (excluding author) */
+async function extractMentionedUserIds(content: string, authorId: string): Promise<string[]> {
+  const matches = content.match(/@([\w.]+)/g);
+  if (!matches || matches.length === 0) return [];
+  const terms = matches.map(m => m.slice(1).toLowerCase());
+  const users = await db.select().from(usersTable);
+  const mentioned: string[] = [];
+  for (const u of users) {
+    if (u.id === authorId) continue;
+    const first = (u.firstName ?? "").toLowerCase();
+    const last = (u.lastName ?? "").toLowerCase();
+    const username = (u.username ?? "").toLowerCase();
+    if (terms.some(t => t === first || t === username || t === `${first}${last}` || `${first}.${last}` === t)) {
+      mentioned.push(u.id);
+    }
+  }
+  return [...new Set(mentioned)];
+}
 
 router.get("/messages", async (req, res) => {
   try {
@@ -33,6 +52,22 @@ router.post("/messages", async (req, res) => {
       content, authorId: req.user.id, parentId: parentId ?? null
     }).returning();
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+
+    // Detect @mentions and create notifications
+    const mentionedIds = await extractMentionedUserIds(content, req.user.id);
+    if (mentionedIds.length > 0) {
+      const authorName = user ? `${user.firstName} ${user.lastName}`.trim() : "Someone";
+      await Promise.all(mentionedIds.map(uid =>
+        db.insert(notificationsTable).values({
+          userId: uid,
+          type: "mention",
+          title: `${authorName} mentioned you`,
+          body: content.length > 120 ? content.slice(0, 120) + "…" : content,
+          linkUrl: "/chat",
+        }).catch(() => {})
+      ));
+    }
+
     res.status(201).json({ ...message, createdAt: message.createdAt.toISOString(), author: user ?? null });
   } catch (err) {
     res.status(500).json({ error: "Failed to create message" });
@@ -85,6 +120,20 @@ router.post("/dm/:userId", async (req, res) => {
     }).returning();
     const users = await db.select().from(usersTable);
     const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    // Create a notification for the receiver
+    const sender = userMap[me];
+    if (sender) {
+      const senderName = `${sender.firstName} ${sender.lastName}`.trim();
+      await db.insert(notificationsTable).values({
+        userId: other,
+        type: "dm",
+        title: `New message from ${senderName}`,
+        body: content.trim().length > 100 ? content.trim().slice(0, 100) + "…" : content.trim(),
+        linkUrl: "/chat",
+      }).catch(() => {});
+    }
+
     res.status(201).json({ ...msg, createdAt: msg.createdAt.toISOString(), sender: userMap[me] ?? null, receiver: userMap[other] ?? null });
   } catch {
     res.status(500).json({ error: "Failed to send DM" });
