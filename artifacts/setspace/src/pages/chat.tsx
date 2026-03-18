@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useListMessages, useCreateMessage, getListMessagesQueryKey, useGetCurrentUser } from "@workspace/api-client-react";
+import { useListMessages, useCreateMessage, getListMessagesQueryKey, useGetCurrentUser, type Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Send } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
+
+type LocalMessage = Message & { _optimistic?: boolean };
 
 export default function TeamChat() {
   const { data: messages } = useListMessages({
@@ -21,7 +23,7 @@ export default function TeamChat() {
 
   useEffect(() => {
     if (!messages || !user) return;
-    const real = messages.filter((m: any) => !m._optimistic);
+    const real = (messages as LocalMessage[]).filter(m => !m._optimistic);
     if (!real.length) return;
     const latest = real[real.length - 1];
     if (isInitialRef.current) {
@@ -31,7 +33,7 @@ export default function TeamChat() {
     }
     if (lastSeenIdRef.current === null || latest.id > lastSeenIdRef.current) {
       const newFromOthers = real.filter(
-        (m: any) => m.id > (lastSeenIdRef.current ?? 0) && m.authorId !== user.id
+        m => m.id > (lastSeenIdRef.current ?? 0) && m.authorId !== user.id
       );
       if (newFromOthers.length > 0) playMessageSound();
       lastSeenIdRef.current = latest.id;
@@ -43,12 +45,12 @@ export default function TeamChat() {
       onMutate: async ({ data }) => {
         await queryClient.cancelQueries({ queryKey: getListMessagesQueryKey() });
         const previous = queryClient.getQueryData(getListMessagesQueryKey());
-        queryClient.setQueryData(getListMessagesQueryKey(), (old: any[]) => {
-          const optimistic = {
+        queryClient.setQueryData(getListMessagesQueryKey(), (old: LocalMessage[] | undefined) => {
+          const optimistic: LocalMessage = {
             id: -Date.now(),
             content: data.content,
-            authorId: user?.id,
-            author: user,
+            authorId: user?.id ?? "",
+            author: user ?? null,
             createdAt: new Date().toISOString(),
             _optimistic: true,
           };
@@ -90,7 +92,7 @@ export default function TeamChat() {
     }
   };
 
-  const displayMessages = messages?.slice().sort(
+  const displayMessages = (messages as LocalMessage[] | undefined)?.slice().sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
@@ -109,7 +111,7 @@ export default function TeamChat() {
             const isMe = msg.authorId === user?.id;
             const prevMsg = arr[i - 1];
             const showAvatar = !isMe && prevMsg?.authorId !== msg.authorId;
-            const isOptimistic = (msg as any)._optimistic;
+            const isOptimistic = msg._optimistic;
 
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${isOptimistic ? "opacity-60" : ""}`}>

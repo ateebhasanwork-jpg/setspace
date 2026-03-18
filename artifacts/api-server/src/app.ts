@@ -12,13 +12,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(authMiddleware);
 
-// Global auth guard — allow only: health check, auth flow, and the public video review endpoint
+// Global auth guard — allow: health, auth/login/callback/logout, mobile auth, public review, and storage objects
 app.use("/api", (req: Request, res: Response, next: NextFunction) => {
   const path = req.path;
   const isPublic =
     path === "/health" ||
+    path === "/login" ||
+    path === "/callback" ||
+    path === "/logout" ||
     path.startsWith("/auth/") ||
-    /^\/review\/[^/]+$/.test(path);
+    path.startsWith("/mobile-auth/") ||
+    /^\/review\/[^/]+$/.test(path) ||
+    path.startsWith("/storage/objects/");
 
   if (isPublic || req.isAuthenticated()) {
     next();

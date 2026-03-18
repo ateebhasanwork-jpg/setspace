@@ -1,24 +1,24 @@
 import React, { useState } from "react";
-import { useListKpis, useCreateKpi, useListUsers, getListKpisQueryKey } from "@workspace/api-client-react";
+import { useListKpis, useCreateKpi, useListUsers, useListKpiEntries, getListKpisQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, TrendingUp, Target, Activity } from "lucide-react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { Plus, TrendingUp, Target } from "lucide-react";
 
 export default function KPIs() {
   const { data: kpis, isLoading } = useListKpis();
   const { data: users } = useListUsers();
+  const { data: kpiEntries } = useListKpiEntries();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  
+
   const [name, setName] = useState("");
   const [targetValue, setTargetValue] = useState("");
   const [unit, setUnit] = useState("videos");
   const [userId, setUserId] = useState("");
   const [period, setPeriod] = useState("Monthly");
-  
+
   const queryClient = useQueryClient();
   const createMut = useCreateKpi({
     mutation: {
@@ -34,6 +34,11 @@ export default function KPIs() {
     createMut.mutate({ data: { name, targetValue: Number(targetValue), unit, userId, period } });
   };
 
+  const actualByKpi = (kpiEntries ?? []).reduce<Record<number, number>>((acc, entry) => {
+    acc[entry.kpiId] = (acc[entry.kpiId] ?? 0) + entry.actualValue;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -41,7 +46,7 @@ export default function KPIs() {
           <h1 className="text-3xl font-display font-bold text-foreground">KPI Tracker</h1>
           <p className="text-muted-foreground mt-1">Monitor individual performance metrics.</p>
         </div>
-        
+
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg">
@@ -73,10 +78,8 @@ export default function KPIs() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {kpis?.map(kpi => {
-            // Mocking actual progress since KpiEntries fetching individually would be complex in this view.
-            // In a real scenario, the backend might aggregate this, or we display placeholder progress for the demo layout.
-            const actual = Math.floor(Math.random() * kpi.targetValue * 1.2); 
-            const pct = Math.min(100, Math.round((actual / kpi.targetValue) * 100));
+            const actual = actualByKpi[kpi.id] ?? 0;
+            const pct = kpi.targetValue > 0 ? Math.min(100, Math.round((actual / kpi.targetValue) * 100)) : 0;
             return (
               <Card key={kpi.id} className="glass-panel p-6 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -87,24 +90,27 @@ export default function KPIs() {
                     <h3 className="font-display font-bold text-lg">{kpi.name}</h3>
                     <span className="text-xs font-semibold bg-white/10 px-2 py-1 rounded-md text-muted-foreground">{kpi.period}</span>
                   </div>
-                  
+
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Progress</span>
                     <span className="font-bold text-foreground">{actual} / {kpi.targetValue} {kpi.unit}</span>
                   </div>
-                  
+
                   <div className="h-3 bg-black/40 rounded-full overflow-hidden border border-white/5">
                     <div className={`h-full rounded-full transition-all duration-1000 ${pct >= 100 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
                   </div>
-                  
+
                   <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground pt-4 border-t border-white/5">
                     <span className="flex items-center"><TrendingUp className="w-3 h-3 mr-1 text-primary" /> {pct}% to goal</span>
-                    <span>User: {users?.find(u => u.id === kpi.userId)?.firstName || "Unknown"}</span>
+                    <span>User: {users?.find(u => u.id === kpi.userId)?.firstName ?? "Unknown"}</span>
                   </div>
                 </div>
               </Card>
             );
           })}
+          {!kpis?.length && (
+            <p className="text-muted-foreground col-span-3 text-center py-12">No KPIs assigned yet. Click "Assign KPI" to get started.</p>
+          )}
         </div>
       )}
     </div>

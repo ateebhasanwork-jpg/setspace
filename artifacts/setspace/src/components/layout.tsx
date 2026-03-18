@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useListNotifications } from "@workspace/api-client-react";
+import { useListNotifications, type Notification } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { playNotificationSound } from "@/lib/sounds";
 import { 
@@ -147,7 +147,7 @@ function useGlobalNotificationSound() {
 
   useEffect(() => {
     if (!notifications) return;
-    const unread = notifications.filter((n: any) => !n.isRead);
+    const unread = (notifications as Notification[]).filter(n => !n.isRead);
     const count = unread.length;
     if (isInitialRef.current) {
       lastCountRef.current = count;
