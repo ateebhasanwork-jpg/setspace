@@ -1,0 +1,18 @@
+packages:
+  "framer-motion": "For premium animations and page transitions"
+  "date-fns": "For nicely formatted dates and timestamps"
+  "recharts": "For KPI and leaderboard data visualizations"
+  "lucide-react": "Standard icons"
+
+images:
+  - path: "artifacts/setspace/public/images/hero-bg.png"
+    description: "Abstract dark charcoal background with vibrant electric blue and deep purple light leaks, very minimal and professional, cinematic lighting"
+    aspect_ratio: "16:9"
+  - path: "artifacts/setspace/public/images/logo.png"
+    description: "Minimalist geometric icon logo for a video agency named Setspace, abstract play button or frame, white icon on transparent background"
+    aspect_ratio: "1:1"
+
+notes:
+  - Uses Replit Auth (@workspace/replit-auth-web) for authentication
+  - Uses Replit Object Storage (@workspace/object-storage-web) for video uploads
+  - Assumes REST API endpoints are generated properly via orval

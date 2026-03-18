@@ -1,0 +1,113 @@
+import React from "react";
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@workspace/replit-auth-web";
+import { Button } from "@/components/ui/button";
+
+import { AppLayout } from "./components/layout";
+import Dashboard from "./pages/dashboard";
+import Tasks from "./pages/tasks";
+import VideoProjects from "./pages/video-projects";
+import VideoStudio from "./pages/video-studio";
+import PublicReview from "./pages/public-review";
+import KPIs from "./pages/kpis";
+import Attendance from "./pages/attendance";
+import QualityChecks from "./pages/quality-checks";
+import Leaderboard from "./pages/leaderboard";
+import TeamChat from "./pages/chat";
+import Meetings from "./pages/meetings";
+import Notifications from "./pages/notifications";
+import NotFound from "./pages/not-found";
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false } }
+});
+
+function AuthWrapper({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, login } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground font-display tracking-widest uppercase text-xs">Authenticating</p>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background artwork */}
+        <div className="absolute inset-0 z-0">
+          <img src={`${import.meta.env.BASE_URL}images/hero-bg.png`} alt="Background" className="w-full h-full object-cover opacity-50" />
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-3xl" />
+        </div>
+        
+        <div className="glass-panel max-w-md w-full p-8 md:p-12 rounded-3xl relative z-10 flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mb-8 shadow-2xl shadow-primary/30">
+            <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace Logo" className="w-12 h-12 object-contain" />
+          </div>
+          <h1 className="text-4xl font-display font-bold text-white mb-2">Setspace</h1>
+          <p className="text-muted-foreground mb-10">Agency Management Platform</p>
+          <Button 
+            onClick={() => login()} 
+            className="w-full h-14 text-lg font-semibold bg-white text-black hover:bg-white/90 rounded-xl shadow-xl shadow-white/10"
+          >
+            Log in with Replit
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+}
+
+function Router() {
+  return (
+    <Switch>
+      {/* Public Routes */}
+      <Route path="/review/:token" component={PublicReview} />
+      
+      {/* Protected Routes */}
+      <Route path="*">
+        <AuthWrapper>
+          <AppLayout>
+            <Switch>
+              <Route path="/" component={Dashboard} />
+              <Route path="/tasks" component={Tasks} />
+              <Route path="/videos" component={VideoProjects} />
+              <Route path="/videos/:id" component={VideoStudio} />
+              <Route path="/kpis" component={KPIs} />
+              <Route path="/attendance" component={Attendance} />
+              <Route path="/quality" component={QualityChecks} />
+              <Route path="/leaderboard" component={Leaderboard} />
+              <Route path="/chat" component={TeamChat} />
+              <Route path="/meetings" component={Meetings} />
+              <Route path="/notifications" component={Notifications} />
+              <Route component={NotFound} />
+            </Switch>
+          </AppLayout>
+        </AuthWrapper>
+      </Route>
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

@@ -1,0 +1,46 @@
+import { pgTable, text, timestamp, integer, serial, boolean } from "drizzle-orm/pg-core";
+import { usersTable } from "./auth";
+
+export const messagesTable = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  authorId: text("author_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  parentId: integer("parent_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Message = typeof messagesTable.$inferSelect;
+
+export const meetingsTable = pgTable("meetings", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  duration: integer("duration").notNull().default(60),
+  meetingUrl: text("meeting_url"),
+  organizerId: text("organizer_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type Meeting = typeof meetingsTable.$inferSelect;
+
+export const meetingAttendeesTable = pgTable("meeting_attendees", {
+  id: serial("id").primaryKey(),
+  meetingId: integer("meeting_id").notNull().references(() => meetingsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const notificationsTable = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body"),
+  isRead: boolean("is_read").notNull().default(false),
+  linkUrl: text("link_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Notification = typeof notificationsTable.$inferSelect;

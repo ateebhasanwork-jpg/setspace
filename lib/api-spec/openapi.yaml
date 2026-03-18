@@ -1,22 +1,45 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Setspace Agency Management Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User management
+  - name: tasks
+    description: Task management
+  - name: kpis
+    description: KPI tracking
+  - name: attendance
+    description: Attendance management
+  - name: quality
+    description: Quality checks
+  - name: messages
+    description: Team messaging
+  - name: meetings
+    description: Meeting scheduling
+  - name: notifications
+    description: Notifications
+  - name: leaderboard
+    description: Employee of the month leaderboard
+  - name: storage
+    description: File storage
+  - name: videos
+    description: Video review studio
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +47,938 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Unauthenticated
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create or update a user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List all tasks
+      parameters:
+        - name: assigneeId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskBody"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{taskId}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskBody"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /kpis:
+    get:
+      operationId: listKpis
+      tags: [kpis]
+      summary: List KPI definitions
+      responses:
+        "200":
+          description: KPI list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Kpi"
+    post:
+      operationId: createKpi
+      tags: [kpis]
+      summary: Create a KPI definition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateKpiBody"
+      responses:
+        "201":
+          description: Created KPI
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kpi"
+
+  /kpis/{kpiId}:
+    patch:
+      operationId: updateKpi
+      tags: [kpis]
+      summary: Update a KPI
+      parameters:
+        - name: kpiId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateKpiBody"
+      responses:
+        "200":
+          description: Updated KPI
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kpi"
+    delete:
+      operationId: deleteKpi
+      tags: [kpis]
+      summary: Delete a KPI
+      parameters:
+        - name: kpiId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /kpi-entries:
+    get:
+      operationId: listKpiEntries
+      tags: [kpis]
+      summary: List KPI entries
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: kpiId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: KPI entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KpiEntry"
+    post:
+      operationId: createKpiEntry
+      tags: [kpis]
+      summary: Record a KPI entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateKpiEntryBody"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KpiEntry"
+
+  /attendance:
+    get:
+      operationId: listAttendance
+      tags: [attendance]
+      summary: List attendance records
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Attendance records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/clock-in:
+    post:
+      operationId: clockIn
+      tags: [attendance]
+      summary: Clock in
+      responses:
+        "201":
+          description: Clocked in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/clock-out:
+    post:
+      operationId: clockOut
+      tags: [attendance]
+      summary: Clock out
+      responses:
+        "200":
+          description: Clocked out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/today:
+    get:
+      operationId: getTodayAttendance
+      tags: [attendance]
+      summary: Get today's attendance for current user
+      responses:
+        "200":
+          description: Today's attendance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /quality-checks:
+    get:
+      operationId: listQualityChecks
+      tags: [quality]
+      summary: List quality check submissions
+      parameters:
+        - name: taskId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quality checks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QualityCheck"
+    post:
+      operationId: createQualityCheck
+      tags: [quality]
+      summary: Create quality check
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQualityCheckBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityCheck"
+
+  /quality-checks/{checkId}:
+    patch:
+      operationId: updateQualityCheck
+      tags: [quality]
+      summary: Update quality check
+      parameters:
+        - name: checkId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQualityCheckBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityCheck"
+
+  /messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages (team chat)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: before
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Post a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /meetings:
+    get:
+      operationId: listMeetings
+      tags: [meetings]
+      summary: List meetings
+      responses:
+        "200":
+          description: Meetings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Meeting"
+    post:
+      operationId: createMeeting
+      tags: [meetings]
+      summary: Create a meeting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMeetingBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+
+  /meetings/{meetingId}:
+    get:
+      operationId: getMeeting
+      tags: [meetings]
+      summary: Get a meeting
+      parameters:
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Meeting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+    patch:
+      operationId: updateMeeting
+      tags: [meetings]
+      summary: Update a meeting
+      parameters:
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeetingBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+    delete:
+      operationId: deleteMeeting
+      tags: [meetings]
+      summary: Delete a meeting
+      parameters:
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notification marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All marked read
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get employee of the month leaderboard
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: integer
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStorageObject
+      tags: [storage]
+      summary: Get a stored object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object data
+
+  /video-projects:
+    get:
+      operationId: listVideoProjects
+      tags: [videos]
+      summary: List video projects
+      parameters:
+        - name: taskId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Video projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoProject"
+    post:
+      operationId: createVideoProject
+      tags: [videos]
+      summary: Create a video project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVideoProjectBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoProject"
+
+  /video-projects/{projectId}:
+    get:
+      operationId: getVideoProject
+      tags: [videos]
+      summary: Get a video project with versions
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Video project with versions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoProjectDetail"
+    patch:
+      operationId: updateVideoProject
+      tags: [videos]
+      summary: Update a video project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVideoProjectBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoProject"
+    delete:
+      operationId: deleteVideoProject
+      tags: [videos]
+      summary: Delete a video project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /video-projects/{projectId}/versions:
+    post:
+      operationId: createVideoVersion
+      tags: [videos]
+      summary: Upload a new version of a video
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVideoVersionBody"
+      responses:
+        "201":
+          description: Created version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoVersion"
+
+  /video-versions/{versionId}/approve:
+    post:
+      operationId: approveVideoVersion
+      tags: [videos]
+      summary: Approve a video version
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoVersion"
+
+  /video-versions/{versionId}/request-revision:
+    post:
+      operationId: requestVideoRevision
+      tags: [videos]
+      summary: Request revision on a video version
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoVersion"
+
+  /video-versions/{versionId}/comments:
+    get:
+      operationId: listVideoComments
+      tags: [videos]
+      summary: List comments for a video version
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoComment"
+    post:
+      operationId: createVideoComment
+      tags: [videos]
+      summary: Add a comment to a video version
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVideoCommentBody"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoComment"
+
+  /video-comments/{commentId}/resolve:
+    post:
+      operationId: resolveVideoComment
+      tags: [videos]
+      summary: Resolve a video comment
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resolved comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoComment"
+
+  /video-versions/{versionId}/share-token:
+    post:
+      operationId: createShareToken
+      tags: [videos]
+      summary: Generate a client share link for a video version
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Share token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareToken"
+
+  /review/{token}:
+    get:
+      operationId: getPublicReview
+      tags: [videos]
+      summary: Get public review data for a client link (no auth required)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public review data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicReviewData"
+
+  /review/{token}/comments:
+    post:
+      operationId: createPublicComment
+      tags: [videos]
+      summary: Add a client comment via public share link
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePublicCommentBody"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoComment"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +986,728 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        profileImage:
+          type: string
+          nullable: true
+        role:
+          type: string
+        isAuthenticated:
+          type: boolean
+      required: [isAuthenticated]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        profileImage:
+          type: string
+          nullable: true
+        role:
+          type: string
+        department:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, username, firstName, lastName, role, createdAt]
+
+    CreateUserBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+        department:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+      required: [firstName, lastName]
+
+    UpdateUserBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+        department:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+        priority:
+          type: string
+        assigneeId:
+          type: string
+          nullable: true
+        assignee:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        createdById:
+          type: string
+        dueDate:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, status, priority, createdById, createdAt, updatedAt]
+
+    CreateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+        priority:
+          type: string
+        assigneeId:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+      required: [title]
+
+    UpdateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+        priority:
+          type: string
+        assigneeId:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+
+    Kpi:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        targetValue:
+          type: number
+        userId:
+          type: string
+        period:
+          type: string
+        createdAt:
+          type: string
+      required: [id, name, unit, targetValue, userId, period, createdAt]
+
+    CreateKpiBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        targetValue:
+          type: number
+        userId:
+          type: string
+        period:
+          type: string
+      required: [name, unit, targetValue, userId, period]
+
+    UpdateKpiBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        targetValue:
+          type: number
+        period:
+          type: string
+
+    KpiEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        kpiId:
+          type: integer
+        kpi:
+          $ref: "#/components/schemas/Kpi"
+          nullable: true
+        userId:
+          type: string
+        actualValue:
+          type: number
+        notes:
+          type: string
+          nullable: true
+        recordedAt:
+          type: string
+        createdAt:
+          type: string
+      required: [id, kpiId, userId, actualValue, recordedAt, createdAt]
+
+    CreateKpiEntryBody:
+      type: object
+      properties:
+        kpiId:
+          type: integer
+        userId:
+          type: string
+        actualValue:
+          type: number
+        notes:
+          type: string
+          nullable: true
+        recordedAt:
+          type: string
+      required: [kpiId, userId, actualValue, recordedAt]
+
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        clockIn:
+          type: string
+        clockOut:
+          type: string
+          nullable: true
+        date:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, userId, clockIn, date, status, createdAt]
+
+    QualityCheck:
+      type: object
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+          nullable: true
+        reviewerId:
+          type: string
+        reviewer:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        submitterId:
+          type: string
+        submitter:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        rating:
+          type: integer
+        feedback:
+          type: string
+          nullable: true
+        status:
+          type: string
+        videoVersionId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, reviewerId, submitterId, rating, status, createdAt, updatedAt]
+
+    CreateQualityCheckBody:
+      type: object
+      properties:
+        taskId:
+          type: integer
+          nullable: true
+        submitterId:
+          type: string
+        rating:
+          type: integer
+        feedback:
+          type: string
+          nullable: true
+        status:
+          type: string
+        videoVersionId:
+          type: integer
+          nullable: true
+      required: [submitterId, rating]
+
+    UpdateQualityCheckBody:
+      type: object
+      properties:
+        rating:
+          type: integer
+        feedback:
+          type: string
+          nullable: true
+        status:
+          type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        authorId:
+          type: string
+        author:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        parentId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, content, authorId, createdAt]
+
+    CreateMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+        parentId:
+          type: integer
+          nullable: true
+      required: [content]
+
+    Meeting:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+        duration:
+          type: integer
+        meetingUrl:
+          type: string
+          nullable: true
+        organizerId:
+          type: string
+        organizer:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        attendees:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        createdAt:
+          type: string
+      required: [id, title, scheduledAt, duration, organizerId, createdAt]
+
+    CreateMeetingBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+        duration:
+          type: integer
+        meetingUrl:
+          type: string
+          nullable: true
+        attendeeIds:
+          type: array
+          items:
+            type: string
+      required: [title, scheduledAt, duration]
+
+    UpdateMeetingBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+        duration:
+          type: integer
+        meetingUrl:
+          type: string
+          nullable: true
+        attendeeIds:
+          type: array
+          items:
+            type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+          nullable: true
+        isRead:
+          type: boolean
+        linkUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, userId, type, title, isRead, createdAt]
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        userId:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+        rank:
+          type: integer
+        score:
+          type: number
+        kpiScore:
+          type: number
+        attendanceScore:
+          type: number
+        qualityScore:
+          type: number
+        onTimeScore:
+          type: number
+        month:
+          type: integer
+        year:
+          type: integer
+      required: [userId, rank, score, kpiScore, attendanceScore, qualityScore, onTimeScore, month, year]
+
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required: [name, size, contentType]
+
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+      required: [uploadURL, objectPath]
+
+    VideoProject:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        taskId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        createdById:
+          type: string
+        latestVersionId:
+          type: integer
+          nullable: true
+        latestVersionNumber:
+          type: integer
+          nullable: true
+        latestVersionStatus:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, status, createdById, createdAt, updatedAt]
+
+    VideoProjectDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        taskId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        createdById:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/VideoVersion"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, status, createdById, versions, createdAt, updatedAt]
+
+    CreateVideoProjectBody:
+      type: object
+      properties:
+        title:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        taskId:
+          type: integer
+          nullable: true
+      required: [title]
+
+    UpdateVideoProjectBody:
+      type: object
+      properties:
+        title:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+
+    VideoVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        versionNumber:
+          type: integer
+        objectPath:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        status:
+          type: string
+        uploadedById:
+          type: string
+        uploadedBy:
+          $ref: "#/components/schemas/User"
+          nullable: true
+        shareToken:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, projectId, versionNumber, objectPath, fileName, fileSize, status, uploadedById, createdAt]
+
+    CreateVideoVersionBody:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+      required: [objectPath, fileName, fileSize]
+
+    VideoComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        versionId:
+          type: integer
+        authorId:
+          type: string
+          nullable: true
+        authorName:
+          type: string
+        authorType:
+          type: string
+        content:
+          type: string
+        timestampSeconds:
+          type: number
+          nullable: true
+        isResolved:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, versionId, authorName, authorType, content, isResolved, createdAt]
+
+    CreateVideoCommentBody:
+      type: object
+      properties:
+        content:
+          type: string
+        timestampSeconds:
+          type: number
+          nullable: true
+      required: [content]
+
+    ShareToken:
+      type: object
+      properties:
+        token:
+          type: string
+        shareUrl:
+          type: string
+        versionId:
+          type: integer
+        expiresAt:
+          type: string
+          nullable: true
+      required: [token, shareUrl, versionId]
+
+    PublicReviewData:
+      type: object
+      properties:
+        projectTitle:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        versionNumber:
+          type: integer
+        objectPath:
+          type: string
+        fileName:
+          type: string
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/VideoComment"
+      required: [projectTitle, versionNumber, objectPath, fileName, comments]
+
+    CreatePublicCommentBody:
+      type: object
+      properties:
+        content:
+          type: string
+        authorName:
+          type: string
+        timestampSeconds:
+          type: number
+          nullable: true
+      required: [content, authorName]
