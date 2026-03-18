@@ -81,7 +81,7 @@ function Router() {
             <Switch>
               <Route path="/" component={Dashboard} />
               <Route path="/tasks" component={Tasks} />
-              <Route path="/videos" component={VideoProjects} />
+              <Route path="/videos" component={VideoStudio} />
               <Route path="/videos/:id" component={VideoStudio} />
               <Route path="/kpis" component={KPIs} />
               <Route path="/attendance" component={Attendance} />

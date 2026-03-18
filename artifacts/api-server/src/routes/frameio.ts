@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { appSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
-import { listProjects, isFrameioConfigured, getToken } from "../lib/frameio";
+import { listProjects, isFrameioConfigured, getToken, listAssetChildren, getAsset, getOrCreateReviewLink } from "../lib/frameio";
 
 const router: IRouter = Router();
 
@@ -60,6 +60,48 @@ router.post("/frameio/settings", requireAdminOrHR, async (req: Request, res: Res
     res.json({ ok: true, rootAssetId, rootAssetName });
   } catch {
     res.status(500).json({ error: "Failed to save Frame.io settings" });
+  }
+});
+
+/** GET /api/frameio/assets/:assetId/children — browse folder contents */
+router.get("/frameio/assets/:assetId/children", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    if (!isFrameioConfigured()) { res.status(400).json({ error: "Frame.io not configured" }); return; }
+    const { assetId } = req.params as { assetId: string };
+    const page = parseInt((req.query as Record<string, string>).page || "1");
+    const children = await listAssetChildren(assetId, page, 50);
+    res.json(children);
+  } catch {
+    res.status(500).json({ error: "Failed to list Frame.io assets" });
+  }
+});
+
+/** GET /api/frameio/assets/:assetId — get a single asset (includes link) */
+router.get("/frameio/assets/:assetId", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    if (!isFrameioConfigured()) { res.status(400).json({ error: "Frame.io not configured" }); return; }
+    const { assetId } = req.params as { assetId: string };
+    const asset = await getAsset(assetId);
+    if (!asset) { res.status(404).json({ error: "Asset not found" }); return; }
+    res.json(asset);
+  } catch {
+    res.status(500).json({ error: "Failed to get Frame.io asset" });
+  }
+});
+
+/** GET /api/frameio/assets/:assetId/review-link — get or create an embeddable review link */
+router.get("/frameio/assets/:assetId/review-link", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    if (!isFrameioConfigured()) { res.status(400).json({ error: "Frame.io not configured" }); return; }
+    const { assetId } = req.params as { assetId: string };
+    const link = await getOrCreateReviewLink(assetId);
+    if (!link) { res.status(404).json({ error: "Could not generate review link" }); return; }
+    res.json({ link });
+  } catch {
+    res.status(500).json({ error: "Failed to get review link" });
   }
 });
 

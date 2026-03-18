@@ -189,17 +189,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 flex-1">
-            <motion.div
-              key={location}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="h-full flex flex-col"
-            >
+          {location.startsWith("/videos") ? (
+            <div className="flex-1 overflow-hidden relative z-10 flex flex-col" style={{ minHeight: 0 }}>
               {children}
-            </motion.div>
-          </div>
+            </div>
+          ) : (
+            <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 flex-1">
+              <motion.div
+                key={location}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="h-full flex flex-col"
+              >
+                {children}
+              </motion.div>
+            </div>
+          )}
         </main>
       </div>
     </SidebarProvider>

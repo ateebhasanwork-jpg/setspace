@@ -1,587 +1,392 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { 
-  useGetVideoProject, 
-  useCreateVideoVersion,
-  useListVideoComments,
-  useCreateVideoComment,
-  useResolveVideoComment,
-  useApproveVideoVersion,
-  useRequestVideoRevision,
-  useCreateShareToken,
-  getGetVideoProjectQueryKey,
-  getListVideoCommentsQueryKey
-} from "@workspace/api-client-react";
-import { useUpload } from "@workspace/object-storage-web";
-import { useQueryClient } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Folder,
+  FileVideo,
+  ChevronRight,
+  ChevronLeft,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Film,
+  Home,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, Film, MapPin, Copy, ExternalLink, Clock, Loader2, AlertCircle, Settings } from "lucide-react";
-import { Link, useParams } from "wouter";
 
-function fmtTime(s: number) {
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+interface FioProject {
+  id: string;
+  name: string;
+  root_asset_id: string;
+  teamName: string;
+}
+
+interface FioAsset {
+  id: string;
+  name: string;
+  type: "file" | "folder" | "version_stack";
+  filesize?: number;
+  filetype?: string;
+  duration?: number;
+  thumb_url?: string;
+  link?: string;
+  inserted_at?: string;
+}
+
+interface Crumb {
+  id: string;
+  name: string;
+}
+
+function fmtSize(bytes?: number) {
+  if (!bytes) return "";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function fmtDuration(s?: number) {
+  if (!s) return "";
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60).toString().padStart(2, "0");
   return `${m}:${sec}`;
 }
 
+function AssetIcon({ asset }: { asset: FioAsset }) {
+  if (asset.type === "folder") {
+    return <Folder className="w-4 h-4 text-yellow-400 flex-shrink-0" />;
+  }
+  if (asset.thumb_url) {
+    return (
+      <img
+        src={asset.thumb_url}
+        alt=""
+        className="w-8 h-5 object-cover rounded flex-shrink-0 bg-zinc-800"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+    );
+  }
+  return <FileVideo className="w-4 h-4 text-blue-400 flex-shrink-0" />;
+}
+
 export default function VideoStudio() {
-  const { id } = useParams();
-  const projectId = parseInt(id || "0");
-  const queryClient = useQueryClient();
+  const [projects, setProjects] = useState<FioProject[]>([]);
+  const [selectedProject, setSelectedProject] = useState<FioProject | null>(null);
+  const [crumbs, setCrumbs] = useState<Crumb[]>([]);
+  const [assets, setAssets] = useState<FioAsset[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<FioAsset | null>(null);
+  const [reviewLink, setReviewLink] = useState<string | null>(null);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  const [loadingLink, setLoadingLink] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [configured, setConfigured] = useState(true);
 
-  const { data: project, isLoading } = useGetVideoProject(projectId);
-  const versions = project?.versions || [];
-  
-  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   useEffect(() => {
-    if (versions.length > 0 && !selectedVersionId) {
-      setSelectedVersionId(versions[versions.length - 1].id);
-    }
-  }, [versions, selectedVersionId]);
-
-  const selectedVersion = versions.find(v => v.id === selectedVersionId);
-  const { data: comments } = useListVideoComments(selectedVersionId || 0, {
-    query: { queryKey: getListVideoCommentsQueryKey(selectedVersionId || 0), enabled: !!selectedVersionId, refetchInterval: 5000 }
-  });
-
-  // Upload Logic
-  const createVersionMut = useCreateVideoVersion({
-    mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetVideoProjectQueryKey(projectId) })
-    }
-  });
-  
-  // Frame.io
-  const [framioStatus, setFramioStatus] = useState<{ configured: boolean; rootAssetId: string | null; rootAssetName: string | null } | null>(null);
-  const [framioProjects, setFramioProjects] = useState<{ id: string; name: string; root_asset_id: string; teamName: string }[]>([]);
-  const [showFramioPicker, setShowFramioPicker] = useState(false);
-  const [framioLoading, setFramioLoading] = useState(false);
-  const [framioSaving, setFramioSaving] = useState(false);
-
-  const loadFramioStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/frameio/status");
-      if (res.ok) setFramioStatus(await res.json());
-    } catch {}
+    loadProjects();
   }, []);
 
-  useEffect(() => { loadFramioStatus(); }, [loadFramioStatus]);
-
-  const openFramioPicker = async () => {
-    setShowFramioPicker(true);
-    setFramioLoading(true);
+  async function loadProjects() {
+    setLoadingProjects(true);
+    setError(null);
     try {
-      const res = await fetch("/api/frameio/projects");
-      if (res.ok) setFramioProjects(await res.json());
-    } catch {}
-    setFramioLoading(false);
-  };
+      const statusRes = await fetch(`${BASE}/api/frameio/status`, { credentials: "include" });
+      const status = await statusRes.json() as { configured: boolean };
+      if (!status.configured) {
+        setConfigured(false);
+        setLoadingProjects(false);
+        return;
+      }
+      const res = await fetch(`${BASE}/api/frameio/projects`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load projects");
+      const data = await res.json() as FioProject[];
+      setProjects(data);
+      if (data.length > 0) {
+        selectProject(data[0]);
+      }
+    } catch (e) {
+      setError("Could not connect to Frame.io. Check your API token.");
+    } finally {
+      setLoadingProjects(false);
+    }
+  }
 
-  const selectFramioProject = async (project: { id: string; name: string; root_asset_id: string }) => {
-    setFramioSaving(true);
+  const loadFolder = useCallback(async (assetId: string) => {
+    setLoadingAssets(true);
+    setSelectedAsset(null);
+    setReviewLink(null);
     try {
-      await fetch("/api/frameio/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rootAssetId: project.root_asset_id, rootAssetName: project.name }),
+      const res = await fetch(`${BASE}/api/frameio/assets/${assetId}/children`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load folder");
+      const data = await res.json() as FioAsset[];
+      const sorted = [...data].sort((a, b) => {
+        if (a.type === "folder" && b.type !== "folder") return -1;
+        if (a.type !== "folder" && b.type === "folder") return 1;
+        return a.name.localeCompare(b.name);
       });
-      await loadFramioStatus();
-      setShowFramioPicker(false);
-    } catch {}
-    setFramioSaving(false);
-  };
-
-  const [pendingMime, setPendingMime] = useState<string>("video/mp4");
-  const { uploadFile, isUploading, progress } = useUpload({
-    onSuccess: (res) => {
-      createVersionMut.mutate({
-        projectId,
-        data: { objectPath: res.objectPath, fileName: res.metadata.name, fileSize: res.metadata.size, mimeType: res.metadata.contentType || pendingMime }
-      });
+      setAssets(sorted);
+    } catch {
+      setAssets([]);
+    } finally {
+      setLoadingAssets(false);
     }
-  });
+  }, []);
 
-  // Video Player
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  function selectProject(project: FioProject) {
+    setSelectedProject(project);
+    setCrumbs([{ id: project.root_asset_id, name: project.name }]);
+    setSelectedAsset(null);
+    setReviewLink(null);
+    loadFolder(project.root_asset_id);
+  }
 
-  // Comments
-  const [commentInput, setCommentInput] = useState("");
-  const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  function openFolder(asset: FioAsset) {
+    setCrumbs(prev => [...prev, { id: asset.id, name: asset.name }]);
+    loadFolder(asset.id);
+  }
 
-  const commentMut = useCreateVideoComment({
-    mutation: {
-      onSuccess: () => {
-        setCommentInput("");
-        setActiveTimestamp(null);
-        queryClient.invalidateQueries({ queryKey: getListVideoCommentsQueryKey(selectedVersionId || 0) });
+  function navigateCrumb(index: number) {
+    const crumb = crumbs[index];
+    setCrumbs(prev => prev.slice(0, index + 1));
+    loadFolder(crumb.id);
+    setSelectedAsset(null);
+    setReviewLink(null);
+  }
+
+  async function selectFile(asset: FioAsset) {
+    setSelectedAsset(asset);
+    setReviewLink(null);
+    setLoadingLink(true);
+    try {
+      const res = await fetch(`${BASE}/api/frameio/assets/${asset.id}/review-link`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json() as { link: string };
+        setReviewLink(data.link);
       }
+    } catch {
+      setReviewLink(null);
+    } finally {
+      setLoadingLink(false);
     }
-  });
+  }
 
-  const resolveMut = useResolveVideoComment({
-    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListVideoCommentsQueryKey(selectedVersionId || 0) }) }
-  });
-
-  const approveMut = useApproveVideoVersion({
-    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetVideoProjectQueryKey(projectId) }) }
-  });
-
-  const reviseMut = useRequestVideoRevision({
-    mutation: { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetVideoProjectQueryKey(projectId) }) }
-  });
-
-  const shareMut = useCreateShareToken({
-    mutation: {
-      onSuccess: (data) => {
-        const url = `${window.location.origin}/review/${data.token}`;
-        navigator.clipboard.writeText(url);
-        queryClient.invalidateQueries({ queryKey: getGetVideoProjectQueryKey(projectId) });
-      }
+  function handleAssetClick(asset: FioAsset) {
+    if (asset.type === "folder" || asset.type === "version_stack") {
+      openFolder(asset);
+    } else {
+      selectFile(asset);
     }
-  });
+  }
 
-  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    const newTime = pct * duration;
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-    videoRef.current.pause();
-    setActiveTimestamp(newTime);
-  };
+  const currentCrumb = crumbs[crumbs.length - 1];
 
-  const handleSeek = (time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
-  };
-
-  const pinCurrentTime = () => {
-    setActiveTimestamp(currentTime);
-  };
-
-  const submitComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedVersionId || !commentInput.trim()) return;
-    commentMut.mutate({
-      versionId: selectedVersionId,
-      data: { content: commentInput, timestampSeconds: activeTimestamp }
-    });
-  };
-
-  const copyShareLink = (token: string) => {
-    const url = `${window.location.origin}/review/${token}`;
-    navigator.clipboard.writeText(url);
-  };
-
-  const openShareLink = (token: string) => {
-    window.open(`${window.location.origin}/review/${token}`, "_blank");
-  };
-
-  const handleCopyWithFeedback = (versionId: number, token: string) => {
-    copyShareLink(token);
-    setCopiedId(versionId);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const sortedComments = [...(comments || [])].sort((a, b) => {
-    const at = a.timestampSeconds ?? Infinity;
-    const bt = b.timestampSeconds ?? Infinity;
-    return at - bt;
-  });
-
-  if (isLoading) return <div className="flex h-full items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  if (!project) return <div>Project not found.</div>;
+  if (!configured) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center space-y-3 max-w-sm">
+          <Film className="w-12 h-12 text-zinc-600 mx-auto" />
+          <p className="text-white font-medium">Frame.io not configured</p>
+          <p className="text-zinc-400 text-sm">Add your FRAMEIO_API_TOKEN to the Replit secrets to enable this feature.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-2xl border border-white/5 shadow-lg">
-        <div className="flex items-center gap-4">
-          <Link href="/videos">
-            <Button variant="ghost" size="icon" className="hover:bg-white/10 rounded-full">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-display font-bold text-foreground">{project.title}</h1>
-            <p className="text-xs text-muted-foreground">{project.clientName || 'Internal Project'}</p>
-          </div>
-          <div className={`ml-4 px-3 py-1 rounded-full text-xs font-bold ${
-            project.status === 'Approved' ? 'bg-green-500/20 text-green-400' :
-            project.status === 'Needs Revision' ? 'bg-red-500/20 text-red-400' :
-            'bg-blue-500/20 text-blue-400'
-          }`}>
-            {project.status}
-          </div>
+    <div className="flex h-full bg-zinc-950 overflow-hidden" style={{ fontFamily: "inherit" }}>
+      {/* LEFT PANEL — browser */}
+      <div className="w-72 flex-shrink-0 border-r border-zinc-800 flex flex-col bg-zinc-950">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
+          <Film className="w-4 h-4 text-[#5B53FF]" />
+          <span className="text-white font-semibold text-sm tracking-wide">Frame.io</span>
+          <button
+            onClick={loadProjects}
+            className="ml-auto text-zinc-500 hover:text-white transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
         </div>
-        
-        <label className={`cursor-pointer ${isUploading || createVersionMut.isPending ? "pointer-events-none" : ""}`}>
-          <input type="file" className="hidden" accept="video/*" onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingMime(f.type || "video/mp4"); uploadFile(f); } }} disabled={isUploading || createVersionMut.isPending} />
-          <div className="flex flex-col w-full sm:min-w-[160px] bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm text-foreground overflow-hidden">
-            <div className="flex items-center gap-2">
-              {isUploading || createVersionMut.isPending ? (
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-              ) : <Upload className="w-4 h-4 shrink-0" />}
-              <span>
-                {createVersionMut.isPending ? "Saving..." : isUploading ? `Uploading ${progress}%` : "Upload New Version"}
-              </span>
+
+        {/* Project selector */}
+        <div className="px-3 py-2 border-b border-zinc-800">
+          {loadingProjects ? (
+            <div className="flex items-center gap-2 text-zinc-500 text-xs py-1">
+              <Loader2 className="w-3 h-3 animate-spin" /> Loading projects…
             </div>
-            {isUploading && (
-              <div className="mt-2 h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-              </div>
-            )}
+          ) : error ? (
+            <div className="flex items-center gap-2 text-red-400 text-xs py-1">
+              <AlertCircle className="w-3 h-3" /> {error}
+            </div>
+          ) : (
+            <select
+              className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[#5B53FF]"
+              value={selectedProject?.id || ""}
+              onChange={e => {
+                const p = projects.find(x => x.id === e.target.value);
+                if (p) selectProject(p);
+              }}
+            >
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Breadcrumb */}
+        {crumbs.length > 1 && (
+          <div className="px-3 py-1.5 border-b border-zinc-800 flex items-center gap-1 flex-wrap">
+            {crumbs.map((crumb, i) => (
+              <React.Fragment key={crumb.id}>
+                {i > 0 && <ChevronRight className="w-3 h-3 text-zinc-600 flex-shrink-0" />}
+                <button
+                  onClick={() => navigateCrumb(i)}
+                  className={`text-xs truncate max-w-[80px] ${
+                    i === crumbs.length - 1
+                      ? "text-white font-medium cursor-default"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                  title={crumb.name}
+                >
+                  {i === 0 ? <Home className="w-3 h-3" /> : crumb.name}
+                </button>
+              </React.Fragment>
+            ))}
           </div>
-        </label>
+        )}
+
+        {/* Asset list */}
+        <div className="flex-1 overflow-y-auto">
+          {loadingAssets ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
+            </div>
+          ) : assets.length === 0 ? (
+            <div className="text-zinc-600 text-xs text-center py-8 px-4">
+              {selectedProject ? "This folder is empty" : "Select a project to browse"}
+            </div>
+          ) : (
+            <div className="py-1">
+              {assets.map(asset => {
+                const isSelected = selectedAsset?.id === asset.id;
+                const isFolder = asset.type === "folder" || asset.type === "version_stack";
+                return (
+                  <button
+                    key={asset.id}
+                    onClick={() => handleAssetClick(asset)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors group ${
+                      isSelected
+                        ? "bg-[#5B53FF]/20 text-white"
+                        : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    }`}
+                  >
+                    <AssetIcon asset={asset} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs truncate font-medium">{asset.name}</div>
+                      {!isFolder && (
+                        <div className="text-[10px] text-zinc-500 flex gap-1.5">
+                          {fmtSize(asset.filesize)}
+                          {asset.duration ? <span>{fmtDuration(asset.duration)}</span> : null}
+                        </div>
+                      )}
+                    </div>
+                    {isFolder && (
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-1 gap-6 min-h-0 overflow-hidden">
-        {/* Main Video Area */}
-        <div className="flex-1 flex flex-col gap-4 min-h-0">
-          {/* Video Player */}
-          <div className="flex-1 flex flex-col bg-black/40 rounded-2xl border border-white/5 overflow-hidden shadow-2xl relative min-h-0">
-            {selectedVersion ? (
-              <div className="flex-1 relative flex flex-col items-center justify-center p-4">
-                <video 
-                  ref={videoRef}
-                  src={`/api/storage${selectedVersion.objectPath}`}
-                  className="max-w-full max-h-full rounded-lg shadow-2xl"
-                  onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
-                  onLoadedMetadata={e => setDuration(e.currentTarget.duration)}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  controls={false}
-                />
-                
-                {/* Custom Timeline */}
-                <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 to-transparent">
-                  <div className="flex items-center gap-4 mb-2">
-                    <button 
-                      onClick={() => videoRef.current && (isPlaying ? videoRef.current.pause() : videoRef.current.play())}
-                      className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white hover:scale-105 transition-transform"
-                    >
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
-                    </button>
-                    <span className="text-white text-sm font-mono tracking-wider font-medium">
-                      {fmtTime(currentTime)} / {fmtTime(duration)}
-                    </span>
-                    <span className="text-xs text-white/50">Click timeline to pin a comment timestamp</span>
-                  </div>
-                  <div className="h-3 bg-white/20 rounded-full relative cursor-pointer overflow-visible group hover:h-4 transition-all" onClick={handleTimelineClick}>
-                    <div className="h-full bg-primary rounded-full absolute top-0 left-0 pointer-events-none" style={{ width: `${duration ? (currentTime/duration)*100 : 0}%` }} />
-                    {sortedComments.filter(c => c.timestampSeconds != null).map(c => (
-                      <button 
-                        key={c.id}
-                        title={`${fmtTime(c.timestampSeconds!)} — ${c.content}`}
-                        onClick={e => { e.stopPropagation(); handleSeek(c.timestampSeconds!); }}
-                        className="absolute -top-1 h-5 w-1.5 bg-yellow-400 rounded-full z-10 hover:bg-yellow-300 hover:scale-125 transition-transform" 
-                        style={{ left: `${duration ? (c.timestampSeconds! / duration)*100 : 0}%` }} 
-                      />
-                    ))}
-                    {activeTimestamp !== null && (
-                      <div 
-                        className="absolute -top-1 h-5 w-1.5 bg-white shadow-[0_0_8px_white] rounded-full z-20 pointer-events-none" 
-                        style={{ left: `${duration ? (activeTimestamp / duration)*100 : 0}%` }} 
-                      />
-                    )}
+      {/* RIGHT PANEL — player */}
+      <div className="flex-1 flex flex-col bg-black overflow-hidden">
+        {selectedAsset ? (
+          <>
+            {/* Top bar */}
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex-shrink-0">
+              <FileVideo className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              <span className="text-white text-sm font-medium truncate">{selectedAsset.name}</span>
+              <div className="flex items-center gap-2 text-zinc-500 text-xs ml-1">
+                {selectedAsset.filesize ? <span>{fmtSize(selectedAsset.filesize)}</span> : null}
+                {selectedAsset.duration ? <span>{fmtDuration(selectedAsset.duration)}</span> : null}
+                {selectedAsset.filetype ? <span>{selectedAsset.filetype}</span> : null}
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                {reviewLink && (
+                  <a
+                    href={reviewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Open in Frame.io
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Embed */}
+            <div className="flex-1 relative">
+              {loadingLink ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-7 h-7 animate-spin text-[#5B53FF]" />
+                    <span className="text-zinc-500 text-sm">Loading review player…</span>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
-                <Film className="w-16 h-16 mb-4 opacity-20" />
-                <h3 className="text-xl font-display text-white mb-2">No Versions Yet</h3>
-                <p>Upload a video file to begin the review process.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Frame.io Project Picker Panel */}
-          {framioStatus?.configured && (
-            <div className="bg-card rounded-2xl border border-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20 flex items-center justify-center">
-                    <ExternalLink className="w-4 h-4 text-[#5865F2]" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Frame.io</p>
-                    <p className="text-xs text-muted-foreground">
-                      {framioStatus.rootAssetName
-                        ? <>Uploading to <span className="text-[#5865F2] font-medium">{framioStatus.rootAssetName}</span></>
-                        : "No project linked — new uploads won't sync"}
+              ) : reviewLink ? (
+                <iframe
+                  key={reviewLink}
+                  src={reviewLink}
+                  className="w-full h-full border-none"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                  <AlertCircle className="w-8 h-8 text-zinc-600" />
+                  <div className="text-center">
+                    <p className="text-zinc-400 text-sm font-medium">Could not load player</p>
+                    <p className="text-zinc-600 text-xs mt-1">
+                      The review link may not be available yet. Try opening in Frame.io directly.
                     </p>
                   </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={openFramioPicker}
-                  className="bg-white/5 border-white/10 hover:bg-white/10 text-sm"
-                >
-                  <Settings className="w-3.5 h-3.5 mr-1.5" />
-                  {framioStatus.rootAssetId ? "Change" : "Link Project"}
-                </Button>
-              </div>
-
-              {/* Project picker dropdown */}
-              {showFramioPicker && (
-                <div className="mt-4 border-t border-white/5 pt-4">
-                  <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Choose a Frame.io project</p>
-                  {framioLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Fetching your Frame.io projects…
-                    </div>
-                  ) : framioProjects.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">No projects found. Make sure your API token has the right permissions.</p>
-                  ) : (
-                    <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                      {framioProjects.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => selectFramioProject(p)}
-                          disabled={framioSaving}
-                          className={`flex items-center justify-between p-3 rounded-xl border text-left transition-colors ${
-                            framioStatus.rootAssetId === p.root_asset_id
-                              ? "bg-[#5865F2]/10 border-[#5865F2]/30 text-foreground"
-                              : "bg-black/20 border-white/5 hover:bg-white/5"
-                          }`}
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{p.teamName}</p>
-                          </div>
-                          {framioStatus.rootAssetId === p.root_asset_id && (
-                            <Check className="w-4 h-4 text-[#5865F2] shrink-0" />
-                          )}
-                          {framioSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
+                  {selectedAsset.link && (
+                    <a
+                      href={selectedAsset.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" size="sm" className="gap-2 border-zinc-700 text-zinc-300 hover:text-white">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open in Frame.io
+                      </Button>
+                    </a>
                   )}
-                  <button
-                    onClick={() => setShowFramioPicker(false)}
-                    className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Cancel
-                  </button>
                 </div>
               )}
             </div>
-          )}
-
-          {/* Version List with Share Links */}
-          <div className="bg-card rounded-2xl border border-white/5 p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Film className="w-4 h-4" /> Versions & Share Links
-            </h3>
-            {versions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No versions uploaded yet.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {[...versions].reverse().map(v => (
-                  <div 
-                    key={v.id} 
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${selectedVersionId === v.id ? 'bg-primary/10 border-primary/30' : 'bg-black/20 border-white/5 hover:bg-white/5'}`}
-                    onClick={() => setSelectedVersionId(v.id)}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${selectedVersionId === v.id ? 'bg-primary text-white' : 'bg-white/10 text-foreground'}`}>
-                      {v.versionNumber}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">Version {v.versionNumber}</p>
-                      <p className="text-xs text-muted-foreground truncate">{v.fileName || "video"}</p>
-                    </div>
-                    <div className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                      v.status === 'Approved' ? 'bg-green-500/20 text-green-400' :
-                      v.status === 'Needs Revision' ? 'bg-red-500/20 text-red-400' :
-                      'bg-white/10 text-muted-foreground'
-                    }`}>
-                      {v.status || 'Pending'}
-                    </div>
-                    {/* Frame.io sync status */}
-                    {v.framioSyncStatus === "syncing" && (
-                      <div title="Syncing to Frame.io…" className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 shrink-0">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      </div>
-                    )}
-                    {v.framioSyncStatus === "error" && (
-                      <div title="Frame.io sync failed" className="p-1.5 rounded-lg bg-red-500/10 text-red-400 shrink-0">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-                    {v.framioReviewLink && (
-                      <a
-                        href={v.framioReviewLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open in Frame.io"
-                        onClick={e => e.stopPropagation()}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20 text-[#5865F2] hover:bg-[#5865F2] hover:text-white transition-colors text-xs font-semibold shrink-0"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        Frame.io
-                      </a>
-                    )}
-
-                    {/* Internal share link actions */}
-                    {v.shareToken ? (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          title="Copy internal review link"
-                          onClick={e => { e.stopPropagation(); handleCopyWithFeedback(v.id, v.shareToken!); }}
-                          className={`p-1.5 rounded-lg transition-colors ${copiedId === v.id ? 'bg-green-500/20 text-green-400' : 'bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground'}`}
-                        >
-                          {copiedId === v.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          title="Open review link in new tab"
-                          onClick={e => { e.stopPropagation(); openShareLink(v.shareToken!); }}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        title="Generate client review link"
-                        onClick={e => { e.stopPropagation(); shareMut.mutate({ versionId: v.id }); }}
-                        disabled={shareMut.isPending}
-                        className="p-1.5 rounded-lg bg-white/5 hover:bg-accent/20 text-muted-foreground hover:text-accent transition-colors shrink-0"
-                      >
-                        <LinkIcon className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Comments Sidebar */}
-        <div className="w-full lg:w-96 flex flex-col bg-card rounded-2xl border border-white/5 shadow-xl flex-shrink-0">
-          <div className="p-4 border-b border-white/5 bg-black/10">
-            <h3 className="font-display font-bold text-lg flex items-center gap-2 mb-1">
-              <MessageSquare className="w-5 h-5 text-primary" /> Comments
-            </h3>
-            {selectedVersion && (
-              <p className="text-xs text-muted-foreground">Version {selectedVersion.versionNumber} · sorted by timestamp</p>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {sortedComments.length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                No comments yet. Pause the video and click the timeline or use the pin button below.
-              </div>
-            )}
-            {sortedComments.map(c => (
-              <div key={c.id} className={`p-3 rounded-xl border ${c.isResolved ? 'bg-white/5 border-white/5 opacity-50' : 'bg-primary/5 border-primary/20'} relative group`}>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${c.authorType === 'client' ? 'bg-accent text-accent-foreground' : 'bg-secondary text-white'}`}>
-                      {c.authorName[0]}
-                    </div>
-                    <span className="text-xs font-semibold text-foreground">{c.authorName}</span>
-                    {c.authorType === 'client' && <span className="text-[9px] bg-accent/20 text-accent px-1.5 rounded uppercase tracking-wider">Client</span>}
-                  </div>
-                  {c.timestampSeconds != null && (
-                    <button 
-                      onClick={() => handleSeek(c.timestampSeconds as number)} 
-                      className="text-xs font-mono bg-yellow-400/10 border border-yellow-400/30 px-2 py-0.5 rounded text-yellow-400 hover:bg-yellow-400 hover:text-black transition-colors flex items-center gap-1 shrink-0"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      {fmtTime(c.timestampSeconds as number)}
-                    </button>
-                  )}
-                </div>
-                <p className="text-sm text-foreground/90 leading-relaxed">{c.content}</p>
-                {!c.isResolved && (
-                  <button 
-                    onClick={() => resolveMut.mutate({ commentId: c.id })} 
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1 bg-green-500/20 text-green-400 rounded-md hover:bg-green-500 hover:text-white transition-all"
-                    title="Mark resolved"
-                  >
-                    <Check className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {selectedVersion && (
-            <div className="p-4 border-t border-white/5 bg-black/10">
-              {/* Timestamp pin indicator */}
-              <div className="flex items-center gap-2 mb-3">
-                {activeTimestamp !== null ? (
-                  <div className="flex-1 flex items-center justify-between px-3 py-2 bg-yellow-400/10 rounded-lg border border-yellow-400/30">
-                    <span className="text-xs text-yellow-400 font-medium flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" />
-                      Pinned at <span className="font-mono">{fmtTime(activeTimestamp)}</span>
-                    </span>
-                    <button onClick={() => setActiveTimestamp(null)}>
-                      <X className="w-3 h-3 text-yellow-400/70 hover:text-yellow-400" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center px-3 py-2 bg-white/5 rounded-lg border border-white/10">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5" /> No timestamp — comment will be general
-                    </span>
-                  </div>
-                )}
-                <button
-                  onClick={pinCurrentTime}
-                  title="Pin to current video time"
-                  className="shrink-0 p-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400 hover:text-black transition-colors"
-                >
-                  <MapPin className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={submitComment} className="flex gap-2 mb-4">
-                <Input 
-                  value={commentInput} onChange={e => setCommentInput(e.target.value)}
-                  placeholder={activeTimestamp !== null ? `Comment at ${fmtTime(activeTimestamp)}…` : "Add a general comment…"}
-                  className="bg-black/20 border-white/10 focus-visible:ring-primary"
-                  required
-                />
-                <Button type="submit" size="icon" disabled={commentMut.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-lg shadow-primary/20">
-                  <Check className="w-4 h-4" />
-                </Button>
-              </form>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500 hover:text-white"
-                  onClick={() => approveMut.mutate({ versionId: selectedVersion.id })}
-                  disabled={approveMut.isPending}
-                >
-                  <Check className="w-4 h-4 mr-2" /> Approve
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500 hover:text-white"
-                  onClick={() => reviseMut.mutate({ versionId: selectedVersion.id })}
-                  disabled={reviseMut.isPending}
-                >
-                  <X className="w-4 h-4 mr-2" /> Reject
-                </Button>
-              </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+            <Film className="w-14 h-14 text-zinc-800" />
+            <div>
+              <p className="text-zinc-500 font-medium text-sm">
+                {selectedProject ? "Select a video to review" : "Choose a project to get started"}
+              </p>
+              <p className="text-zinc-700 text-xs mt-1">
+                Browse folders on the left and click any video to open it here
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

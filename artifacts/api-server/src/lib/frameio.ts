@@ -78,8 +78,70 @@ export async function listProjects(): Promise<(FrameioProject & { teamName: stri
 export interface FrameioAsset {
   id: string;
   name: string;
-  upload_urls: string[];
+  type: "file" | "folder" | "version_stack";
+  filesize?: number;
+  filetype?: string;
+  duration?: number;
+  thumb_url?: string;
+  thumb_gif_url?: string;
   link?: string;
+  original?: string;
+  upload_urls: string[];
+  parent?: { id: string };
+  inserted_at?: string;
+}
+
+/** Get a single asset by ID. */
+export async function getAsset(assetId: string): Promise<FrameioAsset | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${FRAMEIO_BASE}/assets/${assetId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return await res.json() as FrameioAsset;
+  } catch {
+    return null;
+  }
+}
+
+/** List children of a folder/project root asset. */
+export async function listAssetChildren(assetId: string, page = 1, pageSize = 50): Promise<FrameioAsset[]> {
+  const token = getToken();
+  if (!token) return [];
+  try {
+    const url = `${FRAMEIO_BASE}/assets/${assetId}/children?page=${page}&page_size=${pageSize}&include=children&order=name&sort=asc`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return await res.json() as FrameioAsset[];
+  } catch {
+    return [];
+  }
+}
+
+/** Get or create a review/presentation link for an asset. */
+export async function getOrCreateReviewLink(assetId: string): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const asset = await getAsset(assetId);
+    if (asset?.link) return asset.link;
+    const presRes = await fetch(`${FRAMEIO_BASE}/assets/${assetId}/presentations`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ allow_approvals: true, allow_comments: true }),
+    });
+    if (presRes.ok) {
+      const pres = await presRes.json() as { short_url?: string; url?: string };
+      return pres.short_url || pres.url || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /** Create a placeholder asset on Frame.io and get S3 upload URLs. */

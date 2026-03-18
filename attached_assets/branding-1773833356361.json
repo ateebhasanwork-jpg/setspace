@@ -1,0 +1,115 @@
+{
+  "colorScheme": "dark",
+  "fonts": [
+    {
+      "family": "FrameGothic",
+      "role": "heading"
+    },
+    {
+      "family": "NeueMachinaInktrap",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#5B53FF",
+    "accent": "#6199F6",
+    "background": "#000000",
+    "textPrimary": "#666666",
+    "link": "#6199F6"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "NeueMachinaInktrap",
+      "heading": "FrameGothic"
+    },
+    "fontStacks": {
+      "heading": [
+        "FrameGothic"
+      ],
+      "body": [
+        "Times New Roman"
+      ],
+      "paragraph": [
+        "FrameGothic"
+      ]
+    },
+    "fontSizes": {
+      "h1": "80px",
+      "h2": "48px",
+      "body": "12px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "4px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#08080C",
+      "textColor": "#000000",
+      "borderRadius": "100px",
+      "borderRadiusCorners": {
+        "topLeft": "100px",
+        "topRight": "100px",
+        "bottomRight": "100px",
+        "bottomLeft": "100px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "https://cdn.sanity.io/images/s6lu43cv/production-v4/c9bc38aba1856b5c2664f207a2436851730e6a0d-1200x630.png?w=1200&h=630&fm=jpg&q=60",
+    "logoHref": "File saved at: attached_assets/logoHref.html"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is located in the header, is visible, and links to the homepage, which are strong indicators of a primary brand logo.",
+    "confidence": 0.95,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 1,
+      "text": "Start Free Trial",
+      "reasoning": "The button 'Start Free Trial' is typically a strong call-to-action for SaaS platforms, encouraging users to engage with the product. It is action-oriented and suggests immediate engagement, making it a primary CTA."
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "All buttons share the same background color, making it impossible to select a secondary button with a different color."
+    },
+    "confidence": 0.9
+  },
+  "personality": {
+    "tone": "modern",
+    "energy": "medium",
+    "targetAudience": "creative professionals and businesses"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.9,
+    "colors": 0.9,
+    "overall": 0.9
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is located in the header, is visible, and links to the homepage, which are strong indicators of a primary brand logo.",
+        "confidence": 0.95
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
