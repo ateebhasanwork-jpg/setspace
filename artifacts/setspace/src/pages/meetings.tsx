@@ -59,14 +59,14 @@ export default function Meetings() {
           updatedAt: new Date().toISOString(),
           _optimistic: true,
         };
-        queryClient.setQueryData(getListMeetingsQueryKey(), (old: any[]) =>
+        queryClient.setQueryData(getListMeetingsQueryKey(), (old: LocalMeeting[] | undefined) =>
           old ? [...old, optimistic] : [optimistic]
         );
         setIsCreateOpen(false);
         resetForm();
         return { previous };
       },
-      onError: (_err, _vars, ctx: any) => {
+      onError: (_err, _vars, ctx: { previous: unknown } | undefined) => {
         queryClient.setQueryData(getListMeetingsQueryKey(), ctx?.previous);
       },
       onSettled: () => {

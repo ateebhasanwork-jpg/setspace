@@ -4,10 +4,62 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Send } from "lucide-react";
+import { MessageSquare, Send, CornerDownRight, X } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 
 type LocalMessage = Message & { _optimistic?: boolean };
+
+function MessageBubble({
+  msg,
+  isMe,
+  showAvatar,
+  onReply,
+}: {
+  msg: LocalMessage;
+  isMe: boolean;
+  showAvatar: boolean;
+  onReply: (msg: LocalMessage) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const isOptimistic = msg._optimistic;
+
+  return (
+    <div
+      className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${isOptimistic ? "opacity-60" : ""}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {!isMe && showAvatar && (
+        <span className="text-xs font-semibold text-muted-foreground mb-1 ml-11">
+          {msg.author?.firstName} {msg.author?.lastName}
+        </span>
+      )}
+      <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
+        {!isMe && (
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${showAvatar ? "bg-white/15" : "opacity-0"}`}>
+            {msg.author?.firstName?.[0]}
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <div className={`p-4 rounded-2xl ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"}`}>
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+            <span className={`text-[10px] block mt-2 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+          {!isOptimistic && (
+            <button
+              onClick={() => onReply(msg)}
+              className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-opacity ${hovered ? "opacity-100" : "opacity-0"} ${isMe ? "self-end" : "self-start ml-1"}`}
+            >
+              <CornerDownRight className="w-3 h-3" /> Reply
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TeamChat() {
   const { data: messages } = useListMessages(undefined, {
@@ -15,6 +67,7 @@ export default function TeamChat() {
   });
   const { data: user } = useGetCurrentUser();
   const [content, setContent] = useState("");
+  const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +103,7 @@ export default function TeamChat() {
             id: -Date.now(),
             content: data.content,
             authorId: user?.id ?? "",
+            parentId: (data.parentId as number | undefined) ?? null,
             createdAt: new Date().toISOString(),
             _optimistic: true,
           };
@@ -67,6 +121,7 @@ export default function TeamChat() {
       },
       onSettled: () => {
         setContent("");
+        setReplyTo(null);
         inputRef.current?.focus();
       },
     }
@@ -76,27 +131,37 @@ export default function TeamChat() {
     bottomRef.current?.scrollIntoView();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendMessage = () => {
     const trimmed = content.trim();
     if (!trimmed || mut.isPending) return;
     setContent("");
-    mut.mutate({ data: { content: trimmed } });
+    mut.mutate({ data: { content: trimmed, parentId: replyTo?.id ?? undefined } });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      const trimmed = content.trim();
-      if (!trimmed || mut.isPending) return;
-      setContent("");
-      mut.mutate({ data: { content: trimmed } });
+      sendMessage();
     }
   };
 
-  const displayMessages = (messages as LocalMessage[] | undefined)?.slice().sort(
+  const allMessages = (messages as LocalMessage[] | undefined)?.slice().sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
+  ) ?? [];
+
+  const topLevel = allMessages.filter(m => !m.parentId);
+  const repliesById: Record<number, LocalMessage[]> = {};
+  for (const m of allMessages) {
+    if (m.parentId) {
+      if (!repliesById[m.parentId]) repliesById[m.parentId] = [];
+      repliesById[m.parentId].push(m);
+    }
+  }
 
   return (
     <div className="h-full flex flex-col pt-2 pb-6">
@@ -109,37 +174,59 @@ export default function TeamChat() {
 
       <Card className="glass-panel flex-1 flex flex-col min-h-0 overflow-hidden shadow-2xl">
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {displayMessages?.map((msg, i, arr) => {
+          {topLevel.map((msg, i, arr) => {
             const isMe = msg.authorId === user?.id;
             const prevMsg = arr[i - 1];
             const showAvatar = !isMe && prevMsg?.authorId !== msg.authorId;
-            const isOptimistic = msg._optimistic;
+            const replies = repliesById[msg.id] ?? [];
 
             return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${isOptimistic ? "opacity-60" : ""}`}>
-                {!isMe && showAvatar && (
-                  <span className="text-xs font-semibold text-muted-foreground mb-1 ml-11">
-                    {msg.author?.firstName} {msg.author?.lastName}
-                  </span>
-                )}
-                <div className="flex items-end gap-2 max-w-[75%]">
-                  {!isMe && (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${showAvatar ? "bg-white/15" : "opacity-0"}`}>
-                      {msg.author?.firstName?.[0]}
-                    </div>
-                  )}
-                  <div className={`p-4 rounded-2xl ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"}`}>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                    <span className={`text-[10px] block mt-2 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
+              <div key={msg.id}>
+                <MessageBubble
+                  msg={msg}
+                  isMe={isMe}
+                  showAvatar={showAvatar}
+                  onReply={setReplyTo}
+                />
+                {replies.length > 0 && (
+                  <div className="ml-10 mt-2 pl-4 border-l-2 border-white/10 space-y-3">
+                    {replies.map(reply => {
+                      const replyIsMe = reply.authorId === user?.id;
+                      return (
+                        <div key={reply.id} className={`flex flex-col ${replyIsMe ? "items-end" : "items-start"} ${reply._optimistic ? "opacity-60" : ""}`}>
+                          {!replyIsMe && (
+                            <span className="text-[11px] font-semibold text-muted-foreground mb-1">
+                              {reply.author?.firstName} {reply.author?.lastName}
+                            </span>
+                          )}
+                          <div className={`p-3 rounded-xl text-sm max-w-[85%] ${replyIsMe ? "bg-primary/80 text-primary-foreground" : "bg-white/8 text-foreground border border-white/5"}`}>
+                            <p className="whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+                            <span className={`text-[10px] block mt-1 text-right ${replyIsMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                              {new Date(reply.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
           <div ref={bottomRef} />
         </div>
+
+        {replyTo && (
+          <div className="px-4 pt-3 flex items-center gap-3 bg-black/20 border-t border-white/5 text-sm text-muted-foreground">
+            <CornerDownRight className="w-4 h-4 shrink-0 text-primary" />
+            <span className="truncate flex-1">
+              Replying to: <span className="text-foreground">{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? "…" : ""}</span>
+            </span>
+            <button onClick={() => setReplyTo(null)} className="shrink-0 hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <div className="p-4 bg-black/20 border-t border-white/5">
           <form onSubmit={handleSubmit} className="flex gap-3">
@@ -148,7 +235,7 @@ export default function TeamChat() {
               value={content}
               onChange={e => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
+              placeholder={replyTo ? "Write a reply…" : "Type a message…"}
               className="flex-1 bg-card/50 border-white/10 focus-visible:ring-primary h-12 rounded-xl"
               autoComplete="off"
             />

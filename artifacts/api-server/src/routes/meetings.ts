@@ -131,20 +131,31 @@ router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
         await db.insert(meetingAttendeesTable).values(
           attendeeIds.map((uid: string) => ({ meetingId: id, userId: uid }))
         );
-        const [updatedMeeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
-        const newAttendees = await db.select().from(usersTable).where(inArray(usersTable.id, attendeeIds));
-        for (const attendee of newAttendees) {
+      }
+    }
+
+    // Always notify all current attendees about any meaningful update
+    const meaningfulChange = title !== undefined || scheduledAt !== undefined || duration !== undefined || meetingUrl !== undefined || description !== undefined || attendeeIds !== undefined;
+    if (meaningfulChange) {
+      const [updatedMeeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
+      const currentAttendeeRows = await db.select({ userId: meetingAttendeesTable.userId }).from(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, id));
+      const currentAttendeeIds = currentAttendeeRows.map(r => r.userId);
+      if (currentAttendeeIds.length > 0) {
+        const attendees = await db.select().from(usersTable).where(inArray(usersTable.id, currentAttendeeIds));
+        for (const attendee of attendees) {
           await db.insert(notificationsTable).values({
             userId: attendee.id,
             type: "meeting_invite",
-            title: `Meeting Updated: ${updatedMeeting?.title ?? title ?? ""}`,
-            body: `The meeting has been updated`,
+            title: `Meeting Updated: ${updatedMeeting?.title ?? ""}`,
+            body: scheduledAt
+              ? `Rescheduled to ${new Date(scheduledAt).toLocaleString()}`
+              : `Meeting details have been updated`,
             linkUrl: `/meetings`
           });
-          if (attendee.email && (scheduledAt || title)) {
+          if (attendee.email) {
             await sendMeetingEmail(attendee.email, attendee.firstName, {
-              title: updatedMeeting?.title ?? title ?? "",
-              scheduledAt: updatedMeeting?.scheduledAt ?? new Date(scheduledAt),
+              title: updatedMeeting?.title ?? "",
+              scheduledAt: updatedMeeting?.scheduledAt ?? new Date(),
               description: updatedMeeting?.description,
               meetingUrl: updatedMeeting?.meetingUrl
             });
@@ -152,6 +163,7 @@ router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
         }
       }
     }
+
     const result = await getMeetingWithAttendees(id);
     res.json(result);
   } catch (err) {

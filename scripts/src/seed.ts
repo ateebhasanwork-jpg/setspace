@@ -36,12 +36,12 @@ async function seed() {
 
   // Tasks
   const tasks = await db.insert(tasksTable).values([
-    { title: "Edit Nike Summer Campaign Reel", status: "in-progress", priority: "high", assigneeId: "user_editor1", createdById: "user_admin", dueDate: new Date(Date.now() + 3 * 86400000), description: "3-minute brand reel for Nike summer collection. Needs color grading and sound design." },
-    { title: "Spotify Podcast Intro Animation", status: "review", priority: "high", assigneeId: "user_editor2", createdById: "user_admin", dueDate: new Date(Date.now() + 1 * 86400000), description: "15-second animated intro for Spotify podcast series." },
-    { title: "Tesla Product Launch Video", status: "todo", priority: "urgent", assigneeId: "user_editor3", createdById: "user_admin", dueDate: new Date(Date.now() + 7 * 86400000), description: "60-second product launch teaser for Model S refresh." },
-    { title: "Color Grade Wedding Highlight", status: "done", priority: "medium", assigneeId: "user_editor4", createdById: "user_admin", completedAt: new Date(Date.now() - 2 * 86400000), dueDate: new Date(Date.now() - 1 * 86400000) },
-    { title: "Social Media Cutdowns — Nike", status: "todo", priority: "medium", assigneeId: "user_editor1", createdById: "user_admin", dueDate: new Date(Date.now() + 5 * 86400000), description: "15s and 30s social cutdowns from the main reel." },
-    { title: "YouTube Thumbnail Design Pack", status: "in-progress", priority: "low", assigneeId: "user_editor2", createdById: "user_admin", dueDate: new Date(Date.now() + 10 * 86400000) },
+    { title: "Edit Nike Summer Campaign Reel", status: "In Progress", priority: "High", assigneeId: "user_editor1", createdById: "user_admin", dueDate: new Date(Date.now() + 3 * 86400000), description: "3-minute brand reel for Nike summer collection. Needs color grading and sound design." },
+    { title: "Spotify Podcast Intro Animation", status: "Review", priority: "High", assigneeId: "user_editor2", createdById: "user_admin", dueDate: new Date(Date.now() + 1 * 86400000), description: "15-second animated intro for Spotify podcast series." },
+    { title: "Tesla Product Launch Video", status: "To Do", priority: "High", assigneeId: "user_editor3", createdById: "user_admin", dueDate: new Date(Date.now() + 7 * 86400000), description: "60-second product launch teaser for Model S refresh." },
+    { title: "Color Grade Wedding Highlight", status: "Done", priority: "Medium", assigneeId: "user_editor4", createdById: "user_admin", completedAt: new Date(Date.now() - 2 * 86400000), dueDate: new Date(Date.now() - 1 * 86400000) },
+    { title: "Social Media Cutdowns — Nike", status: "To Do", priority: "Medium", assigneeId: "user_editor1", createdById: "user_admin", dueDate: new Date(Date.now() + 5 * 86400000), description: "15s and 30s social cutdowns from the main reel." },
+    { title: "YouTube Thumbnail Design Pack", status: "In Progress", priority: "Low", assigneeId: "user_editor2", createdById: "user_admin", dueDate: new Date(Date.now() + 10 * 86400000) },
   ]).returning();
 
   console.log(`Created ${tasks.length} tasks`);
