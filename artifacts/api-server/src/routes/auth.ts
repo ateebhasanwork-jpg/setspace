@@ -60,31 +60,42 @@ async function upsertUser(claims: Record<string, unknown>) {
   const firstName = (claims.first_name as string) || "";
   const lastName = (claims.last_name as string) || "";
   const username = (claims.preferred_username || claims.username || `${firstName.toLowerCase()}_${sub.slice(-6)}`) as string;
+  const profileImage = (claims.profile_image_url || claims.picture) as string | null;
+  const email = (claims.email as string) || null;
 
-  const profileData = {
+  // Values used when INSERTING a brand-new user (safe fallbacks)
+  const insertData = {
     id: sub,
     username,
-    email: (claims.email as string) || null,
+    email,
     firstName: firstName || "User",
     lastName: lastName || sub.slice(-6),
-    profileImage: (claims.profile_image_url || claims.picture) as string | null,
+    profileImage,
   };
+
+  // Values used when the user already EXISTS — never overwrite a manually set
+  // name with a fallback; only update name fields when Replit sends real values.
+  const updateData: Record<string, unknown> = {
+    username,
+    email,
+    profileImage,
+    updatedAt: new Date(),
+  };
+  if (firstName) updateData.firstName = firstName;
+  if (lastName) updateData.lastName = lastName;
 
   const autoRole = ADMIN_USERNAMES.includes(username.toLowerCase()) ? "admin" as const
     : HR_USERNAMES.includes(username.toLowerCase()) ? "hr" as const
     : undefined;
 
+  if (autoRole) updateData.role = autoRole;
+
   const [user] = await db
     .insert(usersTable)
-    .values({ ...profileData, ...(autoRole ? { role: autoRole } : {}) })
+    .values({ ...insertData, ...(autoRole ? { role: autoRole } : {}) })
     .onConflictDoUpdate({
       target: usersTable.id,
-      set: {
-        ...profileData,
-        updatedAt: new Date(),
-        // For named admin/hr users, always enforce the correct role on every login
-        ...(autoRole ? { role: autoRole } : {}),
-      },
+      set: updateData,
     })
     .returning();
   return user;
