@@ -213,9 +213,13 @@ function GroupChat({ user }: { user: User }) {
   };
 
   const scrollToBottom = (smooth = true) => {
-    bottomRef.current?.scrollIntoView({
-      behavior: smooth ? "smooth" : "instant",
-    } as ScrollIntoViewOptions);
+    const el = scrollRef.current;
+    if (!el) return;
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -423,9 +427,13 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   };
 
   const scrollToBottom = (smooth = true) => {
-    bottomRef.current?.scrollIntoView({
-      behavior: smooth ? "smooth" : "instant",
-    } as ScrollIntoViewOptions);
+    const el = scrollRef.current;
+    if (!el) return;
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
   };
 
   const fetchDMs = async () => {
