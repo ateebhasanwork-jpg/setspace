@@ -57,11 +57,11 @@ export default function TeamChat() {
                 )}
                 <div className="flex items-end gap-2 max-w-[75%]">
                   {!isMe && (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${showAvatar ? 'bg-gradient-to-br from-primary to-accent' : 'opacity-0'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${showAvatar ? 'bg-white/15' : 'opacity-0'}`}>
                       {msg.author?.firstName?.[0]}
                     </div>
                   )}
-                  <div className={`p-4 rounded-2xl ${isMe ? 'bg-primary text-white rounded-br-sm' : 'bg-white/10 text-foreground border border-white/5 rounded-bl-sm'}`}>
+                  <div className={`p-4 rounded-2xl ${isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-white/10 text-foreground border border-white/5 rounded-bl-sm'}`}>
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     <span className={`text-[10px] block mt-2 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                       {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -81,7 +81,7 @@ export default function TeamChat() {
               placeholder="Type a message..." 
               className="flex-1 bg-card/50 border-white/10 focus-visible:ring-primary h-12 rounded-xl"
             />
-            <Button type="submit" disabled={mut.isPending || !content.trim()} className="h-12 w-12 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 shrink-0 p-0">
+            <Button type="submit" disabled={mut.isPending || !content.trim()} className="h-12 w-12 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 shrink-0 p-0">
               <Send className="w-5 h-5" />
             </Button>
           </form>

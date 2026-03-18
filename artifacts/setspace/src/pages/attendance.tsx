@@ -58,7 +58,7 @@ export default function Attendance() {
                 <Button 
                   onClick={() => clockOutMut.mutate()} 
                   disabled={clockOutMut.isPending}
-                  className="w-full bg-accent hover:bg-accent/90 text-white rounded-xl shadow-lg shadow-accent/20 h-12 text-lg"
+                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl shadow-lg shadow-accent/20 h-12 text-lg"
                 >
                   <LogOut className="w-5 h-5 mr-2" /> Clock Out
                 </Button>
@@ -72,7 +72,7 @@ export default function Attendance() {
               <Button 
                 onClick={() => clockInMut.mutate()} 
                 disabled={clockInMut.isPending}
-                className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/20 h-12 text-lg"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20 h-12 text-lg"
               >
                 <LogIn className="w-5 h-5 mr-2" /> Clock In
               </Button>

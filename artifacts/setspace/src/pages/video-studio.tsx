@@ -243,7 +243,7 @@ export default function VideoStudio() {
               <div key={c.id} className={`p-3 rounded-xl border ${c.isResolved ? 'bg-white/5 border-white/5 opacity-60' : 'bg-primary/5 border-primary/20'} relative group`}>
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${c.authorType === 'client' ? 'bg-accent text-white' : 'bg-secondary text-white'}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${c.authorType === 'client' ? 'bg-accent text-accent-foreground' : 'bg-secondary text-white'}`}>
                       {c.authorName[0]}
                     </div>
                     <span className="text-xs font-semibold text-foreground">{c.authorName}</span>
@@ -280,7 +280,7 @@ export default function VideoStudio() {
                   className="bg-black/20 border-white/10 focus-visible:ring-primary"
                   required
                 />
-                <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 text-white shrink-0 shadow-lg shadow-primary/20"><Check className="w-4 h-4" /></Button>
+                <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-lg shadow-primary/20"><Check className="w-4 h-4" /></Button>
               </form>
 
               <div className="grid grid-cols-2 gap-2 pt-4 border-t border-white/5">

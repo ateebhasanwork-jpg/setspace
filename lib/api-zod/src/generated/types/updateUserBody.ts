@@ -12,4 +12,5 @@ export interface UpdateUserBody {
   role?: string;
   department?: string | null;
   title?: string | null;
+  profileImage?: string | null;
 }

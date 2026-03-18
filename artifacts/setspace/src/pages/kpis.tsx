@@ -44,7 +44,7 @@ export default function KPIs() {
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg">
               <Plus className="w-4 h-4 mr-2" /> Assign KPI
             </Button>
           </DialogTrigger>
@@ -62,7 +62,7 @@ export default function KPIs() {
                 <Input required type="number" placeholder="Target Value" value={targetValue} onChange={e => setTargetValue(e.target.value)} className="bg-black/20 border-white/10" />
                 <Input required placeholder="Unit (e.g. videos)" value={unit} onChange={e => setUnit(e.target.value)} className="bg-black/20 border-white/10" />
               </div>
-              <Button type="submit" className="w-full bg-primary text-white font-semibold">Create KPI</Button>
+              <Button type="submit" className="w-full bg-primary text-primary-foreground font-semibold">Create KPI</Button>
             </form>
           </DialogContent>
         </Dialog>

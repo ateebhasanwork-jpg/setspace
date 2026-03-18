@@ -41,7 +41,7 @@ export default function Meetings() {
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg">
               <Plus className="w-4 h-4 mr-2" /> Schedule Meeting
             </Button>
           </DialogTrigger>
@@ -56,7 +56,7 @@ export default function Meetings() {
                 <Input required type="number" placeholder="Duration (mins)" value={duration} onChange={e => setDuration(e.target.value)} className="bg-black/20 border-white/10" />
               </div>
               <Input placeholder="Meeting Link (Zoom, Meet...)" value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} className="bg-black/20 border-white/10" />
-              <Button type="submit" disabled={mut.isPending} className="w-full bg-primary text-white font-semibold">Schedule Event</Button>
+              <Button type="submit" disabled={mut.isPending} className="w-full bg-primary text-primary-foreground font-semibold">Schedule Event</Button>
             </form>
           </DialogContent>
         </Dialog>

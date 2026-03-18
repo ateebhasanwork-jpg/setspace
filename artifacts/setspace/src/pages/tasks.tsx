@@ -117,13 +117,13 @@ export default function Tasks() {
           <div className="flex items-center bg-black/20 p-1 rounded-lg border border-white/5">
             <button
               onClick={() => setViewMode("board")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "board" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+              className={`p-2 rounded-md transition-colors ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "list" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground"}`}
+              className={`p-2 rounded-md transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               <ListIcon className="w-4 h-4" />
             </button>

@@ -86,6 +86,7 @@ export const UpdateUserBody = zod.object({
   role: zod.string().optional(),
   department: zod.string().nullish(),
   title: zod.string().nullish(),
+  profileImage: zod.string().nullish(),
 });
 
 export const UpdateUserResponse = zod.object({

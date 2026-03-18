@@ -42,7 +42,7 @@ export default function QualityChecks() {
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-white rounded-xl shadow-lg shadow-primary/20">
+            <Button className="bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
               <Plus className="w-4 h-4 mr-2" /> New Evaluation
             </Button>
           </DialogTrigger>
@@ -74,7 +74,7 @@ export default function QualityChecks() {
                 className="w-full h-24 p-3 bg-black/20 border border-white/10 rounded-lg text-sm resize-none"
                 placeholder="Constructive feedback..."
               />
-              <Button type="submit" disabled={createMut.isPending} className="w-full bg-primary text-white font-semibold">Submit Evaluation</Button>
+              <Button type="submit" disabled={createMut.isPending} className="w-full bg-primary text-primary-foreground font-semibold">Submit Evaluation</Button>
             </form>
           </DialogContent>
         </Dialog>

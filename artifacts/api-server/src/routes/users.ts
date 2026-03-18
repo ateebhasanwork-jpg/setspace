@@ -32,11 +32,27 @@ router.patch("/users/:userId", async (req, res) => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  // Users can only update their own profile; admins/hr can update anyone
+  const isSelf = req.user.id === req.params.userId;
+  const isManager = req.user.role === "admin" || req.user.role === "hr";
+  if (!isSelf && !isManager) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
   try {
-    const { firstName, lastName, role, department, title } = req.body;
+    const { firstName, lastName, role, department, title, profileImage } = req.body;
+    const updateFields: Record<string, unknown> = { updatedAt: new Date() };
+    if (firstName !== undefined) updateFields.firstName = firstName;
+    if (lastName !== undefined) updateFields.lastName = lastName;
+    if (department !== undefined) updateFields.department = department;
+    if (title !== undefined) updateFields.title = title;
+    if (profileImage !== undefined) updateFields.profileImage = profileImage;
+    // Only admins/hr can change roles
+    if (role !== undefined && isManager) updateFields.role = role;
+
     const [updated] = await db
       .update(usersTable)
-      .set({ firstName, lastName, role, department, title, updatedAt: new Date() })
+      .set(updateFields)
       .where(eq(usersTable.id, req.params.userId))
       .returning();
     if (!updated) {

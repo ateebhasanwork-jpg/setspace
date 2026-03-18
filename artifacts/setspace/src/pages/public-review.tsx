@@ -144,7 +144,7 @@ export default function PublicReview() {
                   className="bg-black/20 border border-white/10 focus-visible:ring-1 focus-visible:ring-primary focus:outline-none rounded-lg p-3 text-sm h-24 resize-none"
                   required
                 />
-                <Button type="submit" className="bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 w-full font-semibold" disabled={commentMut.isPending}>
+                <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 w-full font-semibold" disabled={commentMut.isPending}>
                   {commentMut.isPending ? "Submitting..." : "Submit Feedback"}
                 </Button>
               </form>

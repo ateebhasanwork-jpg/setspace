@@ -19,6 +19,7 @@ import Leaderboard from "./pages/leaderboard";
 import TeamChat from "./pages/chat";
 import Meetings from "./pages/meetings";
 import Notifications from "./pages/notifications";
+import Profile from "./pages/profile";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
@@ -88,6 +89,7 @@ function Router() {
               <Route path="/chat" component={TeamChat} />
               <Route path="/meetings" component={Meetings} />
               <Route path="/notifications" component={Notifications} />
+              <Route path="/profile" component={Profile} />
               <Route component={NotFound} />
             </Switch>
           </AppLayout>
