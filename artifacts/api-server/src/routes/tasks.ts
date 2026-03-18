@@ -86,7 +86,7 @@ router.get("/tasks/:taskId", async (req, res) => {
   }
 });
 
-router.patch("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
+router.patch("/tasks/:taskId", async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
     const { title, description, status, priority, assigneeId, dueDate, completedAt, externalLink, attachmentUrl, attachmentName } = req.body;

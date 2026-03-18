@@ -74,7 +74,7 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 }
 
 export default function Tasks() {
-  const { data: tasks, isLoading } = useListTasks();
+  const { data: tasks, isLoading } = useListTasks({ query: { refetchInterval: 2000, refetchIntervalInBackground: true } });
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -130,11 +130,14 @@ export default function Tasks() {
 
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+  const refetch = () => queryClient.refetchQueries({ queryKey: getListTasksQueryKey() });
 
-  // Guaranteed real-time polling every 2 s regardless of React Query's internal state
+  // Belt-and-suspenders polling: forcefully refetch every 2 s.
+  // Using refetchQueries (not invalidateQueries) so the HTTP request fires
+  // immediately, regardless of React Query's internal staleness state.
   useEffect(() => {
     const id = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      queryClient.refetchQueries({ queryKey: getListTasksQueryKey() });
     }, 2000);
     return () => clearInterval(id);
   }, [queryClient]);
@@ -267,8 +270,8 @@ export default function Tasks() {
     updateMut.mutate(
       { taskId: id, data: { status: col } },
       {
-        onSuccess: () => invalidate(),
-        onError: () => invalidate(),
+        onSuccess: () => refetch(),
+        onError: () => refetch(),
       }
     );
     draggingTaskId.current = null;
