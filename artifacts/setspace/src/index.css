@@ -145,3 +145,18 @@
 .glass-panel {
   @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-xl;
 }
+
+/* Force dark colour-scheme so native date/time pickers and select dropdowns
+   render with dark backgrounds and legible text */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+select {
+  color-scheme: dark;
+}
+
+/* Ensure option elements are readable inside the dark dropdowns */
+select option {
+  background-color: hsl(0 0% 10%);
+  color: hsl(0 0% 96%);
+}

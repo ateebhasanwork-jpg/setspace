@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { useListMeetings, useCreateMeeting, useListUsers, getListMeetingsQueryKey, type Meeting } from "@workspace/api-client-react";
+import { useListMeetings, useCreateMeeting, useDeleteMeeting, useListUsers, getListMeetingsQueryKey, type Meeting } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Plus, Video, Clock, Check } from "lucide-react";
+import { Calendar, Plus, Video, Clock, Check, Trash2 } from "lucide-react";
 
 type LocalMeeting = Meeting & { _optimistic?: boolean };
 
@@ -23,14 +23,17 @@ export default function Meetings() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const [title, setTitle] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("09:00");
   const [duration, setDuration] = useState("30");
   const [meetingUrl, setMeetingUrl] = useState("");
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const resetForm = () => {
     setTitle("");
-    setScheduledAt("");
+    setSelectedDate("");
+    setSelectedTime("09:00");
     setDuration("30");
     setMeetingUrl("");
     setSelectedAttendees([]);
@@ -41,6 +44,26 @@ export default function Meetings() {
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
     );
   };
+
+  const deleteMut = useDeleteMeeting({
+    mutation: {
+      onMutate: async ({ meetingId }) => {
+        await queryClient.cancelQueries({ queryKey: getListMeetingsQueryKey() });
+        const previous = queryClient.getQueryData(getListMeetingsQueryKey());
+        queryClient.setQueryData(getListMeetingsQueryKey(), (old: LocalMeeting[] | undefined) =>
+          old ? old.filter(m => m.id !== meetingId) : []
+        );
+        setConfirmDeleteId(null);
+        return { previous };
+      },
+      onError: (_err, _vars, ctx: { previous: unknown } | undefined) => {
+        queryClient.setQueryData(getListMeetingsQueryKey(), ctx?.previous);
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+      },
+    }
+  });
 
   const mut = useCreateMeeting({
     mutation: {
@@ -77,10 +100,11 @@ export default function Meetings() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    const combinedISO = new Date(`${selectedDate}T${selectedTime}`).toISOString();
     mut.mutate({
       data: {
         title,
-        scheduledAt: new Date(scheduledAt).toISOString(),
+        scheduledAt: combinedISO,
         duration: Number(duration),
         meetingUrl: meetingUrl || undefined,
         attendeeIds: selectedAttendees,
@@ -109,8 +133,32 @@ export default function Meetings() {
             <form onSubmit={handleCreate} className="space-y-4">
               <Input required placeholder="Meeting Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-black/20 border-white/10" />
               <div className="grid grid-cols-2 gap-4">
-                <Input required type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} className="bg-black/20 border-white/10 text-foreground" />
-                <Input required type="number" placeholder="Duration (mins)" value={duration} onChange={e => setDuration(e.target.value)} className="bg-black/20 border-white/10" />
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Date</label>
+                  <Input
+                    required
+                    type="date"
+                    value={selectedDate}
+                    onChange={e => setSelectedDate(e.target.value)}
+                    className="bg-black/20 border-white/10 text-foreground w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Time</label>
+                  <Input
+                    required
+                    type="time"
+                    value={selectedTime}
+                    onChange={e => setSelectedTime(e.target.value)}
+                    className="bg-black/20 border-white/10 text-foreground w-full"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Duration (minutes)</label>
+                  <Input required type="number" placeholder="30" value={duration} onChange={e => setDuration(e.target.value)} className="bg-black/20 border-white/10" />
+                </div>
               </div>
               <Input placeholder="Meeting Link (Zoom, Meet...)" value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} className="bg-black/20 border-white/10" />
 
@@ -174,9 +222,37 @@ export default function Meetings() {
                     <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
                       <Calendar className="w-6 h-6" />
                     </div>
-                    <span className="text-xs bg-white/10 px-2.5 py-1 rounded-md text-muted-foreground font-semibold">
-                      {meeting.duration} min
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-white/10 px-2.5 py-1 rounded-md text-muted-foreground font-semibold">
+                        {meeting.duration} min
+                      </span>
+                      {!isOptimistic && (
+                        confirmDeleteId === meeting.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => deleteMut.mutate({ meetingId: meeting.id })}
+                              className="text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 px-2 py-1 rounded-md font-semibold transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-xs bg-white/5 hover:bg-white/10 text-muted-foreground px-2 py-1 rounded-md transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(meeting.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400"
+                            title="Delete meeting"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )
+                      )}
+                    </div>
                   </div>
                   <h3 className="font-display font-bold text-xl mb-1 text-foreground">{meeting.title}</h3>
                   <p className="text-muted-foreground text-sm flex items-center mt-3">
