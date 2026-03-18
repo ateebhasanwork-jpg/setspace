@@ -13,6 +13,34 @@ const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
 /**
+ * POST /storage/upload
+ *
+ * Direct server-side upload: the client streams the file body here.
+ * The server pipes it straight into GCS — no CORS issues with signed URLs.
+ * Headers:
+ *   Content-Type   – MIME type of the file
+ *   X-File-Name    – original filename
+ *   Content-Length – file size in bytes
+ */
+router.post("/storage/upload", async (req: Request, res: Response) => {
+  try {
+    const contentType = (req.headers["content-type"] as string) || "application/octet-stream";
+    const fileName = (req.headers["x-file-name"] as string) || "upload";
+    const contentLength = parseInt((req.headers["content-length"] as string) || "0", 10);
+
+    const objectPath = await objectStorageService.uploadStreamToStorage(req, contentType);
+
+    res.json({
+      objectPath,
+      metadata: { name: fileName, size: contentLength, contentType },
+    });
+  } catch (error) {
+    console.error("Direct upload error:", error);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+/**
  * POST /storage/uploads/request-url
  *
  * Request a presigned URL for file upload.

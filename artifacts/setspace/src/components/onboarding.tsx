@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useUpdateUser, useRequestUploadUrl } from "@workspace/api-client-react";
+import { useUpdateUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,6 @@ function OnboardingModal() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const requestUrl = useRequestUploadUrl();
   const updateUser = useUpdateUser({
     mutation: { onSuccess: () => queryClient.invalidateQueries() }
   });
@@ -60,12 +59,18 @@ function OnboardingModal() {
     try {
       let objectPath: string | undefined;
       if (pendingFile) {
-        const { uploadURL, objectPath: op } = await requestUrl.mutateAsync({
-          data: { name: pendingFile.name, size: pendingFile.size, contentType: pendingFile.type }
+        const res = await fetch("/api/storage/upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": pendingFile.type,
+            "X-File-Name": pendingFile.name,
+            "Content-Length": String(pendingFile.size),
+          },
+          body: pendingFile,
         });
-        const res = await fetch(uploadURL, { method: "PUT", body: pendingFile, headers: { "Content-Type": pendingFile.type } });
         if (!res.ok) throw new Error("Upload failed");
-        objectPath = op;
+        const data = await res.json();
+        objectPath = data.objectPath;
       }
       await updateUser.mutateAsync({
         userId: user.id,

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useUpdateUser, useRequestUploadUrl } from "@workspace/api-client-react";
+import { useUpdateUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const requestUrl = useRequestUploadUrl();
   const updateUser = useUpdateUser({
     mutation: {
       onSuccess: () => {
@@ -44,20 +43,17 @@ export default function Profile() {
     setUploading(true);
     setError(null);
     try {
-      const { uploadURL, objectPath } = await requestUrl.mutateAsync({
-        data: {
-          name: file.name,
-          size: file.size,
-          contentType: file.type,
+      const uploadRes = await fetch("/api/storage/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type,
+          "X-File-Name": file.name,
+          "Content-Length": String(file.size),
         },
-      });
-
-      const putRes = await fetch(uploadURL, {
-        method: "PUT",
         body: file,
-        headers: { "Content-Type": file.type },
       });
-      if (!putRes.ok) throw new Error("Upload failed");
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const { objectPath } = await uploadRes.json();
 
       await updateUser.mutateAsync({
         userId: authUser.id,

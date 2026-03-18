@@ -175,6 +175,26 @@ export class ObjectStorageService {
     return `/objects/${entityId}`;
   }
 
+  async uploadStreamToStorage(stream: Readable, contentType: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const objectId = randomUUID();
+    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    await new Promise<void>((resolve, reject) => {
+      const writeStream = file.createWriteStream({ metadata: { contentType } });
+      stream.pipe(writeStream);
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    return this.normalizeObjectEntityPath(
+      `https://storage.googleapis.com/${bucketName}/${objectName}`
+    );
+  }
+
   async trySetObjectEntityAclPolicy(
     rawPath: string,
     aclPolicy: ObjectAclPolicy
