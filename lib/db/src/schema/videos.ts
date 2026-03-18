@@ -26,6 +26,9 @@ export const videoVersionsTable = pgTable("video_versions", {
   status: text("status").notNull().default("pending"),
   uploadedById: text("uploaded_by_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   shareToken: text("share_token"),
+  framioAssetId: text("framio_asset_id"),
+  framioReviewLink: text("framio_review_link"),
+  framioSyncStatus: text("framio_sync_status").notNull().default("none"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

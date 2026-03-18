@@ -4,8 +4,11 @@ import { videoProjectsTable, videoVersionsTable, videoCommentsTable, videoShareT
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { requireAdminOrHR } from "../middleware/roles";
+import { syncToFrameio, isFrameioConfigured } from "../lib/frameio";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
 
 async function getVersionWithUploader(versionId: number) {
   const [version] = await db.select().from(videoVersionsTable).where(eq(videoVersionsTable.id, versionId));
@@ -127,20 +130,71 @@ router.post("/video-projects/:projectId/versions", async (req, res) => {
   }
   try {
     const projectId = parseInt(String(req.params.projectId));
-    const { objectPath, fileName, fileSize } = req.body;
+    const { objectPath, fileName, fileSize, mimeType } = req.body;
     const existingVersions = await db.select().from(videoVersionsTable).where(eq(videoVersionsTable.projectId, projectId));
     const versionNumber = existingVersions.length + 1;
+
+    const framioSyncStatus = isFrameioConfigured() ? "pending" : "none";
+
     const [version] = await db.insert(videoVersionsTable).values({
       projectId, versionNumber, objectPath, fileName, fileSize,
-      uploadedById: req.user!.id, status: "pending"
+      uploadedById: req.user!.id, status: "pending",
+      framioSyncStatus
     }).returning();
     await db.update(videoProjectsTable).set({ updatedAt: new Date() }).where(eq(videoProjectsTable.id, projectId));
     const result = await getVersionWithUploader(version.id);
     res.status(201).json(result);
+
+    // Async: sync to Frame.io after responding — does not block the client
+    if (isFrameioConfigured()) {
+      syncVersionToFrameio(version.id, objectPath, fileName, fileSize, mimeType || "video/mp4").catch(err => {
+        console.error(`Frame.io sync failed for version ${version.id}:`, err);
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: "Failed to create video version" });
   }
 });
+
+async function syncVersionToFrameio(
+  versionId: number,
+  objectPath: string,
+  fileName: string,
+  fileSize: number,
+  mimeType: string
+) {
+  try {
+    await db.update(videoVersionsTable).set({ framioSyncStatus: "syncing" }).where(eq(videoVersionsTable.id, versionId));
+
+    // Download file from GCS into a buffer
+    const file = await objectStorage.getObjectEntityFile(objectPath);
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const stream = file.createReadStream();
+      stream.on("data", (chunk: Buffer) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+      stream.on("end", resolve);
+      stream.on("error", reject);
+    });
+    const buffer = Buffer.concat(chunks);
+
+    const result = await syncToFrameio(fileName, fileSize, mimeType, buffer);
+    if (!result) {
+      await db.update(videoVersionsTable).set({ framioSyncStatus: "error" }).where(eq(videoVersionsTable.id, versionId));
+      return;
+    }
+
+    await db.update(videoVersionsTable).set({
+      framioAssetId: result.assetId,
+      framioReviewLink: result.reviewLink,
+      framioSyncStatus: "synced"
+    }).where(eq(videoVersionsTable.id, versionId));
+
+    console.log(`Frame.io sync complete for version ${versionId}: asset ${result.assetId}`);
+  } catch (err) {
+    console.error(`Frame.io sync error for version ${versionId}:`, err);
+    await db.update(videoVersionsTable).set({ framioSyncStatus: "error" }).where(eq(videoVersionsTable.id, versionId)).catch(() => {});
+  }
+}
 
 router.post("/video-versions/:versionId/approve", requireAdminOrHR, async (req, res) => {
   try {

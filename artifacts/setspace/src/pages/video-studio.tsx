@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, Film, MapPin, Copy, ExternalLink, Clock } from "lucide-react";
+import { ChevronLeft, Upload, Check, X, Link as LinkIcon, MessageSquare, Play, Pause, Film, MapPin, Copy, ExternalLink, Clock, Loader2, AlertCircle } from "lucide-react";
 import { Link, useParams } from "wouter";
 
 function fmtTime(s: number) {
@@ -52,11 +52,12 @@ export default function VideoStudio() {
     }
   });
   
+  const [pendingMime, setPendingMime] = useState<string>("video/mp4");
   const { uploadFile, isUploading, progress } = useUpload({
     onSuccess: (res) => {
       createVersionMut.mutate({
         projectId,
-        data: { objectPath: res.objectPath, fileName: res.metadata.name, fileSize: res.metadata.size }
+        data: { objectPath: res.objectPath, fileName: res.metadata.name, fileSize: res.metadata.size, mimeType: res.metadata.contentType || pendingMime }
       });
     }
   });
@@ -183,7 +184,7 @@ export default function VideoStudio() {
         </div>
         
         <label className={`cursor-pointer ${isUploading || createVersionMut.isPending ? "pointer-events-none" : ""}`}>
-          <input type="file" className="hidden" accept="video/*" onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} disabled={isUploading || createVersionMut.isPending} />
+          <input type="file" className="hidden" accept="video/*" onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingMime(f.type || "video/mp4"); uploadFile(f); } }} disabled={isUploading || createVersionMut.isPending} />
           <div className="flex flex-col w-full sm:min-w-[160px] bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm text-foreground overflow-hidden">
             <div className="flex items-center gap-2">
               {isUploading || createVersionMut.isPending ? (
@@ -292,18 +293,43 @@ export default function VideoStudio() {
                     }`}>
                       {v.status || 'Pending'}
                     </div>
-                    {/* Share link actions */}
+                    {/* Frame.io sync status */}
+                    {v.framioSyncStatus === "syncing" && (
+                      <div title="Syncing to Frame.io…" className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 shrink-0">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      </div>
+                    )}
+                    {v.framioSyncStatus === "error" && (
+                      <div title="Frame.io sync failed" className="p-1.5 rounded-lg bg-red-500/10 text-red-400 shrink-0">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                    {v.framioReviewLink && (
+                      <a
+                        href={v.framioReviewLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open in Frame.io"
+                        onClick={e => e.stopPropagation()}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20 text-[#5865F2] hover:bg-[#5865F2] hover:text-white transition-colors text-xs font-semibold shrink-0"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Frame.io
+                      </a>
+                    )}
+
+                    {/* Internal share link actions */}
                     {v.shareToken ? (
                       <div className="flex items-center gap-1 shrink-0">
                         <button
-                          title="Copy share link"
+                          title="Copy internal review link"
                           onClick={e => { e.stopPropagation(); handleCopyWithFeedback(v.id, v.shareToken!); }}
                           className={`p-1.5 rounded-lg transition-colors ${copiedId === v.id ? 'bg-green-500/20 text-green-400' : 'bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground'}`}
                         >
                           {copiedId === v.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                         <button
-                          title="Open in new tab"
+                          title="Open review link in new tab"
                           onClick={e => { e.stopPropagation(); openShareLink(v.shareToken!); }}
                           className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
                         >
@@ -312,7 +338,7 @@ export default function VideoStudio() {
                       </div>
                     ) : (
                       <button
-                        title="Generate share link"
+                        title="Generate client review link"
                         onClick={e => { e.stopPropagation(); shareMut.mutate({ versionId: v.id }); }}
                         disabled={shareMut.isPending}
                         className="p-1.5 rounded-lg bg-white/5 hover:bg-accent/20 text-muted-foreground hover:text-accent transition-colors shrink-0"
