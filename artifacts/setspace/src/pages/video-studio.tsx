@@ -160,7 +160,7 @@ export default function VideoStudio() {
 
           <label className={`cursor-pointer ${isUploading || createVersionMut.isPending ? "pointer-events-none" : ""}`}>
             <input type="file" className="hidden" accept="video/*" onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} disabled={isUploading || createVersionMut.isPending} />
-            <div className="flex flex-col min-w-[160px] bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm text-foreground overflow-hidden">
+            <div className="flex flex-col w-full sm:min-w-[160px] bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm text-foreground overflow-hidden">
               <div className="flex items-center gap-2">
                 {isUploading || createVersionMut.isPending ? (
                   <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
