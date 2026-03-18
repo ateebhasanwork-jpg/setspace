@@ -1,21 +1,23 @@
 import React, { useState } from "react";
-import { useListVideoProjects, useCreateVideoProject, getListVideoProjectsQueryKey } from "@workspace/api-client-react";
+import { useListVideoProjects, useCreateVideoProject, getListVideoProjectsQueryKey, useListTasks } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Video, Building2, Layers } from "lucide-react";
+import { Plus, Video, Building2, Layers, Link2 } from "lucide-react";
 import { Link } from "wouter";
 
 export default function VideoProjects() {
   const { data: projects, isLoading } = useListVideoProjects();
+  const { data: tasks } = useListTasks();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  
+
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
   const [description, setDescription] = useState("");
-  
+  const [linkedTaskId, setLinkedTaskId] = useState<string>("");
+
   const queryClient = useQueryClient();
   const createMut = useCreateVideoProject({
     mutation: {
@@ -24,6 +26,7 @@ export default function VideoProjects() {
         setTitle("");
         setClientName("");
         setDescription("");
+        setLinkedTaskId("");
         queryClient.invalidateQueries({ queryKey: getListVideoProjectsQueryKey() });
       }
     }
@@ -31,7 +34,14 @@ export default function VideoProjects() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    createMut.mutate({ data: { title, clientName, description } });
+    createMut.mutate({
+      data: {
+        title,
+        clientName: clientName || undefined,
+        description: description || undefined,
+        taskId: linkedTaskId ? parseInt(linkedTaskId) : undefined,
+      }
+    });
   };
 
   return (
@@ -63,11 +73,24 @@ export default function VideoProjects() {
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-                <textarea 
-                  value={description} onChange={e => setDescription(e.target.value)} 
+                <textarea
+                  value={description} onChange={e => setDescription(e.target.value)}
                   className="w-full h-24 rounded-md bg-black/20 border border-white/10 p-3 text-sm resize-none"
                   placeholder="Notes for the editors..."
                 />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1 block">Link to Task (Optional)</label>
+                <select
+                  value={linkedTaskId}
+                  onChange={e => setLinkedTaskId(e.target.value)}
+                  className="w-full rounded-md bg-black/20 border border-white/10 p-2.5 text-sm text-foreground"
+                >
+                  <option value="">— No linked task —</option>
+                  {tasks?.map(t => (
+                    <option key={t.id} value={String(t.id)}>{t.title}</option>
+                  ))}
+                </select>
               </div>
               <Button type="submit" disabled={createMut.isPending} className="w-full rounded-xl mt-2 font-semibold">
                 {createMut.isPending ? "Creating..." : "Create Project"}
@@ -116,6 +139,15 @@ export default function VideoProjects() {
                         {proj.clientName}
                       </div>
                     )}
+                    {proj.taskId && (() => {
+                      const linked = tasks?.find(t => t.id === proj.taskId);
+                      return linked ? (
+                        <div className="flex items-center text-xs text-primary/80 mt-1">
+                          <Link2 className="w-3 h-3 mr-1.5" />
+                          <span className="truncate">{linked.title}</span>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-xs text-muted-foreground">
                     <span>Updated {new Date(proj.updatedAt).toLocaleDateString()}</span>
