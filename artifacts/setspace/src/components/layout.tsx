@@ -68,8 +68,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar className="border-r border-border/50 bg-sidebar/95 backdrop-blur-md">
           <SidebarHeader className="p-6 border-b border-border/50 flex items-center justify-center">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg">
-                <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace" className="w-5 h-5 object-contain" />
+              <div className="w-12 h-12 rounded-xl bg-primary overflow-hidden shadow-lg shrink-0">
+                <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace" className="w-full h-full object-contain scale-[1.35]" />
               </div>
               <span className="font-display font-bold text-xl tracking-wide text-foreground">Setspace</span>
             </div>
