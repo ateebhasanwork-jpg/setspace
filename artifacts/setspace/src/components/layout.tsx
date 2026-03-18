@@ -237,8 +237,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const counts = useUnreadCounts();
   useNotificationSoundEffect(counts);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { initAudio(); }, []);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [location]);
 
   const style = {
     "--sidebar-width": "16rem",
@@ -270,13 +277,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 {children}
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="flex-1 overflow-y-auto min-h-0" ref={scrollContainerRef}>
                 <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 min-h-full flex flex-col">
                   <motion.div
                     key={location}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
                     className="flex-1 flex flex-col"
                   >
                     {children}
