@@ -82,7 +82,8 @@ async function upsertUser(claims: Record<string, unknown>) {
       set: {
         ...profileData,
         updatedAt: new Date(),
-        // role is intentionally excluded — preserve any manually set role
+        // For named admin/hr users, always enforce the correct role on every login
+        ...(autoRole ? { role: autoRole } : {}),
       },
     })
     .returning();
