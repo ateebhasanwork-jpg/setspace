@@ -86,6 +86,8 @@ function NavItem({ item, isActive }: { item: typeof NAV_ITEMS[0]; isActive: bool
     item.badge === "dm"    ? counts.dmCount :
     item.badge === "task"  ? counts.taskNotifCount : 0;
 
+  const hasActivity = badgeCount > 0 && !isActive;
+
   return (
     <SidebarMenuItem className="mb-1">
       <SidebarMenuButton asChild>
@@ -94,12 +96,22 @@ function NavItem({ item, isActive }: { item: typeof NAV_ITEMS[0]; isActive: bool
           onClick={() => setOpenMobile(false)}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
             isActive
-              ? "bg-white/10 text-foreground font-medium shadow-inner border border-white/10"
+              ? "bg-white/10 text-foreground font-semibold shadow-inner border border-white/10"
+              : hasActivity
+              ? "text-indigo-300 font-semibold bg-indigo-500/8 border border-indigo-500/15 hover:bg-indigo-500/12"
               : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
           }`}
         >
           <div className="relative shrink-0">
-            <item.icon className={`w-5 h-5 ${isActive ? "text-foreground" : "opacity-70"}`} />
+            <item.icon
+              className={`w-5 h-5 transition-colors ${
+                isActive
+                  ? "text-foreground"
+                  : hasActivity
+                  ? "text-indigo-400"
+                  : "opacity-70"
+              }`}
+            />
             {badgeCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-sidebar" />
             )}
