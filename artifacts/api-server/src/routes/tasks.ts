@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable, usersTable } from "@workspace/db/schema";
+import { tasksTable, usersTable, notificationsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 
@@ -52,6 +52,17 @@ router.post("/tasks", requireAdminOrHR, async (req, res) => {
       createdById: req.user!.id,
       dueDate: dueDate ? new Date(dueDate) : null,
     }).returning();
+
+    if (assigneeId && assigneeId !== req.user!.id) {
+      await db.insert(notificationsTable).values({
+        userId: assigneeId,
+        type: "task_assigned",
+        title: "New Task Assigned",
+        body: `You've been assigned: "${title}"`,
+        linkUrl: "/tasks",
+      }).catch(() => {});
+    }
+
     res.status(201).json({ ...task, createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to create task" });
@@ -97,11 +108,25 @@ router.patch("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
     if (dueDate !== undefined) updates.dueDate = dueDate ? new Date(dueDate) : null;
     if (completedAt !== undefined) updates.completedAt = completedAt ? new Date(completedAt) : null;
 
+    const [existing] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
     const [updated] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, id)).returning();
     if (!updated) {
       res.status(404).json({ error: "Task not found" });
       return;
     }
+
+    const newAssignee = assigneeId !== undefined ? assigneeId : null;
+    const prevAssignee = existing?.assigneeId ?? null;
+    if (newAssignee && newAssignee !== prevAssignee && newAssignee !== req.user!.id) {
+      await db.insert(notificationsTable).values({
+        userId: newAssignee,
+        type: "task_assigned",
+        title: "Task Assigned to You",
+        body: `You've been assigned: "${updated.title}"`,
+        linkUrl: "/tasks",
+      }).catch(() => {});
+    }
+
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update task" });
