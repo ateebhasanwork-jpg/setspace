@@ -1,14 +1,22 @@
 import React, { useState } from "react";
-import { useListMeetings, useCreateMeeting, getListMeetingsQueryKey } from "@workspace/api-client-react";
+import { useListMeetings, useCreateMeeting, useListUsers, getListMeetingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Plus, Video, Clock } from "lucide-react";
+import { Calendar, Plus, Video, Clock, Check } from "lucide-react";
+
+function safeUrl(url: string | null | undefined): string | null {
+  if (!url || !url.trim()) return null;
+  const u = url.trim();
+  if (/^https?:\/\//i.test(u)) return u;
+  return `https://${u}`;
+}
 
 export default function Meetings() {
   const { data: meetings, isLoading } = useListMeetings();
+  const { data: users } = useListUsers();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -16,12 +24,20 @@ export default function Meetings() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [duration, setDuration] = useState("30");
   const [meetingUrl, setMeetingUrl] = useState("");
+  const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
 
   const resetForm = () => {
     setTitle("");
     setScheduledAt("");
     setDuration("30");
     setMeetingUrl("");
+    setSelectedAttendees([]);
+  };
+
+  const toggleAttendee = (userId: string) => {
+    setSelectedAttendees(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
   };
 
   const mut = useCreateMeeting({
@@ -29,12 +45,14 @@ export default function Meetings() {
       onMutate: async ({ data }) => {
         await queryClient.cancelQueries({ queryKey: getListMeetingsQueryKey() });
         const previous = queryClient.getQueryData(getListMeetingsQueryKey());
+        const taggedUsers = (users || []).filter(u => (data.attendeeIds || []).includes(u.id));
         const optimistic = {
           id: -Date.now(),
           title: data.title,
           scheduledAt: data.scheduledAt,
           duration: data.duration,
-          meetingUrl: data.meetingUrl ?? null,
+          meetingUrl: safeUrl(data.meetingUrl ?? null),
+          attendees: taggedUsers,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           _optimistic: true,
@@ -57,7 +75,15 @@ export default function Meetings() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    mut.mutate({ data: { title, scheduledAt: new Date(scheduledAt).toISOString(), duration: Number(duration), meetingUrl } });
+    mut.mutate({
+      data: {
+        title,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        duration: Number(duration),
+        meetingUrl: meetingUrl || undefined,
+        attendeeIds: selectedAttendees,
+      }
+    });
   };
 
   return (
@@ -74,7 +100,7 @@ export default function Meetings() {
               <Plus className="w-4 h-4 mr-2" /> Schedule Meeting
             </Button>
           </DialogTrigger>
-          <DialogContent className="glass-panel">
+          <DialogContent className="glass-panel max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>New Meeting</DialogTitle>
             </DialogHeader>
@@ -85,6 +111,42 @@ export default function Meetings() {
                 <Input required type="number" placeholder="Duration (mins)" value={duration} onChange={e => setDuration(e.target.value)} className="bg-black/20 border-white/10" />
               </div>
               <Input placeholder="Meeting Link (Zoom, Meet...)" value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} className="bg-black/20 border-white/10" />
+
+              {/* Employee picker */}
+              {users && users.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Tag Team Members
+                    {selectedAttendees.length > 0 && (
+                      <span className="ml-2 text-xs text-primary font-normal">{selectedAttendees.length} selected</span>
+                    )}
+                  </label>
+                  <div className="space-y-1 max-h-44 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+                    {users.map(u => {
+                      const selected = selectedAttendees.includes(u.id);
+                      const initials = `${u.firstName?.[0] ?? ""}${u.lastName?.[0] ?? ""}`.toUpperCase() || u.username?.[0]?.toUpperCase() || "?";
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => toggleAttendee(u.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${selected ? "bg-primary/20 border border-primary/40" : "hover:bg-white/5 border border-transparent"}`}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold text-foreground shrink-0">
+                            {initials}
+                          </div>
+                          <span className="flex-1 text-left text-foreground">
+                            {u.firstName} {u.lastName}
+                            <span className="text-muted-foreground ml-1 text-xs">@{u.username}</span>
+                          </span>
+                          {selected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <Button type="submit" disabled={mut.isPending} className="w-full bg-primary text-primary-foreground font-semibold">
                 Schedule Event
               </Button>
@@ -101,6 +163,8 @@ export default function Meetings() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {meetings?.map(meeting => {
             const isOptimistic = (meeting as any)._optimistic;
+            const safeLink = safeUrl(meeting.meetingUrl);
+            const attendees = (meeting as any).attendees as Array<{ id: string; firstName: string; lastName: string; username: string }> | undefined;
             return (
               <Card key={meeting.id} className={`glass-panel p-6 flex flex-col justify-between group hover:border-primary/50 transition-colors ${isOptimistic ? "opacity-60" : ""}`}>
                 <div>
@@ -117,10 +181,39 @@ export default function Meetings() {
                     <Clock className="w-4 h-4 mr-2 opacity-70" />
                     {new Date(meeting.scheduledAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </p>
+
+                  {/* Tagged attendees */}
+                  {attendees && attendees.length > 0 && (
+                    <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                      {attendees.slice(0, 5).map(a => {
+                        const initials = `${a.firstName?.[0] ?? ""}${a.lastName?.[0] ?? ""}`.toUpperCase() || a.username?.[0]?.toUpperCase() || "?";
+                        return (
+                          <div
+                            key={a.id}
+                            title={`${a.firstName} ${a.lastName}`}
+                            className="w-7 h-7 rounded-full bg-primary/25 border border-primary/40 flex items-center justify-center text-[10px] font-bold text-primary"
+                          >
+                            {initials}
+                          </div>
+                        );
+                      })}
+                      {attendees.length > 5 && (
+                        <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                          +{attendees.length - 5}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
                 <div className="mt-6 pt-4 border-t border-white/5">
-                  {meeting.meetingUrl ? (
-                    <a href={meeting.meetingUrl} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center py-2.5 bg-white/5 hover:bg-primary/20 text-white rounded-lg transition-colors text-sm font-medium border border-white/10">
+                  {safeLink ? (
+                    <a
+                      href={safeLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center justify-center py-2.5 bg-white/5 hover:bg-primary/20 text-white rounded-lg transition-colors text-sm font-medium border border-white/10"
+                    >
                       <Video className="w-4 h-4 mr-2" /> Join Call
                     </a>
                   ) : (
