@@ -9,12 +9,26 @@ function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
+function computeTotalSeconds(r: typeof attendanceTable.$inferSelect): number {
+  const base = r.accumulatedSeconds ?? 0;
+  if (!r.clockOut) {
+    // Currently clocked in — add live session
+    const sessionStart = r.lastClockIn ?? r.clockIn;
+    const elapsed = Math.floor((Date.now() - sessionStart.getTime()) / 1000);
+    return base + elapsed;
+  }
+  return base;
+}
+
 function formatRecord(r: typeof attendanceTable.$inferSelect) {
   return {
     ...r,
     clockIn: r.clockIn.toISOString(),
     clockOut: r.clockOut?.toISOString() ?? null,
-    createdAt: r.createdAt.toISOString()
+    lastClockIn: r.lastClockIn?.toISOString() ?? null,
+    accumulatedSeconds: r.accumulatedSeconds ?? 0,
+    totalSeconds: computeTotalSeconds(r),
+    createdAt: r.createdAt.toISOString(),
   };
 }
 
@@ -58,19 +72,38 @@ router.post("/attendance/clock-in", async (req, res) => {
   }
   try {
     const today = todayStr();
-    const existing = await db.select().from(attendanceTable)
+    const [existing] = await db.select().from(attendanceTable)
       .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
-    if (existing.length > 0) {
-      res.status(400).json({ error: "Already clocked in today" });
+
+    if (!existing) {
+      // First clock-in of the day
+      const now = new Date();
+      const [record] = await db.insert(attendanceTable).values({
+        userId: req.user.id,
+        clockIn: now,
+        lastClockIn: now,
+        date: today,
+        status: "present",
+        accumulatedSeconds: 0,
+      }).returning();
+      res.status(201).json(formatRecord(record));
       return;
     }
-    const [record] = await db.insert(attendanceTable).values({
-      userId: req.user.id,
-      clockIn: new Date(),
-      date: today,
-      status: "present"
-    }).returning();
-    res.status(201).json(formatRecord(record));
+
+    if (!existing.clockOut) {
+      // Already actively clocked in
+      res.status(400).json({ error: "Already clocked in" });
+      return;
+    }
+
+    // Re-clock-in: resume the day — keep clockIn (first clock-in for on-time tracking)
+    // but update lastClockIn to now and clear clockOut
+    const now = new Date();
+    const [updated] = await db.update(attendanceTable)
+      .set({ lastClockIn: now, clockOut: null })
+      .where(eq(attendanceTable.id, existing.id))
+      .returning();
+    res.json(formatRecord(updated));
   } catch (err) {
     res.status(500).json({ error: "Failed to clock in" });
   }
@@ -89,8 +122,19 @@ router.post("/attendance/clock-out", async (req, res) => {
       res.status(404).json({ error: "No clock-in found for today" });
       return;
     }
+    if (existing.clockOut) {
+      res.status(400).json({ error: "Already clocked out" });
+      return;
+    }
+
+    // Compute how long this session lasted and add to accumulated
+    const sessionStart = existing.lastClockIn ?? existing.clockIn;
+    const now = new Date();
+    const sessionSeconds = Math.floor((now.getTime() - sessionStart.getTime()) / 1000);
+    const newAccumulated = (existing.accumulatedSeconds ?? 0) + sessionSeconds;
+
     const [updated] = await db.update(attendanceTable)
-      .set({ clockOut: new Date() })
+      .set({ clockOut: now, accumulatedSeconds: newAccumulated })
       .where(eq(attendanceTable.id, existing.id))
       .returning();
     res.json(formatRecord(updated));
