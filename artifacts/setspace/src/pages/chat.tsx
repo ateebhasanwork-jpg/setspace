@@ -361,7 +361,7 @@ export default function TeamChat() {
   const currentDMUser = view !== "group" ? otherUsers.find(u => u.id === view) : null;
 
   return (
-    <div className="flex gap-6 overflow-hidden rounded-xl" style={{ height: "calc(100dvh - 6rem)" }}>
+    <div className="flex-1 flex gap-6 min-h-0 overflow-hidden p-4 sm:p-6 md:p-8">
       {/* Chat sidebar panel */}
       <div className="w-52 shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden">
         <div className="p-4 border-b border-white/8 shrink-0">
@@ -403,7 +403,7 @@ export default function TeamChat() {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 p-4 sm:p-6 gap-4">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 gap-4">
         <div className="shrink-0">
           <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
             {view === "group" ? (
