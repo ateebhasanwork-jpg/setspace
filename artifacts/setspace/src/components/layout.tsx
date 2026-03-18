@@ -265,7 +265,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </header>
 
-            {location.startsWith("/videos") ? (
+            {(location.startsWith("/videos") || location.startsWith("/chat")) ? (
               <div className="absolute inset-0 z-10 flex flex-col overflow-hidden">
                 {children}
               </div>

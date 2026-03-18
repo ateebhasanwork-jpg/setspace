@@ -23,16 +23,34 @@ interface DM {
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
+function resolveProfileImage(profileImage: string | null | undefined): string | null {
+  if (!profileImage) return null;
+  if (profileImage.startsWith("http")) return profileImage;
+  const subPath = profileImage.replace(/^\/objects\//, "");
+  return `/api/storage/objects/${subPath}`;
+}
+
+function Avatar({ name, profileImage, size = "sm", visible = true }: { name?: string | null; profileImage?: string | null; size?: "sm" | "md"; visible?: boolean }) {
+  const photo = resolveProfileImage(profileImage);
+  const cls = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm";
+  if (!visible) return <div className={`${cls} rounded-full shrink-0 opacity-0`} />;
+  if (photo) return <img src={photo} alt="" className={`${cls} rounded-full object-cover border border-white/10 shrink-0`} />;
+  return (
+    <div className={`${cls} rounded-full flex items-center justify-center font-bold text-white shrink-0 bg-indigo-600/40 border border-indigo-500/20`}>
+      {name?.[0]?.toUpperCase()}
+    </div>
+  );
+}
+
 function MessageBubble({ msg, isMe, showAvatar, onReply }: { msg: LocalMessage; isMe: boolean; showAvatar: boolean; onReply: (msg: LocalMessage) => void }) {
   const [hovered, setHovered] = useState(false);
+  const author = msg.author as (typeof msg.author & { profileImage?: string | null }) | undefined;
   return (
     <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${msg._optimistic ? "opacity-60" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      {!isMe && showAvatar && <span className="text-xs font-semibold text-muted-foreground mb-1 ml-11">{msg.author?.firstName} {msg.author?.lastName}</span>}
+      {!isMe && showAvatar && <span className="text-xs font-semibold text-muted-foreground mb-1 ml-11">{author?.firstName} {author?.lastName}</span>}
       <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
         {!isMe && (
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${showAvatar ? "bg-white/15" : "opacity-0"}`}>
-            {msg.author?.firstName?.[0]}
-          </div>
+          <Avatar name={author?.firstName} profileImage={author?.profileImage} visible={showAvatar} />
         )}
         <div className="flex flex-col gap-1">
           <div className={`p-4 rounded-2xl ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"}`}>
@@ -53,14 +71,11 @@ function MessageBubble({ msg, isMe, showAvatar, onReply }: { msg: LocalMessage; 
 }
 
 function DMBubble({ msg, isMe }: { msg: DM; isMe: boolean }) {
+  const sender = msg.sender as (typeof msg.sender & { profileImage?: string | null }) | undefined;
   return (
     <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${msg._optimistic ? "opacity-60" : ""}`}>
       <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
-        {!isMe && (
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 bg-white/15">
-            {msg.sender?.firstName?.[0]}
-          </div>
-        )}
+        {!isMe && <Avatar name={sender?.firstName} profileImage={sender?.profileImage} />}
         <div className={`p-4 rounded-2xl ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"}`}>
           <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
           <span className={`text-[10px] block mt-2 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
@@ -311,7 +326,7 @@ export default function TeamChat() {
   const currentDMUser = view !== "group" ? otherUsers.find(u => u.id === view) : null;
 
   return (
-    <div className="h-full flex gap-6 pt-2 pb-6 min-h-0">
+    <div className="h-full flex gap-6 p-4 sm:p-6 md:p-8 min-h-0 overflow-hidden">
       {/* Sidebar */}
       <div className="w-56 shrink-0 flex flex-col gap-1">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-3 mb-2">Channels</p>
