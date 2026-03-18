@@ -1,11 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { Readable } from "stream";
 import { eq } from "drizzle-orm";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
 import { db, videoShareTokensTable, videoVersionsTable } from "@workspace/db";
 
@@ -21,6 +20,9 @@ const objectStorageService = new ObjectStorageService();
  *   Content-Type   – MIME type of the file
  *   X-File-Name    – original filename
  *   Content-Length – file size in bytes
+ *
+ * IMPORTANT: This route must be registered BEFORE express.json() consumes the body.
+ * We handle the raw stream ourselves here.
  */
 router.post("/storage/upload", async (req: Request, res: Response) => {
   try {
@@ -44,8 +46,6 @@ router.post("/storage/upload", async (req: Request, res: Response) => {
  * POST /storage/uploads/request-url
  *
  * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
@@ -77,8 +77,6 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
  * GET /storage/public-objects/*
  *
  * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- * IMPORTANT: Always provide this endpoint when object storage is set up.
  */
 router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
   try {
@@ -90,17 +88,7 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
       return;
     }
 
-    const response = await objectStorageService.downloadObject(file);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
+    await serveFileWithRangeSupport(req, res, file);
   } catch (error) {
     console.error("Error serving public object:", error);
     res.status(500).json({ error: "Failed to serve public object" });
@@ -110,9 +98,8 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
 /**
  * GET /storage/objects/*
  *
- * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
+ * Serve object entities from PRIVATE_OBJECT_DIR with full Range request support
+ * so that <video> elements can seek, buffer, and play correctly.
  */
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
@@ -120,9 +107,8 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
 
-    // Allow authenticated users to access objects directly
+    // Allow authenticated users or valid review tokens
     if (!req.isAuthenticated()) {
-      // Allow access via a valid review token that maps to this exact objectPath
       const reviewToken = typeof req.query.reviewToken === "string" ? req.query.reviewToken : null;
       if (!reviewToken) {
         res.status(401).json({ error: "Unauthorized" });
@@ -149,18 +135,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     }
 
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-
-    const response = await objectStorageService.downloadObject(objectFile);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
+    await serveFileWithRangeSupport(req, res, objectFile);
   } catch (error) {
     console.error("Error serving object:", error);
     if (error instanceof ObjectNotFoundError) {
@@ -170,5 +145,71 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to serve object" });
   }
 });
+
+/**
+ * Serve a GCS file with proper HTTP Range request support.
+ *
+ * Browsers REQUIRE range responses (HTTP 206) to play <video> elements —
+ * they use range requests to seek, buffer ahead, and resume after pausing.
+ * Without this, the video element renders black and never starts.
+ */
+async function serveFileWithRangeSupport(req: Request, res: Response, file: import("@google-cloud/storage").File) {
+  const [metadata] = await file.getMetadata();
+  const fileSize = parseInt(String(metadata.size ?? 0), 10);
+  const contentType = (metadata.contentType as string) || "application/octet-stream";
+
+  // Always advertise range support
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Content-Type", contentType);
+
+  const rangeHeader = req.headers["range"];
+
+  if (rangeHeader) {
+    // Parse "bytes=start-end" (end is optional, defaulting to fileSize-1)
+    const match = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+    if (!match) {
+      res.status(416).setHeader("Content-Range", `bytes */${fileSize}`).end();
+      return;
+    }
+
+    const start = match[1] ? parseInt(match[1], 10) : 0;
+    const end = match[2] ? Math.min(parseInt(match[2], 10), fileSize - 1) : fileSize - 1;
+
+    if (start > end || start >= fileSize) {
+      res.status(416).setHeader("Content-Range", `bytes */${fileSize}`).end();
+      return;
+    }
+
+    const chunkSize = end - start + 1;
+    res.writeHead(206, {
+      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+      "Accept-Ranges": "bytes",
+      "Content-Length": chunkSize,
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=3600",
+    });
+
+    const readStream = file.createReadStream({ start, end });
+    readStream.on("error", (err) => {
+      console.error("Read stream error:", err);
+      if (!res.headersSent) res.status(500).end();
+    });
+    readStream.pipe(res);
+  } else {
+    // Full file response
+    res.writeHead(200, {
+      "Content-Length": fileSize,
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=3600",
+    });
+
+    const readStream = file.createReadStream();
+    readStream.on("error", (err) => {
+      console.error("Read stream error:", err);
+      if (!res.headersSent) res.status(500).end();
+    });
+    readStream.pipe(res);
+  }
+}
 
 export default router;
