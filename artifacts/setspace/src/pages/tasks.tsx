@@ -74,7 +74,7 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 }
 
 export default function Tasks() {
-  const { data: tasks, isLoading } = useListTasks({ query: { refetchInterval: 5000 } });
+  const { data: tasks, isLoading } = useListTasks({ query: { refetchInterval: 2000 } });
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);

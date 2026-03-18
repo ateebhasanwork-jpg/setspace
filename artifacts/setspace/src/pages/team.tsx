@@ -9,7 +9,6 @@ import {
   Copy,
   Check,
   Loader2,
-  ChevronDown,
   Search,
   Mail,
   Link2,
@@ -48,11 +47,9 @@ function RoleBadge({ role }: { role: string }) {
 function RoleDropdown({
   userId, currentRole, onChanged, disabled,
 }: { userId: string; currentRole: string; onChanged: (r: Role) => void; disabled: boolean }) {
-  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const select = async (role: Role) => {
-    setOpen(false);
+  const handleChange = async (role: Role) => {
     setSaving(true);
     try {
       const res = await fetch(`${BASE}/api/users/${userId}`, {
@@ -66,26 +63,18 @@ function RoleDropdown({
   };
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
+    <div className="flex items-center gap-2">
+      {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground shrink-0" />}
+      <select
+        value={currentRole}
         disabled={disabled || saving}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-sm text-white transition-colors disabled:opacity-50"
+        onChange={e => handleChange(e.target.value as Role)}
+        className="bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white py-1.5 px-2.5 cursor-pointer focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RoleBadge role={currentRole} />}
-        <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-1" />
-      </button>
-      {open && (
-        <div className="absolute top-full mt-1 left-0 z-30 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl py-1 min-w-[140px]">
-          {(Object.keys(ROLE_CONFIG) as Role[]).map(r => (
-            <button key={r} onClick={() => select(r)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors ${r === currentRole ? "text-white font-medium" : "text-zinc-300"}`}>
-              <RoleBadge role={r} />
-              {r === currentRole && <Check className="w-3 h-3 text-green-400 ml-auto" />}
-            </button>
-          ))}
-        </div>
-      )}
+        {(Object.keys(ROLE_CONFIG) as Role[]).map(r => (
+          <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>
+        ))}
+      </select>
     </div>
   );
 }

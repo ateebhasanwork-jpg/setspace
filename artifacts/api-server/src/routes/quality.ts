@@ -96,4 +96,14 @@ router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
   }
 });
 
+router.delete("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.checkId));
+    await db.delete(qualityChecksTable).where(eq(qualityChecksTable.id, id));
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete quality check" });
+  }
+});
+
 export default router;

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { attendanceTable, usersTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
+import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -140,6 +141,16 @@ router.post("/attendance/clock-out", async (req, res) => {
     res.json(formatRecord(updated));
   } catch (err) {
     res.status(500).json({ error: "Failed to clock out" });
+  }
+});
+
+router.delete("/attendance/:id", requireAdminOrHR, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id));
+    await db.delete(attendanceTable).where(eq(attendanceTable.id, id));
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete attendance record" });
   }
 });
 
