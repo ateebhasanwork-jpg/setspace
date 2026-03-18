@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   useListTasks,
   useListUsers,
@@ -23,12 +23,27 @@ import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle, Penci
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null };
 
-const COLUMNS = ["To Do", "In Progress", "Review", "Done"];
+const COLUMNS = ["To Do", "In Progress", "Review", "Done"] as const;
+type Column = typeof COLUMNS[number];
 
 const PRIORITY_STYLES: Record<string, string> = {
   High: "bg-red-500/20 text-red-400",
   Medium: "bg-yellow-500/20 text-yellow-400",
   Low: "bg-blue-500/20 text-blue-400",
+};
+
+const COL_ACCENT: Record<Column, string> = {
+  "To Do": "border-white/10",
+  "In Progress": "border-blue-500/30",
+  "Review": "border-yellow-500/30",
+  "Done": "border-green-500/30",
+};
+
+const COL_HEADER: Record<Column, string> = {
+  "To Do": "text-white/60",
+  "In Progress": "text-blue-400",
+  "Review": "text-yellow-400",
+  "Done": "text-green-400",
 };
 
 function AssigneeAvatar({ user }: { user: User | null | undefined }) {
@@ -41,6 +56,20 @@ function AssigneeAvatar({ user }: { user: User | null | undefined }) {
     >
       {initials}
     </div>
+  );
+}
+
+function OnTimeBadge({ task }: { task: TaskWithDerived }) {
+  if (task.status !== "Done") return null;
+  if (task.completedOnTime === null || task.completedOnTime === undefined) return null;
+  return task.completedOnTime ? (
+    <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+      <CheckCircle2 className="w-3 h-3" /> On Time
+    </span>
+  ) : (
+    <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">
+      <XCircle className="w-3 h-3" /> Late
+    </span>
   );
 }
 
@@ -64,6 +93,10 @@ export default function Tasks() {
   const [editAssigneeId, setEditAssigneeId] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Drag state
+  const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
+  const draggingTaskId = useRef<number | null>(null);
 
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
@@ -143,18 +176,36 @@ export default function Tasks() {
     });
   };
 
-  function OnTimeBadge({ task }: { task: TaskWithDerived }) {
-    if (task.status !== "Done") return null;
-    if (task.completedOnTime === null || task.completedOnTime === undefined) return null;
-    return task.completedOnTime ? (
-      <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
-        <CheckCircle2 className="w-3 h-3" /> On Time
-      </span>
-    ) : (
-      <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">
-        <XCircle className="w-3 h-3" /> Late
-      </span>
-    );
+  // ── Drag & Drop handlers ───────────────────────────────────────
+  function onDragStart(e: React.DragEvent, taskId: number) {
+    draggingTaskId.current = taskId;
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function onDragOver(e: React.DragEvent, col: Column) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCol(col);
+  }
+
+  function onDragLeave() {
+    setDragOverCol(null);
+  }
+
+  function onDrop(e: React.DragEvent, col: Column) {
+    e.preventDefault();
+    setDragOverCol(null);
+    const id = draggingTaskId.current;
+    if (id === null) return;
+    const task = (tasks as TaskWithDerived[] | undefined)?.find(t => t.id === id);
+    if (!task || task.status === col) return;
+    updateMut.mutate({ taskId: id, data: { status: col } });
+    draggingTaskId.current = null;
+  }
+
+  function onDragEnd() {
+    setDragOverCol(null);
+    draggingTaskId.current = null;
   }
 
   return (
@@ -379,24 +430,35 @@ export default function Tasks() {
         </div>
       ) : viewMode === "board" ? (
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto pb-4">
-          {COLUMNS.map((col) => (
-            <div
-              key={col}
-              className="flex flex-col bg-black/10 rounded-2xl p-4 border border-white/5 h-full"
-            >
-              <div className="flex items-center justify-between mb-4 px-2">
-                <h3 className="font-semibold text-foreground">{col}</h3>
-                <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
-                  {tasks?.filter((t) => t.status === col).length || 0}
-                </span>
-              </div>
-              <div className="space-y-3 flex-1 overflow-y-auto">
-                {(tasks as TaskWithDerived[] | undefined)
-                  ?.filter((t) => t.status === col)
-                  .map((task) => (
+          {COLUMNS.map((col) => {
+            const colTasks = (tasks as TaskWithDerived[] | undefined)?.filter((t) => t.status === col) ?? [];
+            const isOver = dragOverCol === col;
+            return (
+              <div
+                key={col}
+                className={`flex flex-col rounded-2xl p-4 border transition-colors h-full ${
+                  isOver
+                    ? "bg-white/8 border-primary/50 ring-1 ring-primary/30"
+                    : `bg-black/10 ${COL_ACCENT[col]}`
+                }`}
+                onDragOver={(e) => onDragOver(e, col)}
+                onDragLeave={onDragLeave}
+                onDrop={(e) => onDrop(e, col)}
+              >
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <h3 className={`font-semibold ${COL_HEADER[col]}`}>{col}</h3>
+                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
+                    {colTasks.length}
+                  </span>
+                </div>
+                <div className="space-y-3 flex-1 overflow-y-auto min-h-[60px]">
+                  {colTasks.map((task) => (
                     <Card
                       key={task.id}
-                      className="p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-pointer"
+                      draggable
+                      onDragStart={(e) => onDragStart(e, task.id)}
+                      onDragEnd={onDragEnd}
+                      className="p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95"
                       onClick={() => openEdit(task)}
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -434,9 +496,15 @@ export default function Tasks() {
                       </div>
                     </Card>
                   ))}
+                  {isOver && colTasks.length === 0 && (
+                    <div className="h-16 rounded-xl border-2 border-dashed border-primary/40 flex items-center justify-center">
+                      <span className="text-xs text-primary/60">Drop here</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Card className="glass-panel overflow-hidden">
