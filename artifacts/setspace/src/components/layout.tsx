@@ -271,13 +271,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto min-h-0">
-                <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10">
+                <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 min-h-full flex flex-col">
                   <motion.div
                     key={location}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="flex flex-col"
+                    className="flex-1 flex flex-col"
                   >
                     {children}
                   </motion.div>
