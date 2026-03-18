@@ -46,6 +46,9 @@ router.get("/leaderboard", async (req, res) => {
       const qualityScore = qualityChecks.length > 0
         ? (qualityChecks.reduce((sum, q) => sum + q.rating, 0) / qualityChecks.length) * 20
         : 0;
+      const avgRevisions = qualityChecks.length > 0
+        ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
+        : 0;
 
       // On-time score: completed tasks on time / total completed tasks
       const tasks = await db.select().from(tasksTable).where(
@@ -65,6 +68,7 @@ router.get("/leaderboard", async (req, res) => {
         attendanceScore: Math.round(attendanceScore * 10) / 10,
         qualityScore: Math.round(qualityScore * 10) / 10,
         onTimeScore: Math.round(onTimeScore * 10) / 10,
+        avgRevisions,
         month, year, rank: 0
       };
     }));

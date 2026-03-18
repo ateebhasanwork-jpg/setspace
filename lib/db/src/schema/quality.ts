@@ -11,6 +11,7 @@ export const qualityChecksTable = pgTable("quality_checks", {
   feedback: text("feedback"),
   status: text("status").notNull().default("pending"),
   videoVersionId: integer("video_version_id"),
+  revisionCount: integer("revision_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -117,12 +117,23 @@ router.patch("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
 
     const newAssignee = assigneeId !== undefined ? assigneeId : null;
     const prevAssignee = existing?.assigneeId ?? null;
+
     if (newAssignee && newAssignee !== prevAssignee && newAssignee !== req.user!.id) {
       await db.insert(notificationsTable).values({
         userId: newAssignee,
         type: "task_assigned",
         title: "Task Assigned to You",
         body: `You've been assigned: "${updated.title}"`,
+        linkUrl: "/tasks",
+      }).catch(() => {});
+    }
+
+    if (status === "Done" && existing?.status !== "Done" && updated.createdById && updated.createdById !== req.user!.id) {
+      await db.insert(notificationsTable).values({
+        userId: updated.createdById,
+        type: "task_completed",
+        title: "Task Completed",
+        body: `"${updated.title}" has been marked as done.`,
         linkUrl: "/tasks",
       }).catch(() => {});
     }

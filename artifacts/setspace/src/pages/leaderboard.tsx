@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useGetLeaderboard } from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
-import { Trophy, Medal, Star, Target, Clock, Calendar } from "lucide-react";
+import { Trophy, Medal, Star, Target, Clock, Calendar, RefreshCw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function Leaderboard() {
@@ -105,12 +105,20 @@ export default function Leaderboard() {
                   <div key={entry.userId} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
                     <div className="flex items-center gap-3">
                       <span className="w-6 text-center font-mono text-muted-foreground font-bold">{idx + 1}</span>
-                      <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-xs font-bold text-white border border-white/10">
+                      <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-xs font-bold text-foreground border border-white/10">
                         {entry.user?.firstName?.[0]}
                       </div>
-                      <span className="font-medium text-sm">{entry.user?.firstName}</span>
+                      <div>
+                        <span className="font-medium text-sm text-foreground">{entry.user?.firstName} {entry.user?.lastName}</span>
+                        {(entry as { avgRevisions?: number }).avgRevisions !== undefined && (entry as { avgRevisions?: number }).avgRevisions! > 0 && (
+                          <div className="flex items-center gap-1 text-[10px] text-orange-400 mt-0.5">
+                            <RefreshCw className="w-2.5 h-2.5" />
+                            {(entry as { avgRevisions?: number }).avgRevisions} avg revisions
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className="font-mono text-sm font-semibold">{entry.score.toFixed(0)}</span>
+                    <span className="font-mono text-sm font-semibold text-foreground">{entry.score.toFixed(0)}</span>
                   </div>
                 ))}
               </div>
