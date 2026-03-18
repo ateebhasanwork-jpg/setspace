@@ -58,7 +58,7 @@ export default function TeamChat() {
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
         return { previous };
       },
-      onError: (_err, _vars, ctx: any) => {
+      onError: (_err, _vars, ctx: { previous: unknown } | undefined) => {
         queryClient.setQueryData(getListMessagesQueryKey(), ctx?.previous);
       },
       onSuccess: () => {
@@ -87,7 +87,10 @@ export default function TeamChat() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as any);
+      const trimmed = content.trim();
+      if (!trimmed || mut.isPending) return;
+      setContent("");
+      mut.mutate({ data: { content: trimmed } });
     }
   };
 

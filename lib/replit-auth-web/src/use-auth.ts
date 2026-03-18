@@ -21,11 +21,11 @@ export function useAuth(): AuthState {
     fetch("/api/auth/user", { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<{ user: AuthUser | null }>;
+        return res.json() as Promise<AuthUser>;
       })
       .then((data) => {
         if (!cancelled) {
-          setUser(data.user ?? null);
+          setUser(data.isAuthenticated ? data : null);
           setIsLoading(false);
         }
       })

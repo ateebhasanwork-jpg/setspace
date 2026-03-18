@@ -1,11 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
+import { eq } from "drizzle-orm";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
+import { db, videoShareTokensTable, videoVersionsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -89,22 +91,36 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
+    // Allow authenticated users to access objects directly
+    if (!req.isAuthenticated()) {
+      // Allow access via a valid review token that maps to this exact objectPath
+      const reviewToken = typeof req.query.reviewToken === "string" ? req.query.reviewToken : null;
+      if (!reviewToken) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const [shareRow] = await db
+        .select({ versionId: videoShareTokensTable.versionId })
+        .from(videoShareTokensTable)
+        .where(eq(videoShareTokensTable.token, reviewToken))
+        .limit(1);
+      if (!shareRow) {
+        res.status(403).json({ error: "Invalid review token" });
+        return;
+      }
+      const [version] = await db
+        .select({ objectPath: videoVersionsTable.objectPath })
+        .from(videoVersionsTable)
+        .where(eq(videoVersionsTable.id, shareRow.versionId))
+        .limit(1);
+      if (!version || version.objectPath !== objectPath) {
+        res.status(403).json({ error: "Token does not grant access to this resource" });
+        return;
+      }
+    }
+
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
     const response = await objectStorageService.downloadObject(objectFile);
 
