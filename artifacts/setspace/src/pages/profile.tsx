@@ -1,20 +1,25 @@
 import React, { useRef, useState } from "react";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useUpdateUser } from "@workspace/api-client-react";
+import { useUpdateUser, useGetCurrentUser, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Camera, User, CheckCircle2, Loader2 } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
 function profileImageUrl(profileImage: string | null | undefined): string | null {
   if (!profileImage) return null;
   if (profileImage.startsWith("http")) return profileImage;
   const subPath = profileImage.replace(/^\/objects\//, "");
-  return `/api/storage/objects/${subPath}`;
+  return `${BASE}/api/storage/objects/${subPath}`;
 }
 
 export default function Profile() {
   const { user: authUser } = useAuth();
+  // Read profile data from our DB — not from the Replit session which always
+  // contains the original Replit avatar regardless of what the user has set.
+  const { data: dbUser } = useGetCurrentUser();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +30,7 @@ export default function Profile() {
   const updateUser = useUpdateUser({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries();
+        queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
       },
@@ -34,7 +39,10 @@ export default function Profile() {
 
   if (!authUser) return null;
 
-  const imgUrl = profileImageUrl(authUser.profileImage);
+  // Use the DB-stored profileImage (may be a custom upload) for display;
+  // fall back to the Replit session image only if the DB has nothing yet.
+  const resolvedProfileImage = (dbUser as { profileImage?: string | null } | undefined)?.profileImage ?? authUser.profileImage;
+  const imgUrl = profileImageUrl(resolvedProfileImage);
   const displayName = `${authUser.firstName ?? ""} ${authUser.lastName ?? ""}`.trim() || authUser.username;
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -43,7 +51,7 @@ export default function Profile() {
     setUploading(true);
     setError(null);
     try {
-      const uploadRes = await fetch("/api/storage/upload", {
+      const uploadRes = await fetch(`${BASE}/api/storage/upload`, {
         method: "POST",
         headers: {
           "Content-Type": file.type,

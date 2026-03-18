@@ -75,10 +75,11 @@ async function upsertUser(claims: Record<string, unknown>) {
 
   // Values used when the user already EXISTS — never overwrite a manually set
   // name with a fallback; only update name fields when Replit sends real values.
+  // IMPORTANT: do NOT include profileImage here — the user may have uploaded a
+  // custom avatar that we must never overwrite with the Replit OAuth avatar.
   const updateData: Record<string, unknown> = {
     username,
     email,
-    profileImage,
     updatedAt: new Date(),
   };
   if (firstName) updateData.firstName = firstName;
