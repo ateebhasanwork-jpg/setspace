@@ -78,9 +78,21 @@ function GroupChat({ user }: { user: User }) {
   const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
+  const isAtBottomRef = useRef(true);
+
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
+  const scrollToBottom = (smooth = true) => {
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" } as ScrollIntoViewOptions);
+  };
 
   useEffect(() => {
     if (!messages) return;
@@ -90,7 +102,11 @@ function GroupChat({ user }: { user: User }) {
     if (isInitialRef.current) { lastSeenIdRef.current = latest.id; isInitialRef.current = false; return; }
     if (lastSeenIdRef.current === null || latest.id > lastSeenIdRef.current) {
       const newFromOthers = real.filter(m => m.id > (lastSeenIdRef.current ?? 0) && m.authorId !== user.id);
-      if (newFromOthers.length > 0) playMessageSound();
+      if (newFromOthers.length > 0) {
+        playMessageSound();
+        // Only auto-scroll if user is near bottom
+        if (isNearBottom()) scrollToBottom();
+      }
       lastSeenIdRef.current = latest.id;
     }
   }, [messages, user]);
@@ -104,16 +120,17 @@ function GroupChat({ user }: { user: User }) {
           const optimistic: LocalMessage = { id: -Date.now(), content: data.content, authorId: user.id, parentId: (data.parentId as number | undefined) ?? null, createdAt: new Date().toISOString(), _optimistic: true };
           return old ? [...old, optimistic] : [optimistic];
         });
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
+        setTimeout(() => scrollToBottom(), 30);
         return { previous };
       },
       onError: (_err, _vars, ctx: { previous: unknown } | undefined) => queryClient.setQueryData(getListMessagesQueryKey(), ctx?.previous),
-      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100); },
+      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); setTimeout(() => scrollToBottom(), 100); },
       onSettled: () => { setContent(""); setReplyTo(null); inputRef.current?.focus(); },
     }
   });
 
-  useEffect(() => { bottomRef.current?.scrollIntoView(); }, []);
+  // Scroll to bottom only on initial mount
+  useEffect(() => { scrollToBottom(false); }, []);
 
   const allMessages = (messages as LocalMessage[] | undefined)?.slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) ?? [];
   const topLevel = allMessages.filter(m => !m.parentId);
@@ -129,7 +146,7 @@ function GroupChat({ user }: { user: User }) {
 
   return (
     <Card className="glass-panel flex-1 flex flex-col min-h-0 overflow-hidden shadow-2xl">
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6" onScroll={() => { isAtBottomRef.current = isNearBottom(); }}>
         {topLevel.map((msg, i, arr) => {
           const isMe = msg.authorId === user.id;
           const prevMsg = arr[i - 1];
@@ -181,9 +198,20 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
+
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
+  const scrollToBottom = (smooth = true) => {
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" } as ScrollIntoViewOptions);
+  };
 
   const fetchDMs = async () => {
     try {
@@ -197,7 +225,11 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           return data;
         }
         const newFromOther = data.filter(m => m.senderId === otherUser.id && m.id > (lastSeenIdRef.current ?? 0));
-        if (newFromOther.length > 0) { playMessageSound(); }
+        if (newFromOther.length > 0) {
+          playMessageSound();
+          // Only auto-scroll if user is near the bottom
+          if (isNearBottom()) scrollToBottom();
+        }
         if (data.length) lastSeenIdRef.current = data[data.length - 1].id;
         return data;
       });
@@ -212,8 +244,8 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     return () => clearInterval(id);
   }, [otherUser.id]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView(); }, [otherUser.id]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [dms.length]);
+  // Scroll to bottom on conversation switch (instant)
+  useEffect(() => { scrollToBottom(false); }, [otherUser.id]);
 
   const send = async () => {
     const trimmed = content.trim();
@@ -222,7 +254,8 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     setSending(true);
     const optimistic: DM = { id: -Date.now(), content: trimmed, senderId: me.id, receiverId: otherUser.id, isRead: false, createdAt: new Date().toISOString(), sender: me, receiver: otherUser, _optimistic: true };
     setDms(prev => [...prev, optimistic]);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
+    // Always scroll when YOU send
+    setTimeout(() => scrollToBottom(), 30);
     try {
       const res = await fetch(`${BASE}/api/dm/${otherUser.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: trimmed }), credentials: "include" });
       if (res.ok) { await fetchDMs(); }
@@ -234,7 +267,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
 
   return (
     <Card className="glass-panel flex-1 flex flex-col min-h-0 overflow-hidden shadow-2xl">
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {dms.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
             <UserIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
