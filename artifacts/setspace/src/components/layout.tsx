@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
-import { useListNotifications, type Notification } from "@workspace/api-client-react";
+import { useListNotifications, getListNotificationsQueryKey, type Notification } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { playNotificationSound } from "@/lib/sounds";
 import { 
@@ -140,7 +140,7 @@ function SidebarInner() {
 
 function useGlobalNotificationSound() {
   const { data: notifications } = useListNotifications({
-    query: { refetchInterval: 5000 }
+    query: { queryKey: getListNotificationsQueryKey(), refetchInterval: 5000 }
   });
   const lastCountRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);

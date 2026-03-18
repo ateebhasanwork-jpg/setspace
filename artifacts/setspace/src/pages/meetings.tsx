@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { useListMeetings, useCreateMeeting, useListUsers, getListMeetingsQueryKey } from "@workspace/api-client-react";
+import { useListMeetings, useCreateMeeting, useListUsers, getListMeetingsQueryKey, type Meeting } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar, Plus, Video, Clock, Check } from "lucide-react";
+
+type LocalMeeting = Meeting & { _optimistic?: boolean };
 
 function safeUrl(url: string | null | undefined): string | null {
   if (!url || !url.trim()) return null;
@@ -161,10 +163,10 @@ export default function Meetings() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {meetings?.map(meeting => {
-            const isOptimistic = (meeting as any)._optimistic;
+          {(meetings as LocalMeeting[] | undefined)?.map(meeting => {
+            const isOptimistic = meeting._optimistic;
             const safeLink = safeUrl(meeting.meetingUrl);
-            const attendees = (meeting as any).attendees as Array<{ id: string; firstName: string; lastName: string; username: string }> | undefined;
+            const attendees = meeting.attendees;
             return (
               <Card key={meeting.id} className={`glass-panel p-6 flex flex-col justify-between group hover:border-primary/50 transition-colors ${isOptimistic ? "opacity-60" : ""}`}>
                 <div>

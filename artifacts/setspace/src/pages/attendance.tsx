@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { useListAttendance, useGetTodayAttendance, useClockIn, useClockOut, getListAttendanceQueryKey, getGetTodayAttendanceQueryKey } from "@workspace/api-client-react";
+import { useListAttendance, useGetTodayAttendance, useClockIn, useClockOut, getListAttendanceQueryKey, getGetTodayAttendanceQueryKey, type AttendanceRecord } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, LogIn, LogOut, Calendar as CalIcon, TimerReset } from "lucide-react";
+
+type AttendanceWithExtra = AttendanceRecord & {
+  accumulatedSeconds?: number;
+  lastClockIn?: string | null;
+  totalSeconds?: number;
+};
 
 function formatSeconds(totalSecs: number): string {
   const h = Math.floor(totalSecs / 3600);
@@ -37,7 +43,7 @@ function LiveTimer({ accumulatedSeconds, lastClockIn }: { accumulatedSeconds: nu
 export default function Attendance() {
   const queryClient = useQueryClient();
   const { data: records, isLoading } = useListAttendance();
-  const { data: today } = useGetTodayAttendance({ query: { refetchInterval: 30000 } });
+  const { data: today } = useGetTodayAttendance({ query: { queryKey: getGetTodayAttendanceQueryKey(), refetchInterval: 30000 } });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetTodayAttendanceQueryKey() });
@@ -49,8 +55,9 @@ export default function Attendance() {
 
   const isActivelyIn = !!today?.clockIn && !today?.clockOut;
   const hasClockedOutToday = !!today?.clockIn && !!today?.clockOut;
-  const accumulatedSeconds: number = (today as any)?.accumulatedSeconds ?? 0;
-  const lastClockIn: string | null = (today as any)?.lastClockIn ?? today?.clockIn ?? null;
+  const todayEx = today as AttendanceWithExtra | undefined;
+  const accumulatedSeconds: number = todayEx?.accumulatedSeconds ?? 0;
+  const lastClockIn: string | null = todayEx?.lastClockIn ?? today?.clockIn ?? null;
 
   return (
     <div className="space-y-6">
@@ -151,7 +158,7 @@ export default function Attendance() {
               </thead>
               <tbody>
                 {records?.slice().reverse().map(rec => {
-                  const totalSecs = (rec as any).totalSeconds ?? 0;
+                  const totalSecs = (rec as AttendanceWithExtra).totalSeconds ?? 0;
                   return (
                     <tr key={rec.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 font-medium text-foreground">

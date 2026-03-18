@@ -16,7 +16,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 
   if (!user) return <>{children}</>;
-  if ((user as any).profileSetup) return <>{children}</>;
+  if ((user as { profileSetup?: boolean } | null)?.profileSetup) return <>{children}</>;
 
   return (
     <>

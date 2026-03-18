@@ -10,8 +10,8 @@ import { playMessageSound } from "@/lib/sounds";
 type LocalMessage = Message & { _optimistic?: boolean };
 
 export default function TeamChat() {
-  const { data: messages } = useListMessages({
-    query: { refetchInterval: 3000 }
+  const { data: messages } = useListMessages(undefined, {
+    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 3000 }
   });
   const { data: user } = useGetCurrentUser();
   const [content, setContent] = useState("");
@@ -50,7 +50,6 @@ export default function TeamChat() {
             id: -Date.now(),
             content: data.content,
             authorId: user?.id ?? "",
-            author: user ?? null,
             createdAt: new Date().toISOString(),
             _optimistic: true,
           };
