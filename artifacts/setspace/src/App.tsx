@@ -47,8 +47,8 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
         </div>
         
         <div className="glass-panel max-w-md w-full p-8 md:p-12 rounded-3xl relative z-10 flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mb-8 shadow-2xl shadow-primary/30">
-            <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace Logo" className="w-12 h-12 object-contain" />
+          <div className="w-32 h-32 bg-primary rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-primary/20">
+            <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace Logo" className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-4xl font-display font-bold text-white mb-2">Setspace</h1>
           <p className="text-muted-foreground mb-10">Agency Management Platform</p>

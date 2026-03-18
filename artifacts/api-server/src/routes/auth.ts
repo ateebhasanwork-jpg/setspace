@@ -51,12 +51,16 @@ function getSafeReturnTo(value: unknown): string {
   return value;
 }
 
+// Replit usernames that should be auto-assigned the "hr" role on first login.
+const HR_USERNAMES = ["laiba"];
+
 async function upsertUser(claims: Record<string, unknown>) {
   const sub = claims.sub as string;
   const firstName = (claims.first_name as string) || "";
   const lastName = (claims.last_name as string) || "";
   const username = (claims.preferred_username || claims.username || `${firstName.toLowerCase()}_${sub.slice(-6)}`) as string;
-  const userData = {
+
+  const profileData = {
     id: sub,
     username,
     email: (claims.email as string) || null,
@@ -65,14 +69,17 @@ async function upsertUser(claims: Record<string, unknown>) {
     profileImage: (claims.profile_image_url || claims.picture) as string | null,
   };
 
+  const autoRole = HR_USERNAMES.includes(username.toLowerCase()) ? "hr" as const : undefined;
+
   const [user] = await db
     .insert(usersTable)
-    .values(userData)
+    .values({ ...profileData, ...(autoRole ? { role: autoRole } : {}) })
     .onConflictDoUpdate({
       target: usersTable.id,
       set: {
-        ...userData,
+        ...profileData,
         updatedAt: new Date(),
+        // role is intentionally excluded — preserve any manually set role
       },
     })
     .returning();
