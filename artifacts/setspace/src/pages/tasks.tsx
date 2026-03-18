@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   useListTasks,
   useListUsers,
@@ -74,7 +74,7 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 }
 
 export default function Tasks() {
-  const { data: tasks, isLoading } = useListTasks({ query: { refetchInterval: 2000 } });
+  const { data: tasks, isLoading } = useListTasks();
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -130,6 +130,14 @@ export default function Tasks() {
 
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+
+  // Guaranteed real-time polling every 2 s regardless of React Query's internal state
+  useEffect(() => {
+    const id = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+    }, 2000);
+    return () => clearInterval(id);
+  }, [queryClient]);
 
   const createMut = useCreateTask({
     mutation: {
@@ -258,7 +266,10 @@ export default function Tasks() {
 
     updateMut.mutate(
       { taskId: id, data: { status: col } },
-      { onError: () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }) }
+      {
+        onSuccess: () => invalidate(),
+        onError: () => invalidate(),
+      }
     );
     draggingTaskId.current = null;
   }
