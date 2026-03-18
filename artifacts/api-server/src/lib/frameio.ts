@@ -91,6 +91,21 @@ export interface FrameioAsset {
   inserted_at?: string;
 }
 
+/** Delete an asset from Frame.io. */
+export async function deleteAsset(assetId: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${FRAMEIO_BASE}/assets/${assetId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok || res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
 /** Get a single asset by ID. */
 export async function getAsset(assetId: string): Promise<FrameioAsset | null> {
   const token = getToken();

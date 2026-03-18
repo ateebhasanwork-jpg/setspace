@@ -11,6 +11,17 @@ export const messagesTable = pgTable("messages", {
 
 export type Message = typeof messagesTable.$inferSelect;
 
+export const directMessagesTable = pgTable("direct_messages", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  senderId: text("sender_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  receiverId: text("receiver_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type DirectMessage = typeof directMessagesTable.$inferSelect;
+
 export const meetingsTable = pgTable("meetings", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),

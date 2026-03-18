@@ -42,7 +42,7 @@ router.get("/tasks", async (req, res) => {
 
 router.post("/tasks", requireAdminOrHR, async (req, res) => {
   try {
-    const { title, description, status, priority, assigneeId, dueDate } = req.body;
+    const { title, description, status, priority, assigneeId, dueDate, externalLink, attachmentUrl, attachmentName } = req.body;
     const [task] = await db.insert(tasksTable).values({
       title,
       description: description ?? null,
@@ -51,6 +51,9 @@ router.post("/tasks", requireAdminOrHR, async (req, res) => {
       assigneeId: assigneeId ?? null,
       createdById: req.user!.id,
       dueDate: dueDate ? new Date(dueDate) : null,
+      externalLink: externalLink ?? null,
+      attachmentUrl: attachmentUrl ?? null,
+      attachmentName: attachmentName ?? null,
     }).returning();
 
     if (assigneeId && assigneeId !== req.user!.id) {
@@ -86,10 +89,13 @@ router.get("/tasks/:taskId", async (req, res) => {
 router.patch("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
-    const { title, description, status, priority, assigneeId, dueDate, completedAt } = req.body;
+    const { title, description, status, priority, assigneeId, dueDate, completedAt, externalLink, attachmentUrl, attachmentName } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
+    if (externalLink !== undefined) updates.externalLink = externalLink || null;
+    if (attachmentUrl !== undefined) updates.attachmentUrl = attachmentUrl || null;
+    if (attachmentName !== undefined) updates.attachmentName = attachmentName || null;
     if (status !== undefined) {
       updates.status = status;
       // Auto-set completedAt when task is marked Done

@@ -43,7 +43,7 @@ function LiveTimer({ accumulatedSeconds, lastClockIn }: { accumulatedSeconds: nu
 export default function Attendance() {
   const queryClient = useQueryClient();
   const { data: records, isLoading } = useListAttendance();
-  const { data: today } = useGetTodayAttendance({ query: { queryKey: getGetTodayAttendanceQueryKey(), refetchInterval: 30000 } });
+  const { data: today } = useGetTodayAttendance({ query: { queryKey: getGetTodayAttendanceQueryKey(), refetchInterval: 5000 } });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetTodayAttendanceQueryKey() });

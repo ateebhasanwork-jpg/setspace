@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, usersTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { messagesTable, directMessagesTable, usersTable } from "@workspace/db/schema";
+import { eq, or, and, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -36,6 +36,76 @@ router.post("/messages", async (req, res) => {
     res.status(201).json({ ...message, createdAt: message.createdAt.toISOString(), author: user ?? null });
   } catch (err) {
     res.status(500).json({ error: "Failed to create message" });
+  }
+});
+
+/** GET /api/dm/:userId — get DM conversation with a user */
+router.get("/dm/:userId", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const me = req.user.id;
+    const other = req.params.userId as string;
+    const messages = await db.select().from(directMessagesTable)
+      .where(or(
+        and(eq(directMessagesTable.senderId, me), eq(directMessagesTable.receiverId, other)),
+        and(eq(directMessagesTable.senderId, other), eq(directMessagesTable.receiverId, me))
+      ))
+      .orderBy(directMessagesTable.createdAt)
+      .limit(100);
+
+    const users = await db.select().from(usersTable);
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    await db.update(directMessagesTable)
+      .set({ isRead: true })
+      .where(and(eq(directMessagesTable.senderId, other), eq(directMessagesTable.receiverId, me)));
+
+    res.json(messages.map(m => ({
+      ...m,
+      createdAt: m.createdAt.toISOString(),
+      sender: userMap[m.senderId] ?? null,
+      receiver: userMap[m.receiverId] ?? null,
+    })));
+  } catch {
+    res.status(500).json({ error: "Failed to get DMs" });
+  }
+});
+
+/** POST /api/dm/:userId — send a DM to a user */
+router.post("/dm/:userId", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const me = req.user.id;
+    const other = req.params.userId as string;
+    const { content } = req.body;
+    if (!content?.trim()) { res.status(400).json({ error: "content required" }); return; }
+    const [msg] = await db.insert(directMessagesTable).values({
+      content: content.trim(),
+      senderId: me,
+      receiverId: other,
+    }).returning();
+    const users = await db.select().from(usersTable);
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    res.status(201).json({ ...msg, createdAt: msg.createdAt.toISOString(), sender: userMap[me] ?? null, receiver: userMap[other] ?? null });
+  } catch {
+    res.status(500).json({ error: "Failed to send DM" });
+  }
+});
+
+/** GET /api/dm-unread — count of unread DMs for current user */
+router.get("/dm-unread", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const me = req.user.id;
+    const unread = await db.select().from(directMessagesTable)
+      .where(and(eq(directMessagesTable.receiverId, me), eq(directMessagesTable.isRead, false)));
+
+    const countsBySender: Record<string, number> = {};
+    for (const m of unread) {
+      countsBySender[m.senderId] = (countsBySender[m.senderId] || 0) + 1;
+    }
+    res.json({ total: unread.length, bySender: countsBySender });
+  } catch {
+    res.status(500).json({ error: "Failed to get unread count" });
   }
 });
 

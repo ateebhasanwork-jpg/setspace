@@ -13,6 +13,9 @@ export const tasksTable = pgTable("tasks", {
   createdById: text("created_by_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
+  externalLink: text("external_link"),
+  attachmentUrl: text("attachment_url"),
+  attachmentName: text("attachment_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

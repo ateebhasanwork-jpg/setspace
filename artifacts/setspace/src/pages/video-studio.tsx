@@ -3,13 +3,13 @@ import {
   Folder,
   FileVideo,
   ChevronRight,
-  ChevronLeft,
   ExternalLink,
   Loader2,
   RefreshCw,
   Film,
   Home,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -80,6 +80,8 @@ export default function VideoStudio() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [loadingLink, setLoadingLink] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [configured, setConfigured] = useState(true);
 
@@ -157,6 +159,7 @@ export default function VideoStudio() {
   async function selectFile(asset: FioAsset) {
     setSelectedAsset(asset);
     setReviewLink(null);
+    setConfirmDelete(false);
     setLoadingLink(true);
     try {
       const res = await fetch(`${BASE}/api/frameio/assets/${asset.id}/review-link`, { credentials: "include" });
@@ -168,6 +171,26 @@ export default function VideoStudio() {
       setReviewLink(null);
     } finally {
       setLoadingLink(false);
+    }
+  }
+
+  async function deleteFile(asset: FioAsset) {
+    setDeleting(true);
+    try {
+      const res = await fetch(`${BASE}/api/frameio/assets/${asset.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setSelectedAsset(null);
+        setReviewLink(null);
+        setConfirmDelete(false);
+        const currentFolderId = crumbs[crumbs.length - 1]?.id;
+        if (currentFolderId) await loadFolder(currentFolderId);
+      }
+    } catch {
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -317,7 +340,7 @@ export default function VideoStudio() {
                 {selectedAsset.duration ? <span>{fmtDuration(selectedAsset.duration)}</span> : null}
                 {selectedAsset.filetype ? <span>{selectedAsset.filetype}</span> : null}
               </div>
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex items-center gap-3">
                 {reviewLink && (
                   <a
                     href={reviewLink}
@@ -328,6 +351,33 @@ export default function VideoStudio() {
                     <ExternalLink className="w-3.5 h-3.5" />
                     Open in Frame.io
                   </a>
+                )}
+                {confirmDelete ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => deleteFile(selectedAsset!)}
+                      disabled={deleting}
+                      className="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                      {deleting ? "Deleting…" : "Confirm Delete"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="text-xs text-zinc-400 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                    title="Delete this file from Frame.io"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
                 )}
               </div>
             </div>

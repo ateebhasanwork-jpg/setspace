@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { appSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
-import { listProjects, isFrameioConfigured, getToken, listAssetChildren, getAsset, getOrCreateReviewLink } from "../lib/frameio";
+import { listProjects, isFrameioConfigured, getToken, listAssetChildren, getAsset, getOrCreateReviewLink, deleteAsset } from "../lib/frameio";
 
 const router: IRouter = Router();
 
@@ -102,6 +102,19 @@ router.get("/frameio/assets/:assetId/review-link", async (req: Request, res: Res
     res.json({ link });
   } catch {
     res.status(500).json({ error: "Failed to get review link" });
+  }
+});
+
+/** DELETE /api/frameio/assets/:assetId — delete an asset from Frame.io */
+router.delete("/frameio/assets/:assetId", requireAdminOrHR, async (req: Request, res: Response) => {
+  try {
+    if (!isFrameioConfigured()) { res.status(400).json({ error: "Frame.io not configured" }); return; }
+    const { assetId } = req.params as { assetId: string };
+    const ok = await deleteAsset(assetId);
+    if (!ok) { res.status(500).json({ error: "Frame.io delete failed" }); return; }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete Frame.io asset" });
   }
 });
 

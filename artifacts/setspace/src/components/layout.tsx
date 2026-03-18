@@ -161,9 +161,36 @@ function useGlobalNotificationSound() {
   }, [notifications]);
 }
 
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+function useGlobalDMSound() {
+  const lastTotalRef = useRef<number | null>(null);
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const check = async () => {
+      if (location === "/chat") return;
+      try {
+        const res = await fetch(`${BASE}/api/dm-unread`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json() as { total: number };
+        const total = data.total ?? 0;
+        if (lastTotalRef.current !== null && total > lastTotalRef.current) {
+          playNotificationSound();
+        }
+        lastTotalRef.current = total;
+      } catch {}
+    };
+    check();
+    const id = setInterval(check, 5000);
+    return () => clearInterval(id);
+  }, [location]);
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   useGlobalNotificationSound();
+  useGlobalDMSound();
 
   const style = {
     "--sidebar-width": "16rem",

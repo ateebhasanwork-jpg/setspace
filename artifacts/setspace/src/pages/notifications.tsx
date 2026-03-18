@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Bell, Check, Video, MessageSquare, Trophy, AlertCircle } from "lucide-react";
 
 export default function Notifications() {
-  const { data: notifications, isLoading } = useListNotifications();
+  const { data: notifications, isLoading } = useListNotifications({
+    query: { queryKey: getListNotificationsQueryKey(), refetchInterval: 5000 }
+  });
   const queryClient = useQueryClient();
 
   const markReadMut = useMarkNotificationRead({

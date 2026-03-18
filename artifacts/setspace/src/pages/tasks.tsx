@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle, Pencil, Trash2 } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload } from "lucide-react";
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null };
 
@@ -74,7 +74,7 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 }
 
 export default function Tasks() {
-  const { data: tasks, isLoading } = useListTasks();
+  const { data: tasks, isLoading } = useListTasks({ query: { refetchInterval: 5000 } });
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -92,11 +92,41 @@ export default function Tasks() {
   const [editStatus, setEditStatus] = useState("To Do");
   const [editAssigneeId, setEditAssigneeId] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const [editExternalLink, setEditExternalLink] = useState("");
+  const [editAttachmentUrl, setEditAttachmentUrl] = useState("");
+  const [editAttachmentName, setEditAttachmentName] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Create form extra fields
+  const [externalLink, setExternalLink] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   // Drag state
   const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
   const draggingTaskId = useRef<number | null>(null);
+
+  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+  async function uploadFile(file: File): Promise<{ url: string; name: string } | null> {
+    setUploading(true);
+    try {
+      const res = await fetch(`${BASE}/api/storage/upload`, {
+        method: "POST",
+        headers: { "Content-Type": file.type, "X-File-Name": encodeURIComponent(file.name) },
+        body: file,
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      const data = await res.json() as { objectPath: string };
+      return { url: data.objectPath, name: file.name };
+    } catch {
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
@@ -143,6 +173,9 @@ export default function Tasks() {
     setEditStatus(task.status ?? "To Do");
     setEditAssigneeId(task.assigneeId ?? "");
     setEditDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
+    setEditExternalLink((task as Task & { externalLink?: string }).externalLink ?? "");
+    setEditAttachmentUrl((task as Task & { attachmentUrl?: string }).attachmentUrl ?? "");
+    setEditAttachmentName((task as Task & { attachmentName?: string }).attachmentName ?? "");
     setConfirmDelete(false);
   }
 
@@ -156,7 +189,10 @@ export default function Tasks() {
         status: "To Do",
         assigneeId: assigneeId || null,
         dueDate: dueDate || null,
-      },
+        externalLink: externalLink || undefined,
+        attachmentUrl: attachmentUrl || undefined,
+        attachmentName: attachmentName || undefined,
+      } as Parameters<typeof createMut.mutate>[0]["data"],
     });
   };
 
@@ -172,24 +208,39 @@ export default function Tasks() {
         status: editStatus,
         assigneeId: editAssigneeId || null,
         dueDate: editDueDate || null,
-      },
+        externalLink: editExternalLink || undefined,
+        attachmentUrl: editAttachmentUrl || undefined,
+        attachmentName: editAttachmentName || undefined,
+      } as Parameters<typeof editMut.mutate>[0]["data"],
     });
   };
 
-  // ── Drag & Drop handlers ───────────────────────────────────────
+  // ── Drag & Drop handlers (optimistic updates for smooth feel) ──
   function onDragStart(e: React.DragEvent, taskId: number) {
     draggingTaskId.current = taskId;
     e.dataTransfer.effectAllowed = "move";
+    (e.currentTarget as HTMLElement).style.opacity = "0.4";
   }
 
-  function onDragOver(e: React.DragEvent, col: Column) {
+  function onDragEnter(e: React.DragEvent, col: Column) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
     setDragOverCol(col);
   }
 
-  function onDragLeave() {
-    setDragOverCol(null);
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function onDragLeave(e: React.DragEvent) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const { clientX, clientY } = e;
+    if (
+      clientX <= rect.left || clientX >= rect.right ||
+      clientY <= rect.top || clientY >= rect.bottom
+    ) {
+      setDragOverCol(null);
+    }
   }
 
   function onDrop(e: React.DragEvent, col: Column) {
@@ -198,12 +249,22 @@ export default function Tasks() {
     const id = draggingTaskId.current;
     if (id === null) return;
     const task = (tasks as TaskWithDerived[] | undefined)?.find(t => t.id === id);
-    if (!task || task.status === col) return;
-    updateMut.mutate({ taskId: id, data: { status: col } });
+    if (!task || task.status === col) { draggingTaskId.current = null; return; }
+
+    // Optimistic update — card moves immediately
+    queryClient.setQueryData(getListTasksQueryKey(), (old: TaskWithDerived[] | undefined) =>
+      old?.map(t => t.id === id ? { ...t, status: col } : t)
+    );
+
+    updateMut.mutate(
+      { taskId: id, data: { status: col } },
+      { onError: () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }) }
+    );
     draggingTaskId.current = null;
   }
 
-  function onDragEnd() {
+  function onDragEnd(e: React.DragEvent) {
+    (e.currentTarget as HTMLElement).style.opacity = "";
     setDragOverCol(null);
     draggingTaskId.current = null;
   }
@@ -301,9 +362,45 @@ export default function Tasks() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5" /> External Link
+                  </label>
+                  <Input
+                    type="url"
+                    value={externalLink}
+                    onChange={e => setExternalLink(e.target.value)}
+                    className="bg-black/20 border-white/10 focus:border-primary text-sm"
+                    placeholder="https://..."
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block flex items-center gap-1.5">
+                    <Paperclip className="w-3.5 h-3.5" /> Attachment
+                  </label>
+                  {attachmentUrl ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-black/20 border border-white/10 rounded-md text-sm">
+                      <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="truncate flex-1 text-foreground">{attachmentName}</span>
+                      <button type="button" onClick={() => { setAttachmentUrl(""); setAttachmentName(""); }} className="text-muted-foreground hover:text-red-400">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className={`flex items-center gap-2 px-3 py-2 border border-dashed border-white/20 rounded-md cursor-pointer hover:border-primary/50 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                      {uploading ? <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Uploading…</span></> : <><Upload className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to upload file</span></>}
+                      <input type="file" className="hidden" onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        const result = await uploadFile(f);
+                        if (result) { setAttachmentUrl(result.url); setAttachmentName(result.name); }
+                      }} />
+                    </label>
+                  )}
+                </div>
                 <Button
                   type="submit"
-                  disabled={createMut.isPending}
+                  disabled={createMut.isPending || uploading}
                   className="w-full rounded-xl mt-2 font-semibold"
                 >
                   {createMut.isPending ? "Creating..." : "Create Task"}
@@ -390,8 +487,44 @@ export default function Tasks() {
               </div>
             </div>
 
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5" /> External Link
+              </label>
+              <Input
+                type="url"
+                value={editExternalLink}
+                onChange={e => setEditExternalLink(e.target.value)}
+                className="bg-black/20 border-white/10 focus:border-primary text-sm"
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block flex items-center gap-1.5">
+                <Paperclip className="w-3.5 h-3.5" /> Attachment
+              </label>
+              {editAttachmentUrl ? (
+                <div className="flex items-center gap-2 px-3 py-2 bg-black/20 border border-white/10 rounded-md text-sm">
+                  <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="truncate flex-1 text-foreground">{editAttachmentName}</span>
+                  <button type="button" onClick={() => { setEditAttachmentUrl(""); setEditAttachmentName(""); }} className="text-muted-foreground hover:text-red-400">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className={`flex items-center gap-2 px-3 py-2 border border-dashed border-white/20 rounded-md cursor-pointer hover:border-primary/50 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {uploading ? <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Uploading…</span></> : <><Upload className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to upload file</span></>}
+                  <input type="file" className="hidden" onChange={async e => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const result = await uploadFile(f);
+                    if (result) { setEditAttachmentUrl(result.url); setEditAttachmentName(result.name); }
+                  }} />
+                </label>
+              )}
+            </div>
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={editMut.isPending} className="flex-1 rounded-xl font-semibold">
+              <Button type="submit" disabled={editMut.isPending || uploading} className="flex-1 rounded-xl font-semibold">
                 {editMut.isPending ? "Saving..." : "Save Changes"}
               </Button>
               {confirmDelete ? (
@@ -441,7 +574,8 @@ export default function Tasks() {
                     ? "bg-white/8 border-primary/50 ring-1 ring-primary/30"
                     : `bg-black/10 ${COL_ACCENT[col]}`
                 }`}
-                onDragOver={(e) => onDragOver(e, col)}
+                onDragEnter={(e) => onDragEnter(e, col)}
+                onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onDrop={(e) => onDrop(e, col)}
               >
@@ -475,6 +609,20 @@ export default function Tasks() {
                         </button>
                       </div>
                       <h4 className="font-medium text-foreground leading-snug mb-2">{task.title}</h4>
+                      {((task as Task & { externalLink?: string }).externalLink || (task as Task & { attachmentUrl?: string }).attachmentUrl) && (
+                        <div className="flex items-center gap-2 mt-2">
+                          {(task as Task & { externalLink?: string }).externalLink && (
+                            <a href={(task as Task & { externalLink?: string }).externalLink!} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                              <Link2 className="w-2.5 h-2.5" /> Link
+                            </a>
+                          )}
+                          {(task as Task & { attachmentUrl?: string }).attachmentUrl && (
+                            <span className="flex items-center gap-1 text-[10px] text-primary/80 bg-primary/10 px-2 py-0.5 rounded-full">
+                              <Paperclip className="w-2.5 h-2.5" /> {(task as Task & { attachmentName?: string }).attachmentName || "File"}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
                         <div className="flex items-center gap-2">
                           <AssigneeAvatar user={task.assignee} />
