@@ -124,6 +124,64 @@ router.delete("/video-projects/:projectId", requireAdminOrHR, async (req, res) =
 });
 
 // Video Versions — employees (editors) can upload versions; admin/HR manage projects
+// Add a Frame.io review link as a version (no file upload needed)
+router.post("/video-projects/:projectId/versions/from-link", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    const projectId = parseInt(String(req.params.projectId));
+    const { label, reviewLink } = req.body;
+    if (!reviewLink) {
+      res.status(400).json({ error: "reviewLink is required" });
+      return;
+    }
+    const existingVersions = await db.select().from(videoVersionsTable).where(eq(videoVersionsTable.projectId, projectId));
+    const versionNumber = existingVersions.length + 1;
+    const [version] = await db.insert(videoVersionsTable).values({
+      projectId, versionNumber,
+      objectPath: "",
+      fileName: label?.trim() || `Version ${versionNumber}`,
+      fileSize: 0,
+      uploadedById: req.user!.id,
+      status: "pending",
+      framioReviewLink: reviewLink.trim(),
+      framioSyncStatus: "synced",
+    }).returning();
+    await db.update(videoProjectsTable).set({ updatedAt: new Date() }).where(eq(videoProjectsTable.id, projectId));
+    const result = await getVersionWithUploader(version.id);
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to create version from link" });
+  }
+});
+
+// Update review link on an existing version
+router.patch("/video-versions/:versionId/review-link", requireAdminOrHR, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.versionId));
+    const { reviewLink } = req.body;
+    const [updated] = await db.update(videoVersionsTable)
+      .set({ framioReviewLink: reviewLink ?? null, framioSyncStatus: reviewLink ? "synced" : "none" })
+      .where(eq(videoVersionsTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "Version not found" }); return; }
+    res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update review link" });
+  }
+});
+
+// Delete a version
+router.delete("/video-versions/:versionId", requireAdminOrHR, async (req, res) => {
+  try {
+    await db.delete(videoVersionsTable).where(eq(videoVersionsTable.id, parseInt(String(req.params.versionId))));
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete version" });
+  }
+});
+
 router.post("/video-projects/:projectId/versions", async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
