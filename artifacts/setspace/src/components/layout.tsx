@@ -250,7 +250,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarProvider style={style as React.CSSProperties}>
         <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/30">
           <SidebarInner />
-          <main className="flex-1 flex flex-col h-screen overflow-y-auto relative min-w-0">
+          <main className={`flex-1 flex flex-col h-screen relative min-w-0 ${(location.startsWith("/videos") || location.startsWith("/chat")) ? "overflow-hidden" : "overflow-y-auto"}`}>
             <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-white/3 blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-white/2 blur-[100px] pointer-events-none" />
 

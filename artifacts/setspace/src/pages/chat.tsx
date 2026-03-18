@@ -30,6 +30,27 @@ function resolveProfileImage(profileImage: string | null | undefined): string | 
   return `/api/storage/objects/${subPath}`;
 }
 
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const same = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (same(d, today)) return "Today";
+  if (same(d, yesterday)) return "Yesterday";
+  return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+}
+
+function DateSeparator({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <div className="flex-1 h-px bg-white/8" />
+      <span className="text-[11px] font-medium text-muted-foreground/70 px-2 shrink-0">{label}</span>
+      <div className="flex-1 h-px bg-white/8" />
+    </div>
+  );
+}
+
 function Avatar({ name, profileImage, size = "sm", visible = true }: { name?: string | null; profileImage?: string | null; size?: "sm" | "md"; visible?: boolean }) {
   const photo = resolveProfileImage(profileImage);
   const cls = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm";
@@ -161,14 +182,18 @@ function GroupChat({ user }: { user: User }) {
 
   return (
     <Card className="glass-panel flex-1 flex flex-col min-h-0 overflow-hidden shadow-2xl">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6" onScroll={() => { isAtBottomRef.current = isNearBottom(); }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4" onScroll={() => { isAtBottomRef.current = isNearBottom(); }}>
         {topLevel.map((msg, i, arr) => {
           const isMe = msg.authorId === user.id;
           const prevMsg = arr[i - 1];
           const showAvatar = !isMe && prevMsg?.authorId !== msg.authorId;
           const replies = repliesById[msg.id] ?? [];
+          const msgDate = formatDateLabel(msg.createdAt);
+          const prevDate = prevMsg ? formatDateLabel(prevMsg.createdAt) : null;
+          const showDate = msgDate !== prevDate;
           return (
             <div key={msg.id}>
+              {showDate && <DateSeparator label={msgDate} />}
               <MessageBubble msg={msg} isMe={isMe} showAvatar={showAvatar} onReply={setReplyTo} />
               {replies.length > 0 && (
                 <div className="ml-10 mt-2 pl-4 border-l-2 border-white/10 space-y-3">
@@ -289,7 +314,17 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
             <p className="text-muted-foreground text-sm">Start a private conversation with {otherUser.firstName}</p>
           </div>
         )}
-        {dms.map(msg => <DMBubble key={msg.id} msg={msg} isMe={msg.senderId === me.id} />)}
+        {dms.map((msg, i, arr) => {
+          const msgDate = formatDateLabel(msg.createdAt);
+          const prevDate = i > 0 ? formatDateLabel(arr[i - 1].createdAt) : null;
+          const showDate = msgDate !== prevDate;
+          return (
+            <React.Fragment key={msg.id}>
+              {showDate && <DateSeparator label={msgDate} />}
+              <DMBubble msg={msg} isMe={msg.senderId === me.id} />
+            </React.Fragment>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
       <div className="p-4 bg-black/20 border-t border-white/5">
