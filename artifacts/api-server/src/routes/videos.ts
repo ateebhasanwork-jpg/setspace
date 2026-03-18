@@ -119,8 +119,12 @@ router.delete("/video-projects/:projectId", requireAdminOrHR, async (req, res) =
   }
 });
 
-// Video Versions
-router.post("/video-projects/:projectId/versions", requireAdminOrHR, async (req, res) => {
+// Video Versions — employees (editors) can upload versions; admin/HR manage projects
+router.post("/video-projects/:projectId/versions", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const projectId = parseInt(String(req.params.projectId));
     const { objectPath, fileName, fileSize } = req.body;
