@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useListNotifications, getListNotificationsQueryKey, type Notification } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
-import { playNotificationSound } from "@/lib/sounds";
+import { playNotificationSound, initAudio } from "@/lib/sounds";
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -192,6 +192,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useGlobalNotificationSound();
   useGlobalDMSound();
 
+  // Unlock AudioContext on first user interaction (browser autoplay policy)
+  useEffect(() => { initAudio(); }, []);
+
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "4rem",
@@ -217,7 +220,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </header>
 
           {location.startsWith("/videos") ? (
-            <div className="flex-1 overflow-hidden relative z-10 flex flex-col" style={{ minHeight: 0 }}>
+            <div className="absolute inset-0 z-10 flex flex-col overflow-hidden">
               {children}
             </div>
           ) : (
