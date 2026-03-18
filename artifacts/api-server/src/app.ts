@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
+import path from "path";
 
 const app: Express = express();
 
@@ -33,5 +34,13 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use("/api", router);
+
+if (process.env.NODE_ENV === "production") {
+  const frontendDist = path.resolve(process.cwd(), "artifacts/setspace/dist/public");
+  app.use(express.static(frontendDist));
+  app.get("*", (_req: Request, res: Response) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 export default app;
