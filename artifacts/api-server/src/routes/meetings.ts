@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { meetingsTable, meetingAttendeesTable, usersTable, notificationsTable } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import nodemailer from "nodemailer";
+import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -61,11 +62,7 @@ router.get("/meetings", async (req, res) => {
   }
 });
 
-router.post("/meetings", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/meetings", requireAdminOrHR, async (req, res) => {
   try {
     const { title, description, scheduledAt, duration, meetingUrl, attendeeIds } = req.body;
     const [meeting] = await db.insert(meetingsTable).values({
@@ -73,7 +70,7 @@ router.post("/meetings", async (req, res) => {
       scheduledAt: new Date(scheduledAt),
       duration: duration ?? 60,
       meetingUrl: meetingUrl ?? null,
-      organizerId: req.user.id
+      organizerId: req.user!.id
     }).returning();
 
     if (attendeeIds && attendeeIds.length > 0) {
@@ -105,7 +102,7 @@ router.post("/meetings", async (req, res) => {
 
 router.get("/meetings/:meetingId", async (req, res) => {
   try {
-    const result = await getMeetingWithAttendees(parseInt(req.params.meetingId));
+    const result = await getMeetingWithAttendees(parseInt(String(req.params.meetingId)));
     if (!result) {
       res.status(404).json({ error: "Meeting not found" });
       return;
@@ -116,13 +113,9 @@ router.get("/meetings/:meetingId", async (req, res) => {
   }
 });
 
-router.patch("/meetings/:meetingId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.meetingId);
+    const id = parseInt(String(req.params.meetingId));
     const { title, description, scheduledAt, duration, meetingUrl, attendeeIds } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
@@ -166,14 +159,10 @@ router.patch("/meetings/:meetingId", async (req, res) => {
   }
 });
 
-router.delete("/meetings/:meetingId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.delete("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
   try {
-    await db.delete(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, parseInt(req.params.meetingId)));
-    await db.delete(meetingsTable).where(eq(meetingsTable.id, parseInt(req.params.meetingId)));
+    await db.delete(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, parseInt(String(req.params.meetingId))));
+    await db.delete(meetingsTable).where(eq(meetingsTable.id, parseInt(String(req.params.meetingId))));
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete meeting" });

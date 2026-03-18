@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { qualityChecksTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -24,16 +25,12 @@ router.get("/quality-checks", async (req, res) => {
   }
 });
 
-router.post("/quality-checks", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/quality-checks", requireAdminOrHR, async (req, res) => {
   try {
     const { taskId, submitterId, rating, feedback, status, videoVersionId } = req.body;
     const [check] = await db.insert(qualityChecksTable).values({
       taskId: taskId ?? null,
-      reviewerId: req.user.id,
+      reviewerId: req.user!.id,
       submitterId,
       rating,
       feedback: feedback ?? null,
@@ -46,13 +43,9 @@ router.post("/quality-checks", async (req, res) => {
   }
 });
 
-router.patch("/quality-checks/:checkId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.checkId);
+    const id = parseInt(String(req.params.checkId));
     const { rating, feedback, status } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (rating !== undefined) updates.rating = rating;

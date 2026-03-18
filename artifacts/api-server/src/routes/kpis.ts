@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { kpisTable, kpiEntriesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -14,11 +15,7 @@ router.get("/kpis", async (req, res) => {
   }
 });
 
-router.post("/kpis", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/kpis", requireAdminOrHR, async (req, res) => {
   try {
     const { name, description, unit, targetValue, userId, period } = req.body;
     const [kpi] = await db.insert(kpisTable).values({
@@ -30,13 +27,9 @@ router.post("/kpis", async (req, res) => {
   }
 });
 
-router.patch("/kpis/:kpiId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.patch("/kpis/:kpiId", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.kpiId);
+    const id = parseInt(String(req.params.kpiId));
     const { name, description, unit, targetValue, period } = req.body;
     const updates: Record<string, unknown> = {};
     if (name !== undefined) updates.name = name;
@@ -55,13 +48,9 @@ router.patch("/kpis/:kpiId", async (req, res) => {
   }
 });
 
-router.delete("/kpis/:kpiId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.delete("/kpis/:kpiId", requireAdminOrHR, async (req, res) => {
   try {
-    await db.delete(kpisTable).where(eq(kpisTable.id, parseInt(req.params.kpiId)));
+    await db.delete(kpisTable).where(eq(kpisTable.id, parseInt(String(req.params.kpiId))));
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete KPI" });
@@ -87,11 +76,7 @@ router.get("/kpi-entries", async (req, res) => {
   }
 });
 
-router.post("/kpi-entries", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/kpi-entries", requireAdminOrHR, async (req, res) => {
   try {
     const { kpiId, userId, actualValue, notes, recordedAt } = req.body;
     const [entry] = await db.insert(kpiEntriesTable).values({

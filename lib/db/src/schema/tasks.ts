@@ -7,7 +7,7 @@ export const tasksTable = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status").notNull().default("todo"),
+  status: text("status").notNull().default("To Do"),
   priority: text("priority").notNull().default("medium"),
   assigneeId: text("assignee_id").references(() => usersTable.id, { onDelete: "set null" }),
   createdById: text("created_by_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),

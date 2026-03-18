@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { videoProjectsTable, videoVersionsTable, videoCommentsTable, videoShareTokensTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -50,16 +51,12 @@ router.get("/video-projects", async (req, res) => {
   }
 });
 
-router.post("/video-projects", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/video-projects", requireAdminOrHR, async (req, res) => {
   try {
     const { title, clientName, description, taskId } = req.body;
     const [project] = await db.insert(videoProjectsTable).values({
       title, clientName: clientName ?? null, description: description ?? null,
-      taskId: taskId ?? null, createdById: req.user.id
+      taskId: taskId ?? null, createdById: req.user!.id
     }).returning();
     res.status(201).json({ ...project, createdAt: project.createdAt.toISOString(), updatedAt: project.updatedAt.toISOString() });
   } catch (err) {
@@ -73,7 +70,7 @@ router.get("/video-projects/:projectId", async (req, res) => {
     return;
   }
   try {
-    const id = parseInt(req.params.projectId);
+    const id = parseInt(String(req.params.projectId));
     const [project] = await db.select().from(videoProjectsTable).where(eq(videoProjectsTable.id, id));
     if (!project) {
       res.status(404).json({ error: "Project not found" });
@@ -93,13 +90,9 @@ router.get("/video-projects/:projectId", async (req, res) => {
   }
 });
 
-router.patch("/video-projects/:projectId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.patch("/video-projects/:projectId", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.projectId);
+    const id = parseInt(String(req.params.projectId));
     const { title, clientName, description, status } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
@@ -117,13 +110,9 @@ router.patch("/video-projects/:projectId", async (req, res) => {
   }
 });
 
-router.delete("/video-projects/:projectId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.delete("/video-projects/:projectId", requireAdminOrHR, async (req, res) => {
   try {
-    await db.delete(videoProjectsTable).where(eq(videoProjectsTable.id, parseInt(req.params.projectId)));
+    await db.delete(videoProjectsTable).where(eq(videoProjectsTable.id, parseInt(String(req.params.projectId))));
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete video project" });
@@ -131,19 +120,15 @@ router.delete("/video-projects/:projectId", async (req, res) => {
 });
 
 // Video Versions
-router.post("/video-projects/:projectId/versions", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/video-projects/:projectId/versions", requireAdminOrHR, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(String(req.params.projectId));
     const { objectPath, fileName, fileSize } = req.body;
     const existingVersions = await db.select().from(videoVersionsTable).where(eq(videoVersionsTable.projectId, projectId));
     const versionNumber = existingVersions.length + 1;
     const [version] = await db.insert(videoVersionsTable).values({
       projectId, versionNumber, objectPath, fileName, fileSize,
-      uploadedById: req.user.id, status: "pending"
+      uploadedById: req.user!.id, status: "pending"
     }).returning();
     await db.update(videoProjectsTable).set({ updatedAt: new Date() }).where(eq(videoProjectsTable.id, projectId));
     const result = await getVersionWithUploader(version.id);
@@ -153,13 +138,9 @@ router.post("/video-projects/:projectId/versions", async (req, res) => {
   }
 });
 
-router.post("/video-versions/:versionId/approve", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/video-versions/:versionId/approve", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.versionId);
+    const id = parseInt(String(req.params.versionId));
     const [updated] = await db.update(videoVersionsTable).set({ status: "approved" }).where(eq(videoVersionsTable.id, id)).returning();
     if (!updated) {
       res.status(404).json({ error: "Version not found" });
@@ -172,13 +153,9 @@ router.post("/video-versions/:versionId/approve", async (req, res) => {
   }
 });
 
-router.post("/video-versions/:versionId/request-revision", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/video-versions/:versionId/request-revision", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.versionId);
+    const id = parseInt(String(req.params.versionId));
     const [updated] = await db.update(videoVersionsTable).set({ status: "needs_revision" }).where(eq(videoVersionsTable.id, id)).returning();
     if (!updated) {
       res.status(404).json({ error: "Version not found" });
@@ -198,7 +175,7 @@ router.get("/video-versions/:versionId/comments", async (req, res) => {
     return;
   }
   try {
-    const versionId = parseInt(req.params.versionId);
+    const versionId = parseInt(String(req.params.versionId));
     const comments = await db.select().from(videoCommentsTable)
       .where(eq(videoCommentsTable.versionId, versionId))
       .orderBy(videoCommentsTable.createdAt);
@@ -214,7 +191,7 @@ router.post("/video-versions/:versionId/comments", async (req, res) => {
     return;
   }
   try {
-    const versionId = parseInt(req.params.versionId);
+    const versionId = parseInt(String(req.params.versionId));
     const { content, timestampSeconds } = req.body;
     const [comment] = await db.insert(videoCommentsTable).values({
       versionId, authorId: req.user.id,
@@ -228,13 +205,9 @@ router.post("/video-versions/:versionId/comments", async (req, res) => {
   }
 });
 
-router.post("/video-comments/:commentId/resolve", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/video-comments/:commentId/resolve", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.commentId);
+    const id = parseInt(String(req.params.commentId));
     const [updated] = await db.update(videoCommentsTable).set({ isResolved: true }).where(eq(videoCommentsTable.id, id)).returning();
     if (!updated) {
       res.status(404).json({ error: "Comment not found" });
@@ -247,13 +220,9 @@ router.post("/video-comments/:commentId/resolve", async (req, res) => {
 });
 
 // Share Tokens
-router.post("/video-versions/:versionId/share-token", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/video-versions/:versionId/share-token", requireAdminOrHR, async (req, res) => {
   try {
-    const versionId = parseInt(req.params.versionId);
+    const versionId = parseInt(String(req.params.versionId));
     const token = crypto.randomBytes(32).toString("hex");
     await db.delete(videoShareTokensTable).where(eq(videoShareTokensTable.versionId, versionId));
     const [shareToken] = await db.insert(videoShareTokensTable).values({ token, versionId }).returning();

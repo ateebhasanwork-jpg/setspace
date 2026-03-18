@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tasksTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -39,20 +40,16 @@ router.get("/tasks", async (req, res) => {
   }
 });
 
-router.post("/tasks", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/tasks", requireAdminOrHR, async (req, res) => {
   try {
     const { title, description, status, priority, assigneeId, dueDate } = req.body;
     const [task] = await db.insert(tasksTable).values({
       title,
       description: description ?? null,
-      status: status ?? "todo",
+      status: status ?? "To Do",
       priority: priority ?? "medium",
       assigneeId: assigneeId ?? null,
-      createdById: req.user.id,
+      createdById: req.user!.id,
       dueDate: dueDate ? new Date(dueDate) : null,
     }).returning();
     res.status(201).json({ ...task, createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString() });
@@ -63,7 +60,7 @@ router.post("/tasks", async (req, res) => {
 
 router.get("/tasks/:taskId", async (req, res) => {
   try {
-    const id = parseInt(req.params.taskId);
+    const id = parseInt(String(req.params.taskId));
     const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
     if (!task) {
       res.status(404).json({ error: "Task not found" });
@@ -75,13 +72,9 @@ router.get("/tasks/:taskId", async (req, res) => {
   }
 });
 
-router.patch("/tasks/:taskId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.patch("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.taskId);
+    const id = parseInt(String(req.params.taskId));
     const { title, description, status, priority, assigneeId, dueDate, completedAt } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
@@ -90,7 +83,7 @@ router.patch("/tasks/:taskId", async (req, res) => {
       updates.status = status;
       // Auto-set completedAt when task is marked Done
       if (status === "Done") {
-        const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, parseInt(req.params.taskId)));
+        const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, parseInt(String(req.params.taskId))));
         if (existing[0] && !existing[0].completedAt) {
           updates.completedAt = new Date();
         }
@@ -115,13 +108,9 @@ router.patch("/tasks/:taskId", async (req, res) => {
   }
 });
 
-router.delete("/tasks/:taskId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.delete("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(req.params.taskId);
+    const id = parseInt(String(req.params.taskId));
     await db.delete(tasksTable).where(eq(tasksTable.id, id));
     res.status(204).send();
   } catch (err) {
