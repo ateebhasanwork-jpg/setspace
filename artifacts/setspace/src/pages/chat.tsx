@@ -361,49 +361,55 @@ export default function TeamChat() {
   const currentDMUser = view !== "group" ? otherUsers.find(u => u.id === view) : null;
 
   return (
-    <div className="flex-1 flex gap-6 p-4 sm:p-6 md:p-8 min-h-0 overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-56 shrink-0 flex flex-col gap-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-3 mb-2">Channels</p>
-        <button
-          onClick={() => setView("group")}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${view === "group" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
-        >
-          <Hash className="w-4 h-4 shrink-0" /> Team Channel
-        </button>
+    <div className="flex-1 flex min-h-0 overflow-hidden">
+      {/* Chat sidebar panel */}
+      <div className="w-52 shrink-0 flex flex-col border-r border-white/8 bg-white/2 overflow-hidden">
+        <div className="p-4 border-b border-white/8 shrink-0">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Chat</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 py-2">Channels</p>
+          <button
+            onClick={() => setView("group")}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${view === "group" ? "bg-indigo-600/25 text-indigo-300 border border-indigo-500/20" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+          >
+            <Hash className="w-4 h-4 shrink-0" />
+            <span className="truncate">Team Channel</span>
+          </button>
 
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-3 mt-4 mb-2">Direct Messages</p>
-        {otherUsers.map(u => {
-          const unread = unreadByUser[u.id] ?? 0;
-          const isActive = view === u.id;
-          return (
-            <button
-              key={u.id}
-              onClick={() => { setView(u.id); setUnreadByUser(prev => ({ ...prev, [u.id]: 0 })); }}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${isActive ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
-            >
-              <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-bold shrink-0">
-                {u.firstName?.[0]}
-              </div>
-              <span className="truncate flex-1 text-left">{u.firstName} {u.lastName}</span>
-              {unread > 0 && !isActive && (
-                <span className="shrink-0 min-w-[18px] h-[18px] bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </button>
-          );
-        })}
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pt-4 pb-2">Direct Messages</p>
+          {otherUsers.map(u => {
+            const unread = unreadByUser[u.id] ?? 0;
+            const isActive = view === u.id;
+            return (
+              <button
+                key={u.id}
+                onClick={() => { setView(u.id); setUnreadByUser(prev => ({ ...prev, [u.id]: 0 })); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? "bg-indigo-600/25 text-indigo-300 border border-indigo-500/20" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+              >
+                <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-bold shrink-0 text-white">
+                  {u.firstName?.[0]}
+                </div>
+                <span className="truncate flex-1 text-left">{u.firstName} {u.lastName}</span>
+                {unread > 0 && !isActive && (
+                  <span className="shrink-0 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0">
-        <div className="mb-4">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 p-4 sm:p-6 gap-4">
+        <div className="shrink-0">
           <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
             {view === "group" ? (
-              <><MessageSquare className="w-6 h-6 text-primary" /> Team Channel</>
+              <><MessageSquare className="w-6 h-6 text-indigo-400" /> Team Channel</>
             ) : (
-              <><UserIcon className="w-6 h-6 text-primary" /> {currentDMUser?.firstName} {currentDMUser?.lastName}</>
+              <><UserIcon className="w-6 h-6 text-indigo-400" /> {currentDMUser?.firstName} {currentDMUser?.lastName}</>
             )}
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
