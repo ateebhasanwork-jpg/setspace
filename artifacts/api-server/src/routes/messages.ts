@@ -94,9 +94,14 @@ router.post("/messages", async (req, res) => {
     return;
   }
   try {
-    const { content, parentId } = req.body;
+    const { content, parentId, attachmentUrl, attachmentName } = req.body;
+    if (!content?.trim() && !attachmentUrl) {
+      res.status(400).json({ error: "Message must have content or attachment" });
+      return;
+    }
     const [message] = await db.insert(messagesTable).values({
-      content, authorId: req.user.id, parentId: parentId ?? null
+      content: content ?? "", authorId: req.user.id, parentId: parentId ?? null,
+      attachmentUrl: attachmentUrl ?? null, attachmentName: attachmentName ?? null,
     }).returning();
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
 
@@ -160,12 +165,14 @@ router.post("/dm/:userId", async (req, res) => {
   try {
     const me = req.user.id;
     const other = req.params.userId as string;
-    const { content } = req.body;
-    if (!content?.trim()) { res.status(400).json({ error: "content required" }); return; }
+    const { content, attachmentUrl, attachmentName } = req.body;
+    if (!content?.trim() && !attachmentUrl) { res.status(400).json({ error: "content or attachment required" }); return; }
     const [msg] = await db.insert(directMessagesTable).values({
-      content: content.trim(),
+      content: content?.trim() ?? "",
       senderId: me,
       receiverId: other,
+      attachmentUrl: attachmentUrl ?? null,
+      attachmentName: attachmentName ?? null,
     }).returning();
     const users = await db.select().from(usersTable);
     const userMap = Object.fromEntries(users.map(u => [u.id, u]));

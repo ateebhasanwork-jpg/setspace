@@ -6,6 +6,8 @@ export const messagesTable = pgTable("messages", {
   content: text("content").notNull(),
   authorId: text("author_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   parentId: integer("parent_id"),
+  attachmentUrl: text("attachment_url"),
+  attachmentName: text("attachment_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -13,10 +15,12 @@ export type Message = typeof messagesTable.$inferSelect;
 
 export const directMessagesTable = pgTable("direct_messages", {
   id: serial("id").primaryKey(),
-  content: text("content").notNull(),
+  content: text("content").notNull().default(""),
   senderId: text("sender_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   receiverId: text("receiver_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   isRead: boolean("is_read").notNull().default(false),
+  attachmentUrl: text("attachment_url"),
+  attachmentName: text("attachment_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

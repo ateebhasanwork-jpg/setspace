@@ -21,6 +21,9 @@ import {
   User as UserIcon,
   AtSign,
   SmilePlus,
+  Paperclip,
+  FileText,
+  ImageIcon,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 
@@ -38,6 +41,8 @@ interface DM {
   createdAt: string;
   sender?: User | null;
   receiver?: User | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
   _optimistic?: boolean;
 }
 
@@ -47,6 +52,55 @@ function resolveProfileImage(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("http")) return url;
   return `/api/storage/objects/${url.replace(/^\/objects\//, "")}`;
+}
+
+function resolveAttachmentUrl(path: string): string {
+  if (path.startsWith("http")) return path;
+  return `${BASE}/api/storage/objects/${path.replace(/^\/objects\//, "")}`;
+}
+
+async function uploadFile(file: File): Promise<{ objectPath: string; name: string }> {
+  const res = await fetch(`${BASE}/api/storage/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "X-File-Name": encodeURIComponent(file.name),
+    },
+    body: file,
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  const data = await res.json();
+  return { objectPath: data.objectPath, name: file.name };
+}
+
+const IMAGE_EXTS = /\.(jpe?g|png|gif|webp|svg|bmp)$/i;
+
+function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isMe: boolean }) {
+  const src = resolveAttachmentUrl(url);
+  const isImage = IMAGE_EXTS.test(name);
+  if (isImage) {
+    return (
+      <img
+        src={src} alt={name}
+        className="max-w-[240px] max-h-[200px] rounded-xl object-cover mt-2 cursor-pointer border border-white/10"
+        onClick={() => window.open(src, "_blank")}
+      />
+    );
+  }
+  return (
+    <a
+      href={src} target="_blank" rel="noopener noreferrer"
+      className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+        isMe
+          ? "border-white/30 text-white/80 hover:text-white hover:bg-white/10"
+          : "border-white/15 text-foreground hover:bg-white/10"
+      }`}
+    >
+      <FileText className="w-3.5 h-3.5 shrink-0" />
+      <span className="truncate max-w-[200px]">{name}</span>
+    </a>
+  );
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -233,9 +287,14 @@ function MessageBubble({
           >
             {/* Quoted reply preview */}
             {parentMsg && <QuotedReply parent={parentMsg} isMe={isMe} />}
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">
-              <MessageContent content={msg.content} users={users} currentUserId={currentUserId} />
-            </p>
+            {msg.content && (
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                <MessageContent content={msg.content} users={users} currentUserId={currentUserId} />
+              </p>
+            )}
+            {msg.attachmentUrl && msg.attachmentName && (
+              <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
+            )}
             <span
               className={`text-[10px] block mt-2 text-right ${
                 isMe ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -336,7 +395,10 @@ function DMBubble({ msg, isMe }: { msg: DM; isMe: boolean }) {
               : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+          {msg.content && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
+          {msg.attachmentUrl && msg.attachmentName && (
+            <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
+          )}
           <span
             className={`text-[10px] block mt-2 text-right ${
               isMe ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -408,10 +470,13 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
   const [mentionSearch, setMentionSearch] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
 
@@ -501,12 +566,27 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     }
   }
 
-  const send = () => {
+  const send = async () => {
     const trimmed = content.trim();
-    if (!trimmed || mut.isPending) return;
+    if ((!trimmed && !pendingFile) || mut.isPending || uploading) return;
+    let attachmentUrl: string | undefined;
+    let attachmentName: string | undefined;
+    if (pendingFile) {
+      setUploading(true);
+      try {
+        const result = await uploadFile(pendingFile);
+        attachmentUrl = result.objectPath;
+        attachmentName = result.name;
+      } catch {
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+      setPendingFile(null);
+    }
     setContent("");
     setMentionSearch(null);
-    mut.mutate({ data: { content: trimmed, parentId: replyTo?.id ?? undefined } });
+    mut.mutate({ data: { content: trimmed, parentId: replyTo?.id ?? undefined, attachmentUrl, attachmentName } as Parameters<typeof mut.mutate>[0]["data"] });
   };
 
   const handleContentChange = useCallback(
@@ -655,13 +735,39 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
               onSelect={selectMention}
             />
           )}
+          {/* Pending attachment preview */}
+          {pendingFile && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm">
+              {IMAGE_EXTS.test(pendingFile.name)
+                ? <ImageIcon className="w-4 h-4 text-indigo-400 shrink-0" />
+                : <FileText className="w-4 h-4 text-indigo-400 shrink-0" />}
+              <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name}</span>
+              <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); }}
+          />
           <form
             onSubmit={(e) => {
               e.preventDefault();
               send();
             }}
-            className="flex gap-3"
+            className="flex gap-2"
           >
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0"
+              title="Attach file"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
             <Input
               ref={inputRef}
               value={content}
@@ -682,10 +788,10 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
             />
             <Button
               type="submit"
-              disabled={!content.trim()}
+              disabled={(!content.trim() && !pendingFile) || uploading}
               className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
             >
-              <Send className="w-5 h-5" />
+              {uploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
             </Button>
           </form>
         </div>
@@ -698,9 +804,11 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   const [dms, setDms] = useState<DM[]>([]);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
 
@@ -756,7 +864,26 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
 
   const send = async () => {
     const trimmed = content.trim();
-    if (!trimmed || sending) return;
+    if ((!trimmed && !pendingFile) || sending) return;
+
+    let attachmentUrl: string | undefined;
+    let attachmentName: string | undefined;
+    let fileForOptimistic: File | null = pendingFile;
+
+    if (pendingFile) {
+      setSending(true);
+      try {
+        const result = await uploadFile(pendingFile);
+        attachmentUrl = result.objectPath;
+        attachmentName = result.name;
+      } catch {
+        setSending(false);
+        return;
+      }
+      setPendingFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+
     setContent("");
     setSending(true);
     const optimistic: DM = {
@@ -768,6 +895,8 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
       createdAt: new Date().toISOString(),
       sender: me,
       receiver: otherUser,
+      attachmentUrl: attachmentUrl ?? null,
+      attachmentName: attachmentName ?? fileForOptimistic?.name ?? null,
       _optimistic: true,
     };
     setDms((prev) => [...prev, optimistic]);
@@ -776,7 +905,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
       const res = await fetch(`${BASE}/api/dm/${otherUser.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed }),
+        body: JSON.stringify({ content: trimmed, attachmentUrl, attachmentName }),
         credentials: "include",
       });
       if (res.ok) await fetchDMs();
@@ -811,10 +940,36 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         <div ref={bottomRef} />
       </div>
       <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
+        {/* Pending attachment preview */}
+        {pendingFile && (
+          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm">
+            {IMAGE_EXTS.test(pendingFile.name)
+              ? <ImageIcon className="w-4 h-4 text-indigo-400 shrink-0" />
+              : <FileText className="w-4 h-4 text-indigo-400 shrink-0" />}
+            <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name}</span>
+            <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); }}
+        />
         <form
           onSubmit={(e) => { e.preventDefault(); send(); }}
-          className="flex gap-3"
+          className="flex gap-2"
         >
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0"
+            title="Attach file"
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
           <Input
             ref={inputRef}
             value={content}
@@ -828,10 +983,10 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           />
           <Button
             type="submit"
-            disabled={!content.trim() || sending}
+            disabled={(!content.trim() && !pendingFile) || sending}
             className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
           >
-            <Send className="w-5 h-5" />
+            {sending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
           </Button>
         </form>
       </div>
