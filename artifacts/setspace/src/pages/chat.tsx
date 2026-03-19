@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   useListMessages,
   useCreateMessage,
@@ -19,6 +19,7 @@ import {
   X,
   Hash,
   User as UserIcon,
+  AtSign,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 
@@ -62,9 +63,7 @@ function DateSeparator({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 py-1">
       <div className="flex-1 h-px bg-white/8" />
-      <span className="text-[11px] font-medium text-muted-foreground/70 px-2 shrink-0">
-        {label}
-      </span>
+      <span className="text-[11px] font-medium text-muted-foreground/70 px-2 shrink-0">{label}</span>
       <div className="flex-1 h-px bg-white/8" />
     </div>
   );
@@ -86,17 +85,79 @@ function Avatar({
   if (!visible) return <div className={`${cls} rounded-full shrink-0 opacity-0`} />;
   if (photo)
     return (
-      <img
-        src={photo}
-        alt=""
-        className={`${cls} rounded-full object-cover border border-white/10 shrink-0`}
-      />
+      <img src={photo} alt="" className={`${cls} rounded-full object-cover border border-white/10 shrink-0`} />
     );
   return (
-    <div
-      className={`${cls} rounded-full flex items-center justify-center font-bold text-white shrink-0 bg-indigo-600/40 border border-indigo-500/20`}
-    >
+    <div className={`${cls} rounded-full flex items-center justify-center font-bold text-white shrink-0 bg-indigo-600/40 border border-indigo-500/20`}>
       {name?.[0]?.toUpperCase()}
+    </div>
+  );
+}
+
+/** Render @mentions as highlighted spans */
+function MessageContent({
+  content,
+  users,
+  currentUserId,
+}: {
+  content: string;
+  users?: User[];
+  currentUserId?: string;
+}) {
+  const parts = content.split(/(@\S+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("@") && users) {
+          const name = part.slice(1).toLowerCase();
+          const matched = users.find(
+            (u) =>
+              (u.firstName ?? "").toLowerCase() === name ||
+              (u.username ?? "").toLowerCase() === name ||
+              `${(u.firstName ?? "").toLowerCase()}${(u.lastName ?? "").toLowerCase()}` === name
+          );
+          if (matched) {
+            const isMe = matched.id === currentUserId;
+            return (
+              <span
+                key={i}
+                className={`font-semibold rounded-sm px-0.5 ${
+                  isMe
+                    ? "bg-indigo-500/30 text-indigo-200"
+                    : "text-indigo-300"
+                }`}
+              >
+                {part}
+              </span>
+            );
+          }
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+/** Small quoted block shown at top of a reply bubble */
+function QuotedReply({ parent, isMe }: { parent: LocalMessage; isMe: boolean }) {
+  const author = parent.author as (typeof parent.author & { firstName?: string | null }) | undefined;
+  return (
+    <div
+      className={`flex gap-2 mb-2 pb-2 border-b text-[11px] leading-snug ${
+        isMe
+          ? "border-white/20 text-white/60"
+          : "border-indigo-500/30 text-muted-foreground"
+      }`}
+    >
+      <div className={`w-0.5 rounded-full shrink-0 ${isMe ? "bg-white/40" : "bg-indigo-400"}`} />
+      <div className="min-w-0">
+        <span className={`font-semibold block ${isMe ? "text-white/80" : "text-indigo-300"}`}>
+          {author?.firstName ?? "Unknown"}
+        </span>
+        <span className="line-clamp-2 opacity-80">
+          {parent.content.length > 100 ? parent.content.slice(0, 100) + "…" : parent.content}
+        </span>
+      </div>
     </div>
   );
 }
@@ -106,16 +167,20 @@ function MessageBubble({
   isMe,
   showAvatar,
   onReply,
+  parentMsg,
+  users,
+  currentUserId,
 }: {
   msg: LocalMessage;
   isMe: boolean;
   showAvatar: boolean;
   onReply: (m: LocalMessage) => void;
+  parentMsg?: LocalMessage | null;
+  users?: User[];
+  currentUserId?: string;
 }) {
   const [hovered, setHovered] = useState(false);
-  const author = msg.author as
-    | (typeof msg.author & { profileImage?: string | null })
-    | undefined;
+  const author = msg.author as (typeof msg.author & { profileImage?: string | null }) | undefined;
   return (
     <div
       className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${msg._optimistic ? "opacity-60" : ""}`}
@@ -137,22 +202,31 @@ function MessageBubble({
         )}
         <div className="flex flex-col gap-1">
           <div
-            className={`p-4 rounded-2xl ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"}`}
+            className={`p-4 rounded-2xl ${
+              isMe
+                ? "bg-primary text-primary-foreground rounded-br-sm"
+                : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
+            }`}
           >
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+            {/* Quoted reply preview */}
+            {parentMsg && <QuotedReply parent={parentMsg} isMe={isMe} />}
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">
+              <MessageContent content={msg.content} users={users} currentUserId={currentUserId} />
+            </p>
             <span
-              className={`text-[10px] block mt-2 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+              className={`text-[10px] block mt-2 text-right ${
+                isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+              }`}
             >
-              {new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
           {!msg._optimistic && (
             <button
               onClick={() => onReply(msg)}
-              className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-opacity ${hovered ? "opacity-100" : "opacity-0"} ${isMe ? "self-end" : "self-start ml-1"}`}
+              className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-opacity ${
+                hovered ? "opacity-100" : "opacity-0"
+              } ${isMe ? "self-end" : "self-start ml-1"}`}
             >
               <CornerDownRight className="w-3 h-3" /> Reply
             </button>
@@ -164,28 +238,27 @@ function MessageBubble({
 }
 
 function DMBubble({ msg, isMe }: { msg: DM; isMe: boolean }) {
-  const sender = msg.sender as
-    | (typeof msg.sender & { profileImage?: string | null })
-    | undefined;
+  const sender = msg.sender as (typeof msg.sender & { profileImage?: string | null }) | undefined;
   return (
     <div
       className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${msg._optimistic ? "opacity-60" : ""}`}
     >
       <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
-        {!isMe && (
-          <Avatar name={sender?.firstName} profileImage={sender?.profileImage} />
-        )}
+        {!isMe && <Avatar name={sender?.firstName} profileImage={sender?.profileImage} />}
         <div
-          className={`p-4 rounded-2xl ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"}`}
+          className={`p-4 rounded-2xl ${
+            isMe
+              ? "bg-primary text-primary-foreground rounded-br-sm"
+              : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
+          }`}
         >
           <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
           <span
-            className={`text-[10px] block mt-2 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+            className={`text-[10px] block mt-2 text-right ${
+              isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+            }`}
           >
-            {new Date(msg.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </span>
         </div>
       </div>
@@ -193,12 +266,64 @@ function DMBubble({ msg, isMe }: { msg: DM; isMe: boolean }) {
   );
 }
 
-function GroupChat({ user }: { user: User }) {
+/** @mention autocomplete dropdown */
+function MentionDropdown({
+  query,
+  users,
+  currentUserId,
+  onSelect,
+}: {
+  query: string;
+  users: User[];
+  currentUserId: string;
+  onSelect: (u: User) => void;
+}) {
+  const filtered = users
+    .filter(
+      (u) =>
+        u.id !== currentUserId &&
+        (`${u.firstName ?? ""} ${u.lastName ?? ""}`.toLowerCase().includes(query.toLowerCase()) ||
+          (u.username ?? "").toLowerCase().includes(query.toLowerCase()))
+    )
+    .slice(0, 6);
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="absolute bottom-full left-0 mb-2 w-56 bg-card border border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
+      <div className="px-3 py-2 border-b border-white/5 flex items-center gap-1.5">
+        <AtSign className="w-3 h-3 text-indigo-400" />
+        <span className="text-[11px] text-muted-foreground font-medium">Mention someone</span>
+      </div>
+      {filtered.map((u) => (
+        <button
+          key={u.id}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onSelect(u);
+          }}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-indigo-600/20 transition-colors text-left"
+        >
+          <div className="w-7 h-7 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-[11px] font-bold text-indigo-200 shrink-0">
+            {u.firstName?.[0]}{u.lastName?.[0]}
+          </div>
+          <div className="min-w-0">
+            <span className="font-medium text-foreground">{u.firstName} {u.lastName}</span>
+            {u.title && <span className="text-[10px] text-muted-foreground block truncate">{u.title}</span>}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function GroupChat({ user, users }: { user: User; users: User[] }) {
   const { data: messages } = useListMessages(undefined, {
     query: { queryKey: getListMessagesQueryKey(), refetchInterval: 3000 },
   });
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
+  const [mentionSearch, setMentionSearch] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -215,11 +340,8 @@ function GroupChat({ user }: { user: User }) {
   const scrollToBottom = (smooth = true) => {
     const el = scrollRef.current;
     if (!el) return;
-    if (smooth) {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } else {
-      el.scrollTop = el.scrollHeight;
-    }
+    if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    else el.scrollTop = el.scrollHeight;
   };
 
   useEffect(() => {
@@ -250,20 +372,17 @@ function GroupChat({ user }: { user: User }) {
       onMutate: async ({ data }) => {
         await queryClient.cancelQueries({ queryKey: getListMessagesQueryKey() });
         const previous = queryClient.getQueryData(getListMessagesQueryKey());
-        queryClient.setQueryData(
-          getListMessagesQueryKey(),
-          (old: LocalMessage[] | undefined) => {
-            const optimistic: LocalMessage = {
-              id: -Date.now(),
-              content: data.content,
-              authorId: user.id,
-              parentId: (data.parentId as number | undefined) ?? null,
-              createdAt: new Date().toISOString(),
-              _optimistic: true,
-            };
-            return old ? [...old, optimistic] : [optimistic];
-          }
-        );
+        queryClient.setQueryData(getListMessagesQueryKey(), (old: LocalMessage[] | undefined) => {
+          const optimistic: LocalMessage = {
+            id: -Date.now(),
+            content: data.content,
+            authorId: user.id,
+            parentId: (data.parentId as number | undefined) ?? null,
+            createdAt: new Date().toISOString(),
+            _optimistic: true,
+          };
+          return old ? [...old, optimistic] : [optimistic];
+        });
         setTimeout(() => scrollToBottom(), 30);
         return { previous };
       },
@@ -276,6 +395,7 @@ function GroupChat({ user }: { user: User }) {
       onSettled: () => {
         setContent("");
         setReplyTo(null);
+        setMentionSearch(null);
         inputRef.current?.focus();
       },
     },
@@ -284,9 +404,9 @@ function GroupChat({ user }: { user: User }) {
   const allMessages =
     (messages as LocalMessage[] | undefined)
       ?.slice()
-      .sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      ) ?? [];
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) ?? [];
+
+  const messageMap = Object.fromEntries(allMessages.map((m) => [m.id, m]));
   const topLevel = allMessages.filter((m) => !m.parentId);
   const repliesById: Record<number, LocalMessage[]> = {};
   for (const m of allMessages) {
@@ -300,8 +420,34 @@ function GroupChat({ user }: { user: User }) {
     const trimmed = content.trim();
     if (!trimmed || mut.isPending) return;
     setContent("");
+    setMentionSearch(null);
     mut.mutate({ data: { content: trimmed, parentId: replyTo?.id ?? undefined } });
   };
+
+  const handleContentChange = useCallback(
+    (val: string) => {
+      setContent(val);
+      // Detect @mention: find the last @ not preceded by a non-space, with no space after it
+      const lastAt = val.lastIndexOf("@");
+      if (lastAt !== -1 && !val.slice(lastAt).includes(" ")) {
+        setMentionSearch(val.slice(lastAt + 1));
+      } else {
+        setMentionSearch(null);
+      }
+    },
+    []
+  );
+
+  const selectMention = useCallback(
+    (u: User) => {
+      const lastAt = content.lastIndexOf("@");
+      const before = content.slice(0, lastAt);
+      setContent(`${before}@${u.firstName} `);
+      setMentionSearch(null);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    },
+    [content]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -322,11 +468,14 @@ function GroupChat({ user }: { user: User }) {
                 isMe={isMe}
                 showAvatar={showAvatar}
                 onReply={setReplyTo}
+                users={users}
+                currentUserId={user.id}
               />
               {replies.length > 0 && (
                 <div className="ml-10 mt-2 pl-4 border-l-2 border-white/10 space-y-3">
                   {replies.map((reply) => {
                     const replyIsMe = reply.authorId === user.id;
+                    const replyAuthor = reply.author as (typeof reply.author & { profileImage?: string | null }) | undefined;
                     return (
                       <div
                         key={reply.id}
@@ -334,15 +483,34 @@ function GroupChat({ user }: { user: User }) {
                       >
                         {!replyIsMe && (
                           <span className="text-[11px] font-semibold text-muted-foreground mb-1">
-                            {reply.author?.firstName} {reply.author?.lastName}
+                            {replyAuthor?.firstName} {replyAuthor?.lastName}
                           </span>
                         )}
                         <div
-                          className={`p-3 rounded-xl text-sm max-w-[85%] ${replyIsMe ? "bg-primary/80 text-primary-foreground" : "bg-white/8 text-foreground border border-white/5"}`}
+                          className={`p-3 rounded-xl text-sm max-w-[85%] ${
+                            replyIsMe
+                              ? "bg-primary/80 text-primary-foreground"
+                              : "bg-white/8 text-foreground border border-white/5"
+                          }`}
                         >
-                          <p className="whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+                          {/* Show quoted parent in each reply */}
+                          {reply.parentId && messageMap[reply.parentId] && (
+                            <QuotedReply
+                              parent={messageMap[reply.parentId]}
+                              isMe={replyIsMe}
+                            />
+                          )}
+                          <p className="whitespace-pre-wrap leading-relaxed">
+                            <MessageContent
+                              content={reply.content}
+                              users={users}
+                              currentUserId={user.id}
+                            />
+                          </p>
                           <span
-                            className={`text-[10px] block mt-1 text-right ${replyIsMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+                            className={`text-[10px] block mt-1 text-right ${
+                              replyIsMe ? "text-primary-foreground/70" : "text-muted-foreground"
+                            }`}
                           >
                             {new Date(reply.createdAt).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -360,51 +528,71 @@ function GroupChat({ user }: { user: User }) {
         })}
         <div ref={bottomRef} />
       </div>
+
+      {/* Reply banner */}
       {replyTo && (
-        <div className="px-4 pt-3 flex items-center gap-3 bg-black/20 border-t border-white/5 text-sm text-muted-foreground shrink-0">
+        <div className="px-4 pt-3 pb-2 flex items-center gap-3 bg-black/20 border-t border-white/5 text-sm text-muted-foreground shrink-0">
           <CornerDownRight className="w-4 h-4 shrink-0 text-indigo-400" />
-          <span className="truncate flex-1">
-            Replying to:{" "}
-            <span className="text-foreground">
-              {replyTo.content.slice(0, 60)}
-              {replyTo.content.length > 60 ? "…" : ""}
+          <div className="flex-1 min-w-0">
+            <span className="text-indigo-400 font-semibold text-xs">
+              Replying to {(replyTo.author as User | undefined)?.firstName ?? "message"}
             </span>
-          </span>
+            <p className="truncate text-xs text-foreground/70 mt-0.5">
+              {replyTo.content.slice(0, 80)}{replyTo.content.length > 80 ? "…" : ""}
+            </p>
+          </div>
           <button onClick={() => setReplyTo(null)} className="shrink-0 hover:text-foreground">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
+
+      {/* Input area */}
       <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
-          className="flex gap-3"
-        >
-          <Input
-            ref={inputRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
+        <div className="relative">
+          {/* Mention autocomplete */}
+          {mentionSearch !== null && (
+            <MentionDropdown
+              query={mentionSearch}
+              users={users}
+              currentUserId={user.id}
+              onSelect={selectMention}
+            />
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send();
             }}
-            placeholder={replyTo ? "Write a reply…" : "Type a message…"}
-            className="flex-1 bg-card/50 border-white/10 focus-visible:ring-indigo-500 h-12 rounded-xl"
-            autoComplete="off"
-          />
-          <Button
-            type="submit"
-            disabled={!content.trim()}
-            className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
+            className="flex gap-3"
           >
-            <Send className="w-5 h-5" />
-          </Button>
-        </form>
+            <Input
+              ref={inputRef}
+              value={content}
+              onChange={(e) => handleContentChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && mentionSearch !== null) {
+                  setMentionSearch(null);
+                  return;
+                }
+                if (e.key === "Enter" && !e.shiftKey && mentionSearch === null) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={replyTo ? "Write a reply… (@ to mention)" : "Type a message… (@ to mention)"}
+              className="flex-1 bg-card/50 border-white/10 focus-visible:ring-indigo-500 h-12 rounded-xl"
+              autoComplete="off"
+            />
+            <Button
+              type="submit"
+              disabled={!content.trim()}
+              className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -429,18 +617,13 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   const scrollToBottom = (smooth = true) => {
     const el = scrollRef.current;
     if (!el) return;
-    if (smooth) {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } else {
-      el.scrollTop = el.scrollHeight;
-    }
+    if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    else el.scrollTop = el.scrollHeight;
   };
 
   const fetchDMs = async () => {
     try {
-      const res = await fetch(`${BASE}/api/dm/${otherUser.id}`, {
-        credentials: "include",
-      });
+      const res = await fetch(`${BASE}/api/dm/${otherUser.id}`, { credentials: "include" });
       if (!res.ok) return;
       const data = (await res.json()) as DM[];
       setDms((prev) => {
@@ -532,10 +715,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
       </div>
       <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
+          onSubmit={(e) => { e.preventDefault(); send(); }}
           className="flex gap-3"
         >
           <Input
@@ -543,10 +723,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
             placeholder={`Message ${otherUser.firstName}…`}
             className="flex-1 bg-card/50 border-white/10 focus-visible:ring-indigo-500 h-12 rounded-xl"
@@ -586,8 +763,7 @@ export default function TeamChat() {
   }, []);
 
   const otherUsers = (users ?? []).filter((u) => u.id !== user?.id);
-  const currentDMUser =
-    view !== "group" ? otherUsers.find((u) => u.id === view) : null;
+  const currentDMUser = view !== "group" ? otherUsers.find((u) => u.id === view) : null;
 
   return (
     <div className="space-y-4">
@@ -596,25 +772,17 @@ export default function TeamChat() {
           <MessageSquare className="w-6 h-6 text-indigo-400" />
           Team Chat
         </h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Group channel and direct messages
-        </p>
+        <p className="text-muted-foreground text-sm mt-0.5">Group channel and direct messages</p>
       </div>
 
-      {/* Fixed-height chat area — no viewport units, no flex chains */}
       <div className="flex gap-4 h-[560px]">
-
         {/* Sidebar */}
         <div className="w-48 shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden">
           <div className="p-4 border-b border-white/8 shrink-0">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Chat
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Chat</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 py-2">
-              Channels
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 py-2">Channels</p>
             <button
               onClick={() => setView("group")}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -627,9 +795,7 @@ export default function TeamChat() {
               <span className="truncate">Team Channel</span>
             </button>
 
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pt-4 pb-2">
-              Direct Messages
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pt-4 pb-2">Direct Messages</p>
             {otherUsers.map((u) => {
               const unread = unreadByUser[u.id] ?? 0;
               const isActive = view === u.id;
@@ -646,34 +812,50 @@ export default function TeamChat() {
                       : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                   }`}
                 >
-                  <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-bold shrink-0 text-white">
-                    {u.firstName?.[0]}
+                  <div className="relative shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-indigo-600/30 flex items-center justify-center text-[10px] font-bold text-indigo-200">
+                      {u.firstName?.[0]}
+                    </div>
+                    {unread > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                        {unread > 9 ? "9+" : unread}
+                      </span>
+                    )}
                   </div>
-                  <span className="truncate flex-1 text-left">
-                    {u.firstName} {u.lastName}
-                  </span>
-                  {unread > 0 && !isActive && (
-                    <span className="shrink-0 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                      {unread > 9 ? "9+" : unread}
-                    </span>
-                  )}
+                  <span className="truncate flex-1 text-left">{u.firstName}</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Main conversation card */}
-        <Card className="glass-panel flex-1 flex flex-col overflow-hidden shadow-2xl">
-          {!user ? (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-              Loading…
-            </div>
-          ) : view === "group" ? (
-            <GroupChat user={user} />
-          ) : currentDMUser ? (
+        {/* Chat area */}
+        <Card className="flex-1 glass-panel overflow-hidden flex flex-col">
+          {/* Chat header */}
+          <div className="px-5 py-3 border-b border-white/5 shrink-0 flex items-center gap-2">
+            {view === "group" ? (
+              <>
+                <Hash className="w-4 h-4 text-indigo-400" />
+                <span className="font-semibold text-sm">Team Channel</span>
+                <span className="text-xs text-muted-foreground ml-1">— Type @ to mention someone</span>
+              </>
+            ) : (
+              <>
+                <UserIcon className="w-4 h-4 text-indigo-400" />
+                <span className="font-semibold text-sm">{currentDMUser?.firstName} {currentDMUser?.lastName}</span>
+                {currentDMUser?.title && (
+                  <span className="text-xs text-muted-foreground ml-1">— {currentDMUser.title}</span>
+                )}
+              </>
+            )}
+          </div>
+
+          {user && view === "group" && (
+            <GroupChat user={user} users={users ?? []} />
+          )}
+          {user && currentDMUser && (
             <DMConversation key={currentDMUser.id} otherUser={currentDMUser} me={user} />
-          ) : null}
+          )}
         </Card>
       </div>
     </div>
