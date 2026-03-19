@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
 import { sendPushToUser } from "./push";
+import { broadcastSseToUser } from "./sse";
 
 interface NotifyPayload {
   type: string;
@@ -10,11 +11,14 @@ interface NotifyPayload {
 }
 
 /**
- * Insert a notification row AND fire a Web Push to the user's subscribed devices.
+ * Insert a notification row, push via SSE to the target user, and fire a Web Push.
  * Use this instead of raw db.insert(notificationsTable) everywhere.
  */
 export async function notifyUser(userId: string, payload: NotifyPayload) {
   const [notif] = await db.insert(notificationsTable).values({ userId, ...payload }).returning();
+
+  // Instantly update the bell badge for the target user if they're connected
+  broadcastSseToUser(userId, "notifications", { notifId: notif.id });
 
   sendPushToUser(userId, {
     title: payload.title,

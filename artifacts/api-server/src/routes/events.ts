@@ -9,6 +9,8 @@ router.get("/events", (req, res) => {
     return;
   }
 
+  const userId = req.user.id;
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
@@ -17,19 +19,19 @@ router.get("/events", (req, res) => {
 
   res.write("event: connected\ndata: {}\n\n");
 
-  addSseClient(res);
+  addSseClient(res, userId);
 
   const heartbeat = setInterval(() => {
     try {
       res.write(":\n\n");
     } catch {
-      removeSseClient(res);
+      removeSseClient(res, userId);
       clearInterval(heartbeat);
     }
   }, 20000);
 
   req.on("close", () => {
-    removeSseClient(res);
+    removeSseClient(res, userId);
     clearInterval(heartbeat);
   });
 });

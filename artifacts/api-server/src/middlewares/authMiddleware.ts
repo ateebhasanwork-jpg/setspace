@@ -36,28 +36,26 @@ declare global {
 async function refreshIfExpired(
   sid: string,
   session: SessionData,
-): Promise<SessionData | null> {
+): Promise<SessionData> {
   const now = Math.floor(Date.now() / 1000);
   if (!session.expires_at || now <= session.expires_at) return session;
-
-  if (!session.refresh_token) return null;
+  if (!session.refresh_token) return session;
 
   try {
     const config = await getOidcConfig();
-    const tokens = await oidc.refreshTokenGrant(
-      config,
-      session.refresh_token,
-    );
+    const tokens = await oidc.refreshTokenGrant(config, session.refresh_token);
     session.access_token = tokens.access_token;
     session.refresh_token = tokens.refresh_token ?? session.refresh_token;
     session.expires_at = tokens.expiresIn()
       ? now + tokens.expiresIn()!
       : session.expires_at;
     await updateSession(sid, session);
-    return session;
   } catch {
-    return null;
+    // Token refresh failed — keep the session alive anyway.
+    // The session row has its own 7-day TTL so we don't log the user out
+    // just because the short-lived access token can't be renewed.
   }
+  return session;
 }
 
 export async function authMiddleware(
@@ -83,11 +81,6 @@ export async function authMiddleware(
   }
 
   const refreshed = await refreshIfExpired(sid, session);
-  if (!refreshed) {
-    await clearSession(res, sid);
-    next();
-    return;
-  }
 
   // Always fetch fresh user from DB so role/profile changes take effect immediately
   const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, refreshed.user.id));
