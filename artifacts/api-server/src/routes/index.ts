@@ -13,11 +13,13 @@ import leaderboardRouter from "./leaderboard";
 import storageRouter from "./storage";
 import videosRouter from "./videos";
 import framioRouter from "./frameio";
+import eventsRouter from "./events";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(eventsRouter);
 router.use(usersRouter);
 router.use(tasksRouter);
 router.use(kpisRouter);

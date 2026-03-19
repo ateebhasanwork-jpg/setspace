@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { tasksTable, usersTable, notificationsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
+import { broadcastSse } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,7 @@ router.post("/tasks", requireAdminOrHR, async (req, res) => {
       }).catch(() => {});
     }
 
+    broadcastSse("tasks", { action: "created", taskId: task.id });
     res.status(201).json({ ...task, createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to create task" });
@@ -165,6 +167,7 @@ router.patch("/tasks/:taskId", async (req, res) => {
       }).catch(() => {});
     }
 
+    broadcastSse("tasks", { action: "updated", taskId: updated.id });
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update task" });
@@ -175,6 +178,7 @@ router.delete("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
     await db.delete(tasksTable).where(eq(tasksTable.id, id));
+    broadcastSse("tasks", { action: "deleted", taskId: id });
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete task" });

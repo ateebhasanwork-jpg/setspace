@@ -319,7 +319,7 @@ function MentionDropdown({
 
 function GroupChat({ user, users }: { user: User; users: User[] }) {
   const { data: messages } = useListMessages(undefined, {
-    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 3000 },
+    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 15000 },
   });
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
@@ -649,8 +649,10 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     isInitialRef.current = true;
     setDms([]);
     fetchDMs();
-    const id = setInterval(fetchDMs, 3000);
-    return () => clearInterval(id);
+    const id = setInterval(fetchDMs, 15000);
+    const sseHandler = () => fetchDMs();
+    window.addEventListener("sse:dm", sseHandler);
+    return () => { clearInterval(id); window.removeEventListener("sse:dm", sseHandler); };
   }, [otherUser.id]);
 
   useEffect(() => {
@@ -753,7 +755,7 @@ export default function TeamChat() {
 
   // Poll group messages at the parent level so we can track unread even when not in group view
   const { data: groupMessages } = useListMessages(undefined, {
-    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 4000 },
+    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 15000 },
   });
 
   useEffect(() => {
@@ -792,7 +794,7 @@ export default function TeamChat() {
       } catch {}
     };
     fetchUnread();
-    const id = setInterval(fetchUnread, 4000);
+    const id = setInterval(fetchUnread, 15000);
     return () => clearInterval(id);
   }, []);
 

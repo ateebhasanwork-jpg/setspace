@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { messagesTable, directMessagesTable, usersTable, notificationsTable } from "@workspace/db/schema";
 import { eq, or, and, desc } from "drizzle-orm";
+import { broadcastSse } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,7 @@ router.post("/messages", async (req, res) => {
       ));
     }
 
+    broadcastSse("messages", { action: "created", messageId: message.id });
     res.status(201).json({ ...message, createdAt: message.createdAt.toISOString(), author: user ?? null });
   } catch (err) {
     res.status(500).json({ error: "Failed to create message" });
@@ -134,6 +136,7 @@ router.post("/dm/:userId", async (req, res) => {
       }).catch(() => {});
     }
 
+    broadcastSse("dm", { senderId: me, receiverId: other });
     res.status(201).json({ ...msg, createdAt: msg.createdAt.toISOString(), sender: userMap[me] ?? null, receiver: userMap[other] ?? null });
   } catch {
     res.status(500).json({ error: "Failed to send DM" });

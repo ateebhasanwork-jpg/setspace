@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useContext, createContext, useCallb
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
 import { useListNotifications, getListNotificationsQueryKey, type Notification } from "@workspace/api-client-react";
+import { useLiveEvents } from "@/hooks/use-live-events";
 import { motion } from "framer-motion";
 import { playNotificationSound, initAudio } from "@/lib/sounds";
 import { 
@@ -191,25 +192,33 @@ const TASK_NOTIF_TYPES = new Set(["task_assigned", "task_status", "task_complete
 
 function useUnreadCounts(): UnreadCounts {
   const { data: notifications } = useListNotifications({
-    query: { queryKey: getListNotificationsQueryKey(), refetchInterval: 5000 }
+    query: { queryKey: getListNotificationsQueryKey(), refetchInterval: 15000 }
   });
   const [dmCount, setDmCount] = useState(0);
   const [location] = useLocation();
 
-  // Poll DM unread count
+  const checkDmUnread = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}/api/dm-unread`, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json() as { total: number };
+      setDmCount(data.total ?? 0);
+    } catch {}
+  }, []);
+
+  // Fallback poll (SSE handles the real-time part via sse:dm event)
   useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await fetch(`${BASE}/api/dm-unread`, { credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json() as { total: number };
-        setDmCount(data.total ?? 0);
-      } catch {}
-    };
-    check();
-    const id = setInterval(check, 5000);
+    checkDmUnread();
+    const id = setInterval(checkDmUnread, 15000);
     return () => clearInterval(id);
-  }, [location]);
+  }, [location, checkDmUnread]);
+
+  // React instantly to SSE push
+  useEffect(() => {
+    const handler = () => checkDmUnread();
+    window.addEventListener("sse:dm", handler);
+    return () => window.removeEventListener("sse:dm", handler);
+  }, [checkDmUnread]);
 
   const notifs = (notifications as Notification[] | undefined) ?? [];
   const unread = notifs.filter(n => !n.isRead);
@@ -249,6 +258,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const counts = useUnreadCounts();
   useNotificationSoundEffect(counts);
+  useLiveEvents();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { initAudio(); }, []);
