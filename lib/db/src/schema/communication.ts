@@ -70,6 +70,16 @@ export const messageReactionsTable = pgTable("message_reactions", {
 
 export type MessageReaction = typeof messageReactionsTable.$inferSelect;
 
+export const dmReactionsTable = pgTable("dm_reactions", {
+  id: serial("id").primaryKey(),
+  dmId: integer("dm_id").notNull().references(() => directMessagesTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [unique("dm_reactions_uniq").on(t.dmId, t.userId, t.emoji)]);
+
+export type DmReaction = typeof dmReactionsTable.$inferSelect;
+
 export const pushSubscriptionsTable = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),

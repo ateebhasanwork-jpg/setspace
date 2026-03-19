@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, directMessagesTable, usersTable, messageReactionsTable } from "@workspace/db/schema";
+import { messagesTable, directMessagesTable, usersTable, messageReactionsTable, dmReactionsTable } from "@workspace/db/schema";
 import { eq, or, and, desc, inArray } from "drizzle-orm";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
@@ -148,14 +148,51 @@ router.get("/dm/:userId", async (req, res) => {
       .set({ isRead: true })
       .where(and(eq(directMessagesTable.senderId, other), eq(directMessagesTable.receiverId, me)));
 
+    // Fetch reactions for these DMs
+    const dmIds = messages.map(m => m.id);
+    type DmReactionGroup = { emoji: string; count: number; userIds: string[] };
+    const reactionsByDm: Record<number, Record<string, DmReactionGroup>> = {};
+    if (dmIds.length > 0) {
+      const reactions = await db.select().from(dmReactionsTable).where(inArray(dmReactionsTable.dmId, dmIds));
+      for (const r of reactions) {
+        if (!reactionsByDm[r.dmId]) reactionsByDm[r.dmId] = {};
+        if (!reactionsByDm[r.dmId][r.emoji]) reactionsByDm[r.dmId][r.emoji] = { emoji: r.emoji, count: 0, userIds: [] };
+        reactionsByDm[r.dmId][r.emoji].count++;
+        reactionsByDm[r.dmId][r.emoji].userIds.push(r.userId);
+      }
+    }
+
     res.json(messages.map(m => ({
       ...m,
       createdAt: m.createdAt.toISOString(),
       sender: userMap[m.senderId] ?? null,
       receiver: userMap[m.receiverId] ?? null,
+      reactions: Object.values(reactionsByDm[m.id] ?? {}),
     })));
   } catch {
     res.status(500).json({ error: "Failed to get DMs" });
+  }
+});
+
+/** POST /api/dm-reactions/:dmId — toggle a reaction on a DM */
+router.post("/dm-reactions/:dmId", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const dmId = parseInt(req.params.dmId);
+    const { emoji } = req.body;
+    if (!emoji || typeof emoji !== "string") { res.status(400).json({ error: "emoji required" }); return; }
+    const [existing] = await db.select().from(dmReactionsTable).where(
+      and(eq(dmReactionsTable.dmId, dmId), eq(dmReactionsTable.userId, req.user.id), eq(dmReactionsTable.emoji, emoji))
+    );
+    if (existing) {
+      await db.delete(dmReactionsTable).where(eq(dmReactionsTable.id, existing.id));
+    } else {
+      await db.insert(dmReactionsTable).values({ dmId, userId: req.user.id, emoji });
+    }
+    broadcastSse("dm", { action: "reaction", dmId });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to toggle DM reaction" });
   }
 });
 

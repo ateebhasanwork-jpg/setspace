@@ -43,6 +43,7 @@ interface DM {
   receiver?: User | null;
   attachmentUrl?: string | null;
   attachmentName?: string | null;
+  reactions?: ReactionGroup[];
   _optimistic?: boolean;
 }
 
@@ -380,32 +381,123 @@ function MessageBubble({
   );
 }
 
-function DMBubble({ msg, isMe }: { msg: DM; isMe: boolean }) {
+function DMBubble({
+  msg,
+  isMe,
+  onReact,
+  currentUserId,
+}: {
+  msg: DM;
+  isMe: boolean;
+  onReact: (dmId: number, emoji: string) => void;
+  currentUserId: string;
+}) {
   const sender = msg.sender as (typeof msg.sender & { profileImage?: string | null }) | undefined;
+  const [hovered, setHovered] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const reactions = msg.reactions ?? [];
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickerOpen]);
+
   return (
     <div
       className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${msg._optimistic ? "opacity-60" : ""}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
         {!isMe && <Avatar name={sender?.firstName} profileImage={sender?.profileImage} />}
-        <div
-          className={`p-4 rounded-2xl ${
-            isMe
-              ? "bg-primary text-primary-foreground rounded-br-sm"
-              : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
-          }`}
-        >
-          {msg.content && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
-          {msg.attachmentUrl && msg.attachmentName && (
-            <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
-          )}
-          <span
-            className={`text-[10px] block mt-2 text-right ${
-              isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+        <div className="flex flex-col gap-1">
+          <div
+            className={`p-4 rounded-2xl ${
+              isMe
+                ? "bg-primary text-primary-foreground rounded-br-sm"
+                : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
             }`}
           >
-            {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
+            {msg.content && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
+            {msg.attachmentUrl && msg.attachmentName && (
+              <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
+            )}
+            <span
+              className={`text-[10px] block mt-2 text-right ${
+                isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+              }`}
+            >
+              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+
+          {/* Reaction pills */}
+          {reactions.length > 0 && (
+            <div className={`flex flex-wrap gap-1 mt-0.5 ${isMe ? "justify-end" : "justify-start ml-1"}`}>
+              {reactions.map((r) => {
+                const iReacted = r.userIds.includes(currentUserId);
+                return (
+                  <button
+                    key={r.emoji}
+                    onClick={() => onReact(msg.id, r.emoji)}
+                    title={`${r.count} reaction${r.count !== 1 ? "s" : ""}`}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-all ${
+                      iReacted
+                        ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-200"
+                        : "bg-white/8 border-white/10 text-foreground hover:bg-white/15"
+                    }`}
+                  >
+                    <span>{r.emoji}</span>
+                    <span className="text-[11px] font-medium">{r.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Action bar: react */}
+          {!msg._optimistic && (
+            <div className={`flex items-center gap-2 ${isMe ? "self-end" : "self-start ml-1"}`}>
+              <div className="relative" ref={pickerRef}>
+                <button
+                  onClick={() => setPickerOpen((o) => !o)}
+                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-indigo-400 transition-all ${
+                    hovered || pickerOpen ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  <SmilePlus className="w-3.5 h-3.5" />
+                </button>
+                {pickerOpen && (
+                  <div
+                    className={`absolute z-50 bottom-full mb-1.5 bg-card border border-white/10 rounded-xl shadow-xl p-2 flex gap-1 ${
+                      isMe ? "right-0" : "left-0"
+                    }`}
+                  >
+                    {QUICK_EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        onMouseDown={(ev) => {
+                          ev.preventDefault();
+                          onReact(msg.id, e);
+                          setPickerOpen(false);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-white/10 transition-colors"
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -915,6 +1007,34 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     }
   };
 
+  const handleReact = async (dmId: number, emoji: string) => {
+    // Optimistic update
+    setDms(prev => prev.map(m => {
+      if (m.id !== dmId) return m;
+      const existing = (m.reactions ?? []).find(r => r.emoji === emoji);
+      const alreadyReacted = existing?.userIds.includes(me.id);
+      let newReactions: ReactionGroup[];
+      if (alreadyReacted) {
+        newReactions = (m.reactions ?? []).map(r =>
+          r.emoji !== emoji ? r : { ...r, count: r.count - 1, userIds: r.userIds.filter(id => id !== me.id) }
+        ).filter(r => r.count > 0);
+      } else if (existing) {
+        newReactions = (m.reactions ?? []).map(r =>
+          r.emoji !== emoji ? r : { ...r, count: r.count + 1, userIds: [...r.userIds, me.id] }
+        );
+      } else {
+        newReactions = [...(m.reactions ?? []), { emoji, count: 1, userIds: [me.id] }];
+      }
+      return { ...m, reactions: newReactions };
+    }));
+    await fetch(`${BASE}/api/dm-reactions/${dmId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+      credentials: "include",
+    });
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -933,7 +1053,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           return (
             <React.Fragment key={msg.id}>
               {showDate && <DateSeparator label={msgDate} />}
-              <DMBubble msg={msg} isMe={msg.senderId === me.id} />
+              <DMBubble msg={msg} isMe={msg.senderId === me.id} onReact={handleReact} currentUserId={me.id} />
             </React.Fragment>
           );
         })}
