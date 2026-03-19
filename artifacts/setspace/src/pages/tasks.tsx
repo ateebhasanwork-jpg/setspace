@@ -46,16 +46,68 @@ const COL_HEADER: Record<Column, string> = {
   "Done": "text-green-400",
 };
 
+// ── Member color palette ────────────────────────────────────────────────────
+const MEMBER_PALETTE = [
+  { bg: "bg-violet-500/25", text: "text-violet-300", border: "border-l-violet-500" },
+  { bg: "bg-blue-500/25",   text: "text-blue-300",   border: "border-l-blue-500"   },
+  { bg: "bg-emerald-500/25",text: "text-emerald-300", border: "border-l-emerald-500"},
+  { bg: "bg-orange-500/25", text: "text-orange-300",  border: "border-l-orange-500" },
+  { bg: "bg-pink-500/25",   text: "text-pink-300",    border: "border-l-pink-500"   },
+  { bg: "bg-cyan-500/25",   text: "text-cyan-300",    border: "border-l-cyan-500"   },
+  { bg: "bg-amber-500/25",  text: "text-amber-300",   border: "border-l-amber-500"  },
+  { bg: "bg-rose-500/25",   text: "text-rose-300",    border: "border-l-rose-500"   },
+  { bg: "bg-teal-500/25",   text: "text-teal-300",    border: "border-l-teal-500"   },
+  { bg: "bg-indigo-500/25", text: "text-indigo-300",  border: "border-l-indigo-500" },
+];
+
+function getUserColorIndex(userId: string): number {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) {
+    h = Math.imul(31, h) + userId.charCodeAt(i) | 0;
+  }
+  return Math.abs(h) % MEMBER_PALETTE.length;
+}
+
+function getMemberColor(userId: string | null | undefined) {
+  if (!userId) return null;
+  return MEMBER_PALETTE[getUserColorIndex(userId)];
+}
+
 function AssigneeAvatar({ user }: { user: User | null | undefined }) {
   if (!user) return null;
   const initials = `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase();
+  const color = getMemberColor(user.id);
   return (
     <div
-      className="w-6 h-6 rounded-full bg-primary/30 text-primary flex items-center justify-center text-[10px] font-bold shrink-0"
+      className={`w-6 h-6 rounded-full ${color?.bg ?? "bg-white/10"} ${color?.text ?? "text-white"} flex items-center justify-center text-[10px] font-bold shrink-0 ring-1 ring-white/10`}
       title={`${user.firstName} ${user.lastName}`}
     >
       {initials}
     </div>
+  );
+}
+
+// ── Auto-growing textarea ───────────────────────────────────────────────────
+function AutoTextarea({
+  value, onChange, placeholder, className,
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={3}
+      className={`w-full rounded-md bg-black/20 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary p-3 text-sm resize-none overflow-hidden transition-all ${className ?? ""}`}
+      style={{ minHeight: "80px" }}
+    />
   );
 }
 
@@ -330,12 +382,7 @@ export default function Tasks() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full h-24 rounded-md bg-black/20 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary p-3 text-sm resize-none"
-                    placeholder="Details..."
-                  />
+                  <AutoTextarea value={description} onChange={setDescription} placeholder="Details…" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -443,12 +490,7 @@ export default function Tasks() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
-              <textarea
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                className="w-full h-20 rounded-md bg-black/20 border border-white/10 focus:border-primary p-3 text-sm resize-none"
-                placeholder="Details..."
-              />
+              <AutoTextarea value={editDescription} onChange={setEditDescription} placeholder="Details…" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -600,13 +642,15 @@ export default function Tasks() {
                   </span>
                 </div>
                 <div className="space-y-3 flex-1 overflow-y-auto min-h-[60px]">
-                  {colTasks.map((task) => (
+                  {colTasks.map((task) => {
+                    const memberColor = getMemberColor(task.assigneeId);
+                    return (
                     <Card
                       key={task.id}
                       draggable
                       onDragStart={(e) => onDragStart(e, task.id)}
                       onDragEnd={onDragEnd}
-                      className="p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95"
+                      className={`p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95 border-l-4 ${memberColor?.border ?? "border-l-white/10"}`}
                       onClick={() => openEdit(task)}
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -657,7 +701,8 @@ export default function Tasks() {
                         </div>
                       </div>
                     </Card>
-                  ))}
+                  );
+                  })}
                   {isOver && colTasks.length === 0 && (
                     <div className="h-16 rounded-xl border-2 border-dashed border-primary/40 flex items-center justify-center">
                       <span className="text-xs text-primary/60">Drop here</span>

@@ -12,9 +12,11 @@ router.get("/tasks", async (req, res) => {
     const users = await db.select().from(usersTable);
     const userMap = Object.fromEntries(users.map(u => [u.id, u]));
     const result = tasks.map(t => {
+      // Compare date-only (YYYY-MM-DD) so completing at any time on the
+      // deadline day counts as on time, not late.
       const completedOnTime =
         t.completedAt != null && t.dueDate != null
-          ? t.completedAt <= t.dueDate
+          ? t.completedAt.toISOString().slice(0, 10) <= t.dueDate.toISOString().slice(0, 10)
           : null;
       return {
         ...t,
