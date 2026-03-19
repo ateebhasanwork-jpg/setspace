@@ -27,3 +27,10 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BK0NIf3HwbuZCAnBkNM5UWB-c5yAW2KCtGTRDidqDX-cmwKKtV5iADID4jQaOYNQduzE86N5tRhXtwknw1aNntA"
+VAPID_PRIVATE_KEY = "nwRXJdCcOy94MnxTSoDUYfOk-t9FgOljWIGZRuXO-bU"
+VAPID_SUBJECT = "mailto:admin@setspace.app"

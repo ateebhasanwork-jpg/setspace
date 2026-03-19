@@ -4,6 +4,7 @@ import { tasksTable, usersTable, notificationsTable } from "@workspace/db/schema
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { broadcastSse } from "../lib/sse";
+import { notifyUser } from "../lib/notify";
 
 const router: IRouter = Router();
 
@@ -60,13 +61,7 @@ router.post("/tasks", requireAdminOrHR, async (req, res) => {
     }).returning();
 
     if (assigneeId && assigneeId !== req.user!.id) {
-      await db.insert(notificationsTable).values({
-        userId: assigneeId,
-        type: "task_assigned",
-        title: "New Task Assigned",
-        body: `You've been assigned: "${title}"`,
-        linkUrl: "/tasks",
-      }).catch(() => {});
+      notifyUser(assigneeId, { type: "task_assigned", title: "New Task Assigned", body: `You've been assigned: "${title}"`, linkUrl: "/tasks" }).catch(() => {});
     }
 
     broadcastSse("tasks", { action: "created", taskId: task.id });
@@ -129,42 +124,18 @@ router.patch("/tasks/:taskId", async (req, res) => {
     const prevAssignee = existing?.assigneeId ?? null;
 
     if (newAssignee && newAssignee !== prevAssignee && newAssignee !== req.user!.id) {
-      await db.insert(notificationsTable).values({
-        userId: newAssignee,
-        type: "task_assigned",
-        title: "Task Assigned to You",
-        body: `You've been assigned: "${updated.title}"`,
-        linkUrl: "/tasks",
-      }).catch(() => {});
+      notifyUser(newAssignee, { type: "task_assigned", title: "Task Assigned to You", body: `You've been assigned: "${updated.title}"`, linkUrl: "/tasks" }).catch(() => {});
     }
 
-    // Notify assignee whenever status changes (and assignee isn't the one making the change)
     const statusChanged = status !== undefined && status !== existing?.status;
     if (statusChanged && updated.assigneeId && updated.assigneeId !== req.user!.id) {
-      const statusLabel: Record<string, string> = {
-        "In Progress": "moved to In Progress",
-        "Review": "sent to Review",
-        "Done": "marked as Done",
-        "To Do": "moved back to To Do",
-      };
+      const statusLabel: Record<string, string> = { "In Progress": "moved to In Progress", "Review": "sent to Review", "Done": "marked as Done", "To Do": "moved back to To Do" };
       const label = statusLabel[status] ?? `updated to ${status}`;
-      await db.insert(notificationsTable).values({
-        userId: updated.assigneeId,
-        type: "task_status",
-        title: `Task ${label}`,
-        body: `"${updated.title}" has been ${label}.`,
-        linkUrl: "/tasks",
-      }).catch(() => {});
+      notifyUser(updated.assigneeId, { type: "task_status", title: `Task ${label}`, body: `"${updated.title}" has been ${label}.`, linkUrl: "/tasks" }).catch(() => {});
     }
 
     if (status === "Done" && existing?.status !== "Done" && updated.createdById && updated.createdById !== req.user!.id) {
-      await db.insert(notificationsTable).values({
-        userId: updated.createdById,
-        type: "task_completed",
-        title: "Task Completed",
-        body: `"${updated.title}" has been marked as done.`,
-        linkUrl: "/tasks",
-      }).catch(() => {});
+      notifyUser(updated.createdById, { type: "task_completed", title: "Task Completed", body: `"${updated.title}" has been marked as done.`, linkUrl: "/tasks" }).catch(() => {});
     }
 
     broadcastSse("tasks", { action: "updated", taskId: updated.id });

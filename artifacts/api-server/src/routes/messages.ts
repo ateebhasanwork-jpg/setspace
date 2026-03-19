@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { messagesTable, directMessagesTable, usersTable, notificationsTable, messageReactionsTable } from "@workspace/db/schema";
 import { eq, or, and, desc, inArray } from "drizzle-orm";
 import { broadcastSse } from "../lib/sse";
+import { notifyUser } from "../lib/notify";
 
 const router: IRouter = Router();
 

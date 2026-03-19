@@ -14,12 +14,14 @@ import storageRouter from "./storage";
 import videosRouter from "./videos";
 import framioRouter from "./frameio";
 import eventsRouter from "./events";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(eventsRouter);
+router.use(pushRouter);
 router.use(usersRouter);
 router.use(tasksRouter);
 router.use(kpisRouter);

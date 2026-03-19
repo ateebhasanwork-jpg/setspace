@@ -65,3 +65,14 @@ export const messageReactionsTable = pgTable("message_reactions", {
 }, (t) => [unique("message_reactions_uniq").on(t.messageId, t.userId, t.emoji)]);
 
 export type MessageReaction = typeof messageReactionsTable.$inferSelect;
+
+export const pushSubscriptionsTable = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [unique("push_subscriptions_endpoint_uniq").on(t.userId, t.endpoint)]);
+
+export type PushSubscription = typeof pushSubscriptionsTable.$inferSelect;

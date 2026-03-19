@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { qualityChecksTable, usersTable, notificationsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
+import { notifyUser } from "../lib/notify";
 
 const router: IRouter = Router();
 
