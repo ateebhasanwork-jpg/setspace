@@ -303,12 +303,10 @@ export default function VideoStudio() {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800 shrink-0">
           <Film className="w-4 h-4 text-[#5B53FF] shrink-0" />
           <span className="font-semibold text-sm flex-1">Video Studio</span>
-          {isAdmin && (
-            <button onClick={() => setShowNewProject(true)}
-              className="p-1 text-zinc-500 hover:text-[#5B53FF] rounded transition-colors" title="New project">
-              <Plus className="w-4 h-4" />
-            </button>
-          )}
+          <button onClick={() => setShowNewProject(true)}
+            className="p-1 text-zinc-500 hover:text-[#5B53FF] rounded transition-colors" title="New project">
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Project list */}
@@ -319,7 +317,7 @@ export default function VideoStudio() {
             <div className="text-center py-10 px-4 space-y-2">
               <FolderOpen className="w-8 h-8 mx-auto text-zinc-700" />
               <p className="text-zinc-500 text-sm">No projects yet</p>
-              {isAdmin && <button onClick={() => setShowNewProject(true)} className="text-[#5B53FF] text-xs hover:underline">Create one</button>}
+              <button onClick={() => setShowNewProject(true)} className="text-[#5B53FF] text-xs hover:underline">Create one</button>
             </div>
           ) : (
             projects.map(p => (
@@ -357,11 +355,9 @@ export default function VideoStudio() {
               </div>
               <p className="text-zinc-400 font-medium">Select a project</p>
               <p className="text-zinc-600 text-sm max-w-xs">Choose a project from the sidebar to review videos, or create a new one.</p>
-              {isAdmin && (
-                <Button onClick={() => setShowNewProject(true)} className="mt-2 bg-[#5B53FF] hover:bg-[#4a43e8] text-white text-sm">
-                  <Plus className="w-4 h-4 mr-2" /> New Project
-                </Button>
-              )}
+              <Button onClick={() => setShowNewProject(true)} className="mt-2 bg-[#5B53FF] hover:bg-[#4a43e8] text-white text-sm">
+                <Plus className="w-4 h-4 mr-2" /> New Project
+              </Button>
             </div>
           </div>
         ) : loadingProject ? (
@@ -383,29 +379,27 @@ export default function VideoStudio() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" onClick={() => setShowAddLink(true)}
+                  className="bg-[#5B53FF] hover:bg-[#4a43e8] text-white text-xs h-8 px-3">
+                  <Link className="w-3.5 h-3.5 mr-1.5" /> Add Review Link
+                </Button>
                 {isAdmin && (
-                  <>
-                    <Button size="sm" onClick={() => setShowAddLink(true)}
-                      className="bg-[#5B53FF] hover:bg-[#4a43e8] text-white text-xs h-8 px-3">
-                      <Link className="w-3.5 h-3.5 mr-1.5" /> Add Review Link
-                    </Button>
-                    {confirmDeleteProject === selectedProject.id ? (
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteProject(null)}
-                          className="text-zinc-400 hover:text-white h-8 px-2 text-xs">Cancel</Button>
-                        <Button size="sm" onClick={() => deleteProject(selectedProject.id)}
-                          disabled={deletingProjectId === selectedProject.id}
-                          className="bg-red-600 hover:bg-red-500 text-white h-8 px-3 text-xs">
-                          {deletingProjectId === selectedProject.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete Project"}
-                        </Button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setConfirmDeleteProject(selectedProject.id)}
-                        className="p-1.5 text-zinc-500 hover:text-red-400 rounded transition-colors" title="Delete project">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </>
+                  confirmDeleteProject === selectedProject.id ? (
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteProject(null)}
+                        className="text-zinc-400 hover:text-white h-8 px-2 text-xs">Cancel</Button>
+                      <Button size="sm" onClick={() => deleteProject(selectedProject.id)}
+                        disabled={deletingProjectId === selectedProject.id}
+                        className="bg-red-600 hover:bg-red-500 text-white h-8 px-3 text-xs">
+                        {deletingProjectId === selectedProject.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete Project"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmDeleteProject(selectedProject.id)}
+                      className="p-1.5 text-zinc-500 hover:text-red-400 rounded transition-colors" title="Delete project">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -424,10 +418,8 @@ export default function VideoStudio() {
                     <div className="text-center py-8 px-3 space-y-2">
                       <PlayCircle className="w-7 h-7 mx-auto text-zinc-700" />
                       <p className="text-zinc-500 text-xs">No videos yet</p>
-                      {isAdmin && (
-                        <button onClick={() => setShowAddLink(true)}
-                          className="text-[#5B53FF] text-xs hover:underline">Add a review link</button>
-                      )}
+                      <button onClick={() => setShowAddLink(true)}
+                        className="text-[#5B53FF] text-xs hover:underline">Add a review link</button>
                     </div>
                   ) : (
                     [...selectedProject.versions].reverse().map(v => (
