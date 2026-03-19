@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { qualityChecksTable, usersTable, notificationsTable } from "@workspace/db/schema";
+import { qualityChecksTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { notifyUser } from "../lib/notify";
@@ -43,12 +43,11 @@ router.post("/quality-checks", requireAdminOrHR, async (req, res) => {
     if (submitterId && submitterId !== req.user!.id) {
       const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
       const revNote = revisionCount > 0 ? ` · ${revisionCount} revision${revisionCount > 1 ? "s" : ""}` : "";
-      await db.insert(notificationsTable).values({
-        userId: submitterId,
+      await notifyUser(submitterId, {
         type: "quality_evaluation",
         title: "You received an evaluation",
         body: `Rating: ${stars}${revNote}${feedback ? ` — "${feedback.slice(0, 80)}${feedback.length > 80 ? "…" : ""}"` : ""}`,
-        linkUrl: "/quality-checks",
+        linkUrl: "/quality",
       }).catch(() => {});
     }
 
@@ -81,12 +80,11 @@ router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
       if (ratingChanged || feedbackChanged) {
         const stars = "★".repeat(updated.rating) + "☆".repeat(5 - updated.rating);
         const revNote = updated.revisionCount > 0 ? ` · ${updated.revisionCount} revision${updated.revisionCount > 1 ? "s" : ""}` : "";
-        await db.insert(notificationsTable).values({
-          userId: updated.submitterId,
+        await notifyUser(updated.submitterId, {
           type: "quality_evaluation",
           title: "Your evaluation was updated",
           body: `Rating: ${stars}${revNote}${updated.feedback ? ` — "${updated.feedback.slice(0, 80)}${updated.feedback.length > 80 ? "…" : ""}"` : ""}`,
-          linkUrl: "/quality-checks",
+          linkUrl: "/quality",
         }).catch(() => {});
       }
     }

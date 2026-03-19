@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -13,7 +13,7 @@ router.get("/notifications", async (req, res) => {
   try {
     const notifs = await db.select().from(notificationsTable)
       .where(eq(notificationsTable.userId, req.user.id))
-      .orderBy(notificationsTable.createdAt);
+      .orderBy(desc(notificationsTable.createdAt));
     res.json(notifs.map(n => ({ ...n, createdAt: n.createdAt.toISOString() })));
   } catch (err) {
     res.status(500).json({ error: "Failed to list notifications" });

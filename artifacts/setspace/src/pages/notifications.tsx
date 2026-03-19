@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "wouter";
 import {
   useListNotifications,
   useMarkNotificationRead,
@@ -58,6 +59,10 @@ function getNotifStyle(type: string): NotifIconConfig {
       return { icon: <Trophy className="w-4 h-4" />, bg: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" };
     case "mention":
       return { icon: <User className="w-4 h-4" />, bg: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" };
+    case "quality_evaluation":
+      return { icon: <CheckCircle2 className="w-4 h-4" />, bg: "bg-orange-500/20 text-orange-300 border-orange-500/30" };
+    case "video_revision":
+      return { icon: <Video className="w-4 h-4" />, bg: "bg-red-500/20 text-red-300 border-red-500/30" };
     default:
       return { icon: <AlertCircle className="w-4 h-4" />, bg: "bg-white/10 text-muted-foreground border-white/10" };
   }
@@ -68,6 +73,7 @@ export default function Notifications() {
     query: { queryKey: getListNotificationsQueryKey(), refetchInterval: 5000 },
   });
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
   const markReadMut = useMarkNotificationRead({
@@ -151,10 +157,17 @@ export default function Notifications() {
           <div className="divide-y divide-white/5">
             {displayed.map((notif) => {
               const style = getNotifStyle(notif.type);
+              const handleRowClick = () => {
+                if (!notif.isRead) markReadMut.mutate({ notificationId: notif.id });
+                if (notif.linkUrl) navigate(notif.linkUrl);
+              };
               return (
                 <div
                   key={notif.id}
+                  onClick={handleRowClick}
                   className={`flex items-start gap-4 px-5 py-4 transition-colors ${
+                    notif.linkUrl ? "cursor-pointer" : ""
+                  } ${
                     notif.isRead
                       ? "opacity-55 hover:opacity-75"
                       : "bg-indigo-500/5 hover:bg-indigo-500/8 border-l-2 border-l-indigo-500/60"
@@ -180,20 +193,17 @@ export default function Notifications() {
                         {notif.body}
                       </p>
                     )}
-                    {notif.linkUrl && !notif.isRead && (
-                      <a
-                        href={notif.linkUrl}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 mt-1 inline-block"
-                      >
+                    {notif.linkUrl && (
+                      <span className="text-xs text-indigo-400 mt-1 inline-block">
                         View →
-                      </a>
+                      </span>
                     )}
                   </div>
 
                   {/* Mark read */}
                   {!notif.isRead && (
                     <button
-                      onClick={() => markReadMut.mutate({ notificationId: notif.id })}
+                      onClick={(e) => { e.stopPropagation(); markReadMut.mutate({ notificationId: notif.id }); }}
                       disabled={markReadMut.isPending}
                       title="Mark as read"
                       className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-green-400 hover:bg-green-500/10 transition-colors mt-0.5"

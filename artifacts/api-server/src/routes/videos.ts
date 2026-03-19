@@ -7,6 +7,7 @@ import { requireAdminOrHR } from "../middleware/roles";
 import { syncToFrameio, isFrameioConfigured } from "../lib/frameio";
 import { getFrameioRootAssetId } from "./frameio";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { notifyUser } from "../lib/notify";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -285,6 +286,16 @@ router.post("/video-versions/:versionId/request-revision", requireAdminOrHR, asy
     if (!updated) {
       res.status(404).json({ error: "Version not found" });
       return;
+    }
+    // Notify the uploader that their version needs revision
+    if (updated.uploadedById) {
+      const [project] = await db.select().from(videoProjectsTable).where(eq(videoProjectsTable.id, updated.projectId));
+      await notifyUser(updated.uploadedById, {
+        type: "video_revision",
+        title: "Revision requested on your video",
+        body: `v${updated.versionNumber}${project ? ` — ${project.title}` : ""} needs changes.`,
+        linkUrl: `/videos/${updated.projectId}`,
+      }).catch(() => {});
     }
     const result = await getVersionWithUploader(updated.id);
     res.json(result);
