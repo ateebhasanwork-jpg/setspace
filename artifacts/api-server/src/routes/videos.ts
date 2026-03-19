@@ -55,7 +55,8 @@ router.get("/video-projects", async (req, res) => {
   }
 });
 
-router.post("/video-projects", requireAdminOrHR, async (req, res) => {
+router.post("/video-projects", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     const { title, clientName, description, taskId } = req.body;
     const [project] = await db.insert(videoProjectsTable).values({

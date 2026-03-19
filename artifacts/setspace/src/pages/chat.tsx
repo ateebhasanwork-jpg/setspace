@@ -436,7 +436,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     if (isInitialRef.current) {
       lastSeenIdRef.current = latest.id;
       isInitialRef.current = false;
-      scrollToBottom(false);
+      // Delay so the browser has painted all message rows before we measure scrollHeight
+      setTimeout(() => scrollToBottom(false), 60);
       return;
     }
     if (lastSeenIdRef.current === null || latest.id > lastSeenIdRef.current) {
@@ -725,6 +726,8 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         if (isInitialRef.current) {
           isInitialRef.current = false;
           if (data.length) lastSeenIdRef.current = data[data.length - 1].id;
+          // Scroll after React has painted the messages
+          setTimeout(() => scrollToBottom(false), 60);
           return data;
         }
         const newFromOther = data.filter(
@@ -750,9 +753,6 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     return () => { clearInterval(id); window.removeEventListener("sse:dm", sseHandler); };
   }, [otherUser.id]);
 
-  useEffect(() => {
-    scrollToBottom(false);
-  }, [otherUser.id]);
 
   const send = async () => {
     const trimmed = content.trim();
