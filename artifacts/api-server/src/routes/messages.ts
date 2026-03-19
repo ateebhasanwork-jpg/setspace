@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, directMessagesTable, usersTable, notificationsTable, messageReactionsTable } from "@workspace/db/schema";
+import { messagesTable, directMessagesTable, usersTable, messageReactionsTable } from "@workspace/db/schema";
 import { eq, or, and, desc, inArray } from "drizzle-orm";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
@@ -103,10 +103,11 @@ router.post("/messages", async (req, res) => {
     // Detect @mentions and create notifications
     const mentionedIds = await extractMentionedUserIds(content, req.user.id);
     if (mentionedIds.length > 0) {
-      const authorName = user ? `${user.firstName} ${user.lastName}`.trim() : "Someone";
+      const authorName = user
+        ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || "Someone"
+        : "Someone";
       await Promise.all(mentionedIds.map(uid =>
-        db.insert(notificationsTable).values({
-          userId: uid,
+        notifyUser(uid, {
           type: "mention",
           title: `${authorName} mentioned you`,
           body: content.length > 120 ? content.slice(0, 120) + "…" : content,
@@ -172,9 +173,8 @@ router.post("/dm/:userId", async (req, res) => {
     // Create a notification for the receiver
     const sender = userMap[me];
     if (sender) {
-      const senderName = `${sender.firstName} ${sender.lastName}`.trim();
-      await db.insert(notificationsTable).values({
-        userId: other,
+      const senderName = [sender.firstName, sender.lastName].filter(Boolean).join(" ") || sender.username || "Someone";
+      await notifyUser(other, {
         type: "dm",
         title: `New message from ${senderName}`,
         body: content.trim().length > 100 ? content.trim().slice(0, 100) + "…" : content.trim(),

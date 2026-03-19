@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Video, Building2, Layers, Link2 } from "lucide-react";
 import { Link } from "wouter";
+import { toast } from "sonner";
 
 export default function VideoProjects() {
   const { data: projects, isLoading } = useListVideoProjects();
@@ -28,7 +29,12 @@ export default function VideoProjects() {
         setDescription("");
         setLinkedTaskId("");
         queryClient.invalidateQueries({ queryKey: getListVideoProjectsQueryKey() });
-      }
+        toast.success("Project created!");
+      },
+      onError: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to create project";
+        toast.error(msg);
+      },
     }
   });
 
@@ -54,7 +60,7 @@ export default function VideoProjects() {
         
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 rounded-xl font-semibold px-6">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-900/30 rounded-xl font-semibold px-6">
               <Plus className="w-4 h-4 mr-2" /> New Project
             </Button>
           </DialogTrigger>
