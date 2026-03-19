@@ -22,6 +22,7 @@ import {
   Trophy,
   AlertCircle,
   User,
+  SmilePlus,
 } from "lucide-react";
 
 function relativeTime(iso: string): string {
@@ -59,6 +60,8 @@ function getNotifStyle(type: string): NotifIconConfig {
       return { icon: <Trophy className="w-4 h-4" />, bg: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" };
     case "mention":
       return { icon: <User className="w-4 h-4" />, bg: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" };
+    case "reaction":
+      return { icon: <SmilePlus className="w-4 h-4" />, bg: "bg-pink-500/20 text-pink-300 border-pink-500/30" };
     case "quality_evaluation":
       return { icon: <CheckCircle2 className="w-4 h-4" />, bg: "bg-orange-500/20 text-orange-300 border-orange-500/30" };
     case "video_revision":

@@ -79,6 +79,21 @@ router.post("/messages/:id/reactions", async (req, res) => {
       await db.delete(messageReactionsTable).where(eq(messageReactionsTable.id, existing.id));
     } else {
       await db.insert(messageReactionsTable).values({ messageId: msgId, userId: req.user.id, emoji });
+
+      // Notify the message author (if it's not themselves)
+      const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, msgId));
+      if (msg && msg.authorId !== req.user.id) {
+        const [reactor] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+        const reactorName = reactor
+          ? [reactor.firstName, reactor.lastName].filter(Boolean).join(" ") || reactor.username || "Someone"
+          : "Someone";
+        await notifyUser(msg.authorId, {
+          type: "reaction",
+          title: `${reactorName} reacted ${emoji} to your message`,
+          body: msg.content ? (msg.content.length > 80 ? msg.content.slice(0, 80) + "…" : msg.content) : undefined,
+          linkUrl: "/chat",
+        }).catch(() => {});
+      }
     }
 
     broadcastSse("messages", { action: "reaction", messageId: msgId });
@@ -188,6 +203,21 @@ router.post("/dm-reactions/:dmId", async (req, res) => {
       await db.delete(dmReactionsTable).where(eq(dmReactionsTable.id, existing.id));
     } else {
       await db.insert(dmReactionsTable).values({ dmId, userId: req.user.id, emoji });
+
+      // Notify the DM sender if it's not themselves
+      const [dm] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id, dmId));
+      if (dm && dm.senderId !== req.user.id) {
+        const [reactor] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+        const reactorName = reactor
+          ? [reactor.firstName, reactor.lastName].filter(Boolean).join(" ") || reactor.username || "Someone"
+          : "Someone";
+        await notifyUser(dm.senderId, {
+          type: "reaction",
+          title: `${reactorName} reacted ${emoji} to your message`,
+          body: dm.content ? (dm.content.length > 80 ? dm.content.slice(0, 80) + "…" : dm.content) : undefined,
+          linkUrl: "/chat",
+        }).catch(() => {});
+      }
     }
     broadcastSse("dm", { action: "reaction", dmId });
     res.json({ ok: true });
