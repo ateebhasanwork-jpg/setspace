@@ -20,10 +20,14 @@ import {
   Hash,
   User as UserIcon,
   AtSign,
+  SmilePlus,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 
-type LocalMessage = Message & { _optimistic?: boolean };
+type ReactionGroup = { emoji: string; count: number; userIds: string[] };
+type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[] };
+
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "👏", "🎉", "😢"];
 
 interface DM {
   id: number;
@@ -167,6 +171,7 @@ function MessageBubble({
   isMe,
   showAvatar,
   onReply,
+  onReact,
   parentMsg,
   users,
   currentUserId,
@@ -175,17 +180,35 @@ function MessageBubble({
   isMe: boolean;
   showAvatar: boolean;
   onReply: (m: LocalMessage) => void;
+  onReact: (msgId: number, emoji: string) => void;
   parentMsg?: LocalMessage | null;
   users?: User[];
   currentUserId?: string;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const author = msg.author as (typeof msg.author & { profileImage?: string | null }) | undefined;
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickerOpen]);
+
+  const reactions = msg.reactions ?? [];
+
   return (
     <div
       className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${msg._optimistic ? "opacity-60" : ""}`}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => { setHovered(false); }}
     >
       {!isMe && showAvatar && (
         <span className="text-xs font-semibold text-muted-foreground mb-1 ml-11">
@@ -221,15 +244,76 @@ function MessageBubble({
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
+
+          {/* Reaction pills */}
+          {reactions.length > 0 && (
+            <div className={`flex flex-wrap gap-1 mt-0.5 ${isMe ? "justify-end" : "justify-start ml-1"}`}>
+              {reactions.map((r) => {
+                const iReacted = currentUserId ? r.userIds.includes(currentUserId) : false;
+                return (
+                  <button
+                    key={r.emoji}
+                    onClick={() => onReact(msg.id, r.emoji)}
+                    title={`${r.count} reaction${r.count !== 1 ? "s" : ""}`}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-all ${
+                      iReacted
+                        ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-200"
+                        : "bg-white/8 border-white/10 text-foreground hover:bg-white/15"
+                    }`}
+                  >
+                    <span>{r.emoji}</span>
+                    <span className="text-[11px] font-medium">{r.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Action bar: reply + react */}
           {!msg._optimistic && (
-            <button
-              onClick={() => onReply(msg)}
-              className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-opacity ${
-                hovered ? "opacity-100" : "opacity-0"
-              } ${isMe ? "self-end" : "self-start ml-1"}`}
-            >
-              <CornerDownRight className="w-3 h-3" /> Reply
-            </button>
+            <div className={`flex items-center gap-2 ${isMe ? "self-end" : "self-start ml-1"}`}>
+              <button
+                onClick={() => onReply(msg)}
+                className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-opacity ${
+                  hovered ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <CornerDownRight className="w-3 h-3" /> Reply
+              </button>
+
+              {/* Emoji picker trigger */}
+              <div className="relative" ref={pickerRef}>
+                <button
+                  onClick={() => setPickerOpen((o) => !o)}
+                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-indigo-400 transition-all ${
+                    hovered || pickerOpen ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  <SmilePlus className="w-3.5 h-3.5" />
+                </button>
+                {pickerOpen && (
+                  <div
+                    className={`absolute z-50 bottom-full mb-1.5 bg-card border border-white/10 rounded-xl shadow-xl p-2 flex gap-1 ${
+                      isMe ? "right-0" : "left-0"
+                    }`}
+                  >
+                    {QUICK_EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        onMouseDown={(ev) => {
+                          ev.preventDefault();
+                          onReact(msg.id, e);
+                          setPickerOpen(false);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-white/10 transition-colors"
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -449,6 +533,16 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     [content]
   );
 
+  const handleReact = useCallback(async (msgId: number, emoji: string) => {
+    await fetch(`${BASE}/api/messages/${msgId}/reactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+      credentials: "include",
+    });
+    queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+  }, [queryClient]);
+
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -468,6 +562,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
                 isMe={isMe}
                 showAvatar={showAvatar}
                 onReply={setReplyTo}
+                onReact={handleReact}
                 users={users}
                 currentUserId={user.id}
               />

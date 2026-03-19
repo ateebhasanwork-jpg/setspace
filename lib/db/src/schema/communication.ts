@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, serial, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, serial, boolean, unique } from "drizzle-orm/pg-core";
 import { usersTable } from "./auth";
 
 export const messagesTable = pgTable("messages", {
@@ -55,3 +55,13 @@ export const notificationsTable = pgTable("notifications", {
 });
 
 export type Notification = typeof notificationsTable.$inferSelect;
+
+export const messageReactionsTable = pgTable("message_reactions", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").notNull().references(() => messagesTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [unique("message_reactions_uniq").on(t.messageId, t.userId, t.emoji)]);
+
+export type MessageReaction = typeof messageReactionsTable.$inferSelect;

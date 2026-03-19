@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, directMessagesTable, usersTable, notificationsTable } from "@workspace/db/schema";
-import { eq, or, and, desc } from "drizzle-orm";
+import { messagesTable, directMessagesTable, usersTable, notificationsTable, messageReactionsTable } from "@workspace/db/schema";
+import { eq, or, and, desc, inArray } from "drizzle-orm";
 import { broadcastSse } from "../lib/sse";
 
 const router: IRouter = Router();
@@ -31,14 +31,59 @@ router.get("/messages", async (req, res) => {
     const messages = await db.select().from(messagesTable).orderBy(desc(messagesTable.createdAt)).limit(limit);
     const users = await db.select().from(usersTable);
     const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    const msgIds = messages.map(m => m.id);
+    const reactions = msgIds.length
+      ? await db.select().from(messageReactionsTable).where(inArray(messageReactionsTable.messageId, msgIds))
+      : [];
+
+    type ReactionGroup = { emoji: string; count: number; userIds: string[] };
+    const reactionsByMsg: Record<number, Record<string, ReactionGroup>> = {};
+    for (const r of reactions) {
+      if (!reactionsByMsg[r.messageId]) reactionsByMsg[r.messageId] = {};
+      if (!reactionsByMsg[r.messageId][r.emoji]) reactionsByMsg[r.messageId][r.emoji] = { emoji: r.emoji, count: 0, userIds: [] };
+      reactionsByMsg[r.messageId][r.emoji].count++;
+      reactionsByMsg[r.messageId][r.emoji].userIds.push(r.userId);
+    }
+
     const result = messages.reverse().map(m => ({
       ...m,
       createdAt: m.createdAt.toISOString(),
-      author: m.authorId ? (userMap[m.authorId] ?? null) : null
+      author: m.authorId ? (userMap[m.authorId] ?? null) : null,
+      reactions: Object.values(reactionsByMsg[m.id] ?? {}),
     }));
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Failed to list messages" });
+  }
+});
+
+/** POST /api/messages/:id/reactions — toggle a reaction (add or remove) */
+router.post("/messages/:id/reactions", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const msgId = parseInt(req.params.id);
+    const { emoji } = req.body as { emoji: string };
+    if (!emoji) { res.status(400).json({ error: "emoji required" }); return; }
+
+    const [existing] = await db.select().from(messageReactionsTable).where(
+      and(
+        eq(messageReactionsTable.messageId, msgId),
+        eq(messageReactionsTable.userId, req.user.id),
+        eq(messageReactionsTable.emoji, emoji),
+      )
+    );
+
+    if (existing) {
+      await db.delete(messageReactionsTable).where(eq(messageReactionsTable.id, existing.id));
+    } else {
+      await db.insert(messageReactionsTable).values({ messageId: msgId, userId: req.user.id, emoji });
+    }
+
+    broadcastSse("messages", { action: "reaction", messageId: msgId });
+    res.json({ added: !existing });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to toggle reaction" });
   }
 });
 
