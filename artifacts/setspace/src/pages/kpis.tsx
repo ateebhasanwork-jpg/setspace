@@ -154,9 +154,10 @@ export default function KPIs() {
           <p className="text-muted-foreground mt-1">Monitor individual performance metrics.</p>
         </div>
 
+        {isManager && (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg">
               <Plus className="w-4 h-4 mr-2" /> Assign KPI
             </Button>
           </DialogTrigger>
@@ -211,12 +212,21 @@ export default function KPIs() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Manual KPI cards */}
       {isLoading ? (
         <div className="flex justify-center py-10">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      ) : kpis && kpis.length === 0 ? (
+        <div className="py-16 text-center border-2 border-dashed border-white/10 rounded-2xl">
+          <Target className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
+          <p className="text-muted-foreground font-medium">No KPIs assigned yet</p>
+          {isManager && (
+            <p className="text-sm text-muted-foreground mt-1 opacity-60">Use "Assign KPI" to set targets for team members.</p>
+          )}
         </div>
       ) : kpis && kpis.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

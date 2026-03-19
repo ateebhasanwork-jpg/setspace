@@ -1,124 +1,242 @@
 import React, { useState } from "react";
 import { useGetLeaderboard } from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
-import { Trophy, Medal, Star, Target, Clock, Calendar, RefreshCw } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Trophy, RefreshCw, Target, Star, Clock, CalendarCheck, LayoutList } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+type LeaderEntry = {
+  userId: string;
+  user?: { firstName?: string | null; lastName?: string | null; profileImage?: string | null } | null;
+  score: number;
+  kpiScore: number;
+  attendanceScore: number;
+  qualityScore: number;
+  onTimeScore: number;
+  avgRevisions?: number;
+  completedTasks?: number;
+  onTimeTasks?: number;
+  presentDays?: number;
+  rank: number;
+};
+
+function Avatar({ entry, size = "md" }: { entry: LeaderEntry; size?: "sm" | "md" | "lg" }) {
+  const sz = size === "lg" ? "w-24 h-24 text-3xl" : size === "md" ? "w-14 h-14 text-xl" : "w-8 h-8 text-xs";
+  const initials = `${entry.user?.firstName?.[0] ?? ""}${entry.user?.lastName?.[0] ?? ""}`.toUpperCase();
+  if (entry.user?.profileImage) {
+    return <img src={entry.user.profileImage} alt={initials} className={`${sz} rounded-full object-cover`} />;
+  }
+  return (
+    <div className={`${sz} rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center font-display font-bold text-indigo-200 shrink-0`}>
+      {initials || "?"}
+    </div>
+  );
+}
+
+function ScorePill({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className={`text-xs font-bold ${color}`}>{value.toFixed(0)}</span>
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+    </div>
+  );
+}
 
 export default function Leaderboard() {
   const date = new Date();
   const [month, setMonth] = useState(date.getMonth() + 1);
   const [year, setYear] = useState(date.getFullYear());
-  
+
   const { data: leaderboard, isLoading } = useGetLeaderboard({ month, year });
 
-  const chartData = leaderboard?.map(entry => ({
-    name: entry.user?.firstName || 'Unknown',
+  const hasData = leaderboard && leaderboard.length > 0 && leaderboard.some(e => e.score > 0);
+
+  const chartData = leaderboard?.map((entry) => ({
+    name: entry.user?.firstName || "Unknown",
     KPI: entry.kpiScore,
     Quality: entry.qualityScore,
     Attendance: entry.attendanceScore,
-    OnTime: entry.onTimeScore,
-    Total: entry.score
+    "On-Time": entry.onTimeScore,
   })) || [];
+
+  const fullName = (entry: LeaderEntry) =>
+    [entry.user?.firstName, entry.user?.lastName].filter(Boolean).join(" ") || "—";
 
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
             <Trophy className="w-8 h-8 text-yellow-400" /> Employee of the Month
           </h1>
-          <p className="text-muted-foreground mt-1">Monthly performance rankings based on core metrics.</p>
+          <p className="text-muted-foreground mt-1">Monthly performance rankings based on KPI, quality, attendance &amp; deadlines.</p>
         </div>
-        <div className="flex gap-2">
-          <select value={month} onChange={e => setMonth(Number(e.target.value))} className="bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary">
-            {Array.from({length: 12}, (_, i) => <option key={i+1} value={i+1} className="bg-card">{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>)}
+        <div className="flex gap-2 shrink-0">
+          <select
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-indigo-500"
+          >
+            {MONTHS.map((m, i) => (
+              <option key={i + 1} value={i + 1} className="bg-card">{m}</option>
+            ))}
           </select>
-          <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary">
-            {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-card">{y}</option>)}
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-indigo-500"
+          >
+            {[2024, 2025, 2026].map((y) => (
+              <option key={y} value={y} className="bg-card">{y}</option>
+            ))}
           </select>
         </div>
       </div>
 
+      {/* Score formula legend */}
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-white" /> KPI 35%</span>
+        <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-violet-300" /> Quality 25%</span>
+        <span className="flex items-center gap-1.5"><CalendarCheck className="w-3.5 h-3.5 text-emerald-400" /> Attendance 25%</span>
+        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> On-Time 15%</span>
+      </div>
+
       {isLoading ? (
-        <div className="flex justify-center py-20"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        <div className="flex justify-center py-20">
+          <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
+        </div>
+      ) : !hasData ? (
+        <div className="py-24 text-center border-2 border-dashed border-white/10 rounded-2xl">
+          <Trophy className="w-14 h-14 text-muted-foreground mx-auto mb-4 opacity-20" />
+          <p className="text-foreground font-semibold">No performance data for {MONTHS[month - 1]} {year}</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+            Rankings appear once attendance, tasks, and quality checks are recorded for this month.
+          </p>
+        </div>
       ) : (
         <>
-          {/* Top 3 Podium */}
-          <div className="flex flex-col md:flex-row justify-center items-end gap-4 md:gap-8 pt-8 pb-4">
+          {/* ── Podium ── */}
+          <div className="flex flex-col md:flex-row justify-center items-end gap-4 md:gap-6 pt-10 pb-2">
             {/* 2nd Place */}
-            {leaderboard?.[1] && (
-              <Card className="glass-panel w-full md:w-64 p-6 flex flex-col items-center relative order-2 md:order-1 border-t-4 border-t-gray-300">
-                <div className="absolute -top-6 w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-gray-800 font-bold text-xl shadow-lg border-4 border-background z-10">2</div>
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 mb-4 mt-2 flex items-center justify-center text-gray-800 font-display font-bold text-2xl">
-                  {leaderboard[1].user?.firstName?.[0]}
+            {leaderboard[1] && (
+              <Card className="glass-panel w-full md:w-60 p-6 flex flex-col items-center relative border-t-4 border-t-slate-400 order-2 md:order-1">
+                <div className="absolute -top-6 w-12 h-12 bg-slate-300 rounded-full flex items-center justify-center text-slate-800 font-bold text-xl shadow-lg border-4 border-background z-10">2</div>
+                <div className="mt-3 mb-3">
+                  <Avatar entry={leaderboard[1] as LeaderEntry} size="md" />
                 </div>
-                <h3 className="font-bold text-lg">{leaderboard[1].user?.firstName}</h3>
-                <p className="text-muted-foreground text-sm font-mono">{leaderboard[1].score.toFixed(0)} pts</p>
+                <h3 className="font-bold text-base text-center">{fullName(leaderboard[1] as LeaderEntry)}</h3>
+                <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[1].score.toFixed(0)} pts</p>
+                <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 w-full justify-center">
+                  <ScorePill label="KPI" value={leaderboard[1].kpiScore} color="text-white" />
+                  <ScorePill label="Quality" value={leaderboard[1].qualityScore} color="text-violet-300" />
+                  <ScorePill label="Attend." value={leaderboard[1].attendanceScore} color="text-emerald-400" />
+                </div>
               </Card>
             )}
-            
+
             {/* 1st Place */}
-            {leaderboard?.[0] && (
-              <Card className="glass-panel w-full md:w-72 p-8 flex flex-col items-center relative order-1 md:order-2 border-t-4 border-t-yellow-400 transform md:-translate-y-4 shadow-xl shadow-yellow-500/20 bg-primary/5">
-                <div className="absolute -top-8 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full flex items-center justify-center text-yellow-900 font-bold text-3xl shadow-xl border-4 border-background z-10 shadow-yellow-500/50">1</div>
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent mb-4 mt-4 flex items-center justify-center text-white font-display font-bold text-4xl shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                  {leaderboard[0].user?.firstName?.[0]}
+            {leaderboard[0] && (
+              <Card className="glass-panel w-full md:w-72 p-8 flex flex-col items-center relative border-t-4 border-t-yellow-400 order-1 md:order-2 transform md:-translate-y-4 shadow-xl shadow-yellow-500/10">
+                <div className="absolute -top-8 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full flex items-center justify-center text-yellow-900 font-bold text-3xl shadow-xl border-4 border-background z-10">
+                  🏆
                 </div>
-                <h3 className="font-display font-bold text-2xl text-yellow-400">{leaderboard[0].user?.firstName} {leaderboard[0].user?.lastName}</h3>
-                <p className="text-white font-mono text-xl mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
+                <div className="mt-5 mb-4">
+                  <Avatar entry={leaderboard[0] as LeaderEntry} size="lg" />
+                </div>
+                <h3 className="font-display font-bold text-xl text-yellow-400 text-center">{fullName(leaderboard[0] as LeaderEntry)}</h3>
+                <p className="text-white font-mono text-lg mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
+                <div className="flex gap-4 mt-4 pt-4 border-t border-white/10 w-full justify-center">
+                  <ScorePill label="KPI" value={leaderboard[0].kpiScore} color="text-white" />
+                  <ScorePill label="Quality" value={leaderboard[0].qualityScore} color="text-violet-300" />
+                  <ScorePill label="Attend." value={leaderboard[0].attendanceScore} color="text-emerald-400" />
+                  <ScorePill label="On-Time" value={leaderboard[0].onTimeScore} color="text-amber-400" />
+                </div>
               </Card>
             )}
 
             {/* 3rd Place */}
-            {leaderboard?.[2] && (
-              <Card className="glass-panel w-full md:w-64 p-6 flex flex-col items-center relative order-3 border-t-4 border-t-orange-400">
+            {leaderboard[2] && (
+              <Card className="glass-panel w-full md:w-60 p-6 flex flex-col items-center relative border-t-4 border-t-orange-400 order-3">
                 <div className="absolute -top-6 w-12 h-12 bg-orange-400 rounded-full flex items-center justify-center text-orange-950 font-bold text-xl shadow-lg border-4 border-background z-10">3</div>
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-300 to-orange-600 mb-4 mt-2 flex items-center justify-center text-orange-950 font-display font-bold text-2xl">
-                  {leaderboard[2].user?.firstName?.[0]}
+                <div className="mt-3 mb-3">
+                  <Avatar entry={leaderboard[2] as LeaderEntry} size="md" />
                 </div>
-                <h3 className="font-bold text-lg">{leaderboard[2].user?.firstName}</h3>
-                <p className="text-muted-foreground text-sm font-mono">{leaderboard[2].score.toFixed(0)} pts</p>
+                <h3 className="font-bold text-base text-center">{fullName(leaderboard[2] as LeaderEntry)}</h3>
+                <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[2].score.toFixed(0)} pts</p>
+                <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 w-full justify-center">
+                  <ScorePill label="KPI" value={leaderboard[2].kpiScore} color="text-white" />
+                  <ScorePill label="Quality" value={leaderboard[2].qualityScore} color="text-violet-300" />
+                  <ScorePill label="Attend." value={leaderboard[2].attendanceScore} color="text-emerald-400" />
+                </div>
               </Card>
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-8">
-            <Card className="glass-panel lg:col-span-2 p-6 h-[400px]">
+          {/* ── Chart + Rankings ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
+            {/* Score breakdown chart */}
+            <Card className="glass-panel lg:col-span-2 p-6">
               <h3 className="font-display font-bold mb-6 text-lg">Score Breakdown</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#111', borderColor: '#333', borderRadius: '8px' }} />
-                  <Bar dataKey="KPI" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="Quality" stackId="a" fill="hsl(var(--accent))" />
-                  <Bar dataKey="Attendance" stackId="a" fill="#10b981" />
-                  <Bar dataKey="OnTime" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="name" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <Tooltip
+                      cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                      contentStyle={{ backgroundColor: "#111", borderColor: "#333", borderRadius: "10px", fontSize: "12px" }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "16px" }} />
+                    <Bar dataKey="KPI" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 4, 4]} />
+                    <Bar dataKey="Quality" stackId="a" fill="#a78bfa" />
+                    <Bar dataKey="Attendance" stackId="a" fill="#10b981" />
+                    <Bar dataKey="On-Time" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </Card>
 
-            <Card className="glass-panel p-6 overflow-hidden flex flex-col">
-              <h3 className="font-display font-bold mb-4 text-lg">Full Rankings</h3>
-              <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+            {/* Full rankings */}
+            <Card className="glass-panel p-6 flex flex-col overflow-hidden">
+              <h3 className="font-display font-bold mb-4 text-lg flex items-center gap-2">
+                <LayoutList className="w-4 h-4 text-muted-foreground" /> Full Rankings
+              </h3>
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {leaderboard?.map((entry, idx) => (
-                  <div key={entry.userId} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                  <div key={entry.userId} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                    idx === 0 ? "bg-yellow-500/5 border-yellow-500/20" :
+                    idx === 1 ? "bg-slate-500/5 border-slate-400/20" :
+                    idx === 2 ? "bg-orange-500/5 border-orange-400/20" :
+                    "bg-white/3 border-white/5"
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <span className="w-6 text-center font-mono text-muted-foreground font-bold">{idx + 1}</span>
-                      <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-xs font-bold text-foreground border border-white/10">
-                        {entry.user?.firstName?.[0]}
+                      <span className={`w-5 text-center font-mono font-bold text-sm ${
+                        idx === 0 ? "text-yellow-400" : idx === 1 ? "text-slate-300" : idx === 2 ? "text-orange-400" : "text-muted-foreground"
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <div className="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-300">
+                        {(entry.user?.firstName?.[0] ?? "") + (entry.user?.lastName?.[0] ?? "")}
                       </div>
                       <div>
-                        <span className="font-medium text-sm text-foreground">{entry.user?.firstName} {entry.user?.lastName}</span>
-                        {(entry as { avgRevisions?: number }).avgRevisions !== undefined && (entry as { avgRevisions?: number }).avgRevisions! > 0 && (
+                        <span className="font-medium text-sm text-foreground">{fullName(entry as LeaderEntry)}</span>
+                        {(entry as LeaderEntry).avgRevisions !== undefined && (entry as LeaderEntry).avgRevisions! > 0 && (
                           <div className="flex items-center gap-1 text-[10px] text-orange-400 mt-0.5">
                             <RefreshCw className="w-2.5 h-2.5" />
-                            {(entry as { avgRevisions?: number }).avgRevisions} avg revisions
+                            {(entry as LeaderEntry).avgRevisions} avg revisions
                           </div>
                         )}
                       </div>
                     </div>
-                    <span className="font-mono text-sm font-semibold text-foreground">{entry.score.toFixed(0)}</span>
+                    <div className="text-right">
+                      <div className="font-mono text-sm font-semibold text-foreground">{entry.score.toFixed(0)}</div>
+                      <div className="text-[10px] text-muted-foreground">pts</div>
+                    </div>
                   </div>
                 ))}
               </div>

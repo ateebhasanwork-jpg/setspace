@@ -5,6 +5,11 @@ import { and, eq, gte, lte } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+function toDateStr(d: Date | string | null | undefined): string {
+  if (!d) return "";
+  return new Date(d).toISOString().slice(0, 10);
+}
+
 router.get("/leaderboard", async (req, res) => {
   try {
     const now = new Date();
@@ -18,16 +23,21 @@ router.get("/leaderboard", async (req, res) => {
 
     const leaderboard = await Promise.all(users.map(async (user) => {
       // KPI score: average % achievement across all KPIs
+      // Sum ALL entries per KPI (not just first) to match how the KPI page computes actuals
       const kpiEntries = await db.select().from(kpiEntriesTable).where(
         and(eq(kpiEntriesTable.userId, user.id), gte(kpiEntriesTable.recordedAt, startDate), lte(kpiEntriesTable.recordedAt, endDate))
       );
       const kpis = await db.select().from(kpisTable).where(eq(kpisTable.userId, user.id));
+
       let kpiScore = 0;
-      if (kpis.length > 0 && kpiEntries.length > 0) {
+      if (kpis.length > 0) {
         const achievements = kpis.map(kpi => {
-          const entry = kpiEntries.find(e => e.kpiId === kpi.id);
-          if (!entry) return 0;
-          return Math.min((parseFloat(entry.actualValue) / parseFloat(kpi.targetValue)) * 100, 100);
+          // Sum all entries for this KPI in the month
+          const total = kpiEntries
+            .filter(e => e.kpiId === kpi.id)
+            .reduce((sum, e) => sum + parseFloat(e.actualValue), 0);
+          if (total === 0) return 0;
+          return Math.min((total / parseFloat(kpi.targetValue)) * 100, 100);
         });
         kpiScore = achievements.reduce((a, b) => a + b, 0) / kpis.length;
       }
@@ -50,12 +60,15 @@ router.get("/leaderboard", async (req, res) => {
         ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
         : 0;
 
-      // On-time score: completed tasks on time / total completed tasks
+      // On-time score: use date-only comparison so tasks completed anytime on due date count as on time
       const tasks = await db.select().from(tasksTable).where(
         and(eq(tasksTable.assigneeId, user.id), gte(tasksTable.completedAt, startDate), lte(tasksTable.completedAt, endDate))
       );
       const completedTasks = tasks.filter(t => t.completedAt);
-      const onTimeTasks = completedTasks.filter(t => !t.dueDate || (t.completedAt! <= t.dueDate));
+      const onTimeTasks = completedTasks.filter(t => {
+        if (!t.dueDate) return true;
+        return toDateStr(t.completedAt) <= toDateStr(t.dueDate);
+      });
       const onTimeScore = completedTasks.length > 0 ? (onTimeTasks.length / completedTasks.length) * 100 : 50;
 
       const score = kpiScore * 0.35 + attendanceScore * 0.25 + qualityScore * 0.25 + onTimeScore * 0.15;
@@ -69,6 +82,9 @@ router.get("/leaderboard", async (req, res) => {
         qualityScore: Math.round(qualityScore * 10) / 10,
         onTimeScore: Math.round(onTimeScore * 10) / 10,
         avgRevisions,
+        completedTasks: completedTasks.length,
+        onTimeTasks: onTimeTasks.length,
+        presentDays: attendanceRecords.length,
         month, year, rank: 0
       };
     }));
@@ -78,6 +94,7 @@ router.get("/leaderboard", async (req, res) => {
 
     res.json(leaderboard);
   } catch (err) {
+    console.error("Leaderboard error:", err);
     res.status(500).json({ error: "Failed to compute leaderboard" });
   }
 });
