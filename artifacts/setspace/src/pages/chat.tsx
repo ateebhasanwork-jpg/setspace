@@ -450,7 +450,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {topLevel.map((msg, i, arr) => {
           const isMe = msg.authorId === user.id;
@@ -690,7 +690,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
         {dms.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
@@ -747,6 +747,40 @@ export default function TeamChat() {
   const { data: users } = useListUsers();
   const [view, setView] = useState<"group" | string>("group");
   const [unreadByUser, setUnreadByUser] = useState<Record<string, number>>({});
+  const [groupUnread, setGroupUnread] = useState(0);
+  const lastGroupMsgIdRef = useRef<number | null>(null);
+  const groupInitRef = useRef(true);
+
+  // Poll group messages at the parent level so we can track unread even when not in group view
+  const { data: groupMessages } = useListMessages(undefined, {
+    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 4000 },
+  });
+
+  useEffect(() => {
+    if (!groupMessages || !user) return;
+    const all = (groupMessages as LocalMessage[]);
+    if (!all.length) return;
+    const sorted = [...all].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const latest = sorted[sorted.length - 1];
+
+    if (groupInitRef.current) {
+      lastGroupMsgIdRef.current = latest.id;
+      groupInitRef.current = false;
+      return;
+    }
+
+    if (latest.id > (lastGroupMsgIdRef.current ?? 0)) {
+      if (view !== "group") {
+        const newFromOthers = sorted.filter(
+          (m) => m.id > (lastGroupMsgIdRef.current ?? 0) && m.authorId !== user.id
+        );
+        if (newFromOthers.length > 0) {
+          setGroupUnread((prev) => prev + newFromOthers.length);
+        }
+      }
+      lastGroupMsgIdRef.current = latest.id;
+    }
+  }, [groupMessages, user, view]);
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -784,15 +818,27 @@ export default function TeamChat() {
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 py-2">Channels</p>
             <button
-              onClick={() => setView("group")}
+              onClick={() => { setView("group"); setGroupUnread(0); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 view === "group"
                   ? "bg-indigo-600/25 text-indigo-300 border border-indigo-500/20"
+                  : groupUnread > 0
+                  ? "text-white bg-indigo-600/10 border border-indigo-500/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-white/5"
               }`}
             >
-              <Hash className="w-4 h-4 shrink-0" />
-              <span className="truncate">Team Channel</span>
+              <div className="relative shrink-0">
+                <Hash className="w-4 h-4" />
+                {groupUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold px-0.5">
+                    {groupUnread > 99 ? "99+" : groupUnread}
+                  </span>
+                )}
+              </div>
+              <span className="truncate flex-1 text-left">Team Channel</span>
+              {groupUnread > 0 && view !== "group" && (
+                <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0 animate-pulse" />
+              )}
             </button>
 
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pt-4 pb-2">Direct Messages</p>
