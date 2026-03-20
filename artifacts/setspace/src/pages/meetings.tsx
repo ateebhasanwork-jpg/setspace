@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Plus, Video, Clock, Check, Trash2 } from "lucide-react";
+import { Calendar, Plus, Video, Clock, Check, Trash2, RefreshCw } from "lucide-react";
 
 type LocalMeeting = Meeting & { _optimistic?: boolean };
 
@@ -17,7 +17,7 @@ function safeUrl(url: string | null | undefined): string | null {
 }
 
 export default function Meetings() {
-  const { data: meetings, isLoading } = useListMeetings();
+  const { data: meetings, isLoading, isFetching } = useListMeetings();
   const { data: users } = useListUsers();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -120,9 +120,18 @@ export default function Meetings() {
           <p className="text-muted-foreground mt-1">Schedule and join upcoming sessions.</p>
         </div>
 
-        <Dialog open={isCreateOpen} onOpenChange={open => { setIsCreateOpen(open); if (!open) resetForm(); }}>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() })}
+            disabled={isFetching}
+            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+            title="Refresh meetings"
+          >
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+          <Dialog open={isCreateOpen} onOpenChange={open => { setIsCreateOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg">
               <Plus className="w-4 h-4 mr-2" /> Schedule Meeting
             </Button>
           </DialogTrigger>
@@ -203,6 +212,7 @@ export default function Meetings() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {isLoading ? (

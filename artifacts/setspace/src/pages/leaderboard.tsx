@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useGetLeaderboard } from "@workspace/api-client-react";
+import { useGetLeaderboard, getGetLeaderboardQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Trophy, RefreshCw, Target, Star, Clock, CalendarCheck, LayoutList } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -50,8 +51,13 @@ export default function Leaderboard() {
   const date = new Date();
   const [month, setMonth] = useState(date.getMonth() + 1);
   const [year, setYear] = useState(date.getFullYear());
+  const queryClient = useQueryClient();
 
-  const { data: leaderboard, isLoading } = useGetLeaderboard({ month, year });
+  const { data: leaderboard, isLoading, isFetching } = useGetLeaderboard({ month, year });
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: getGetLeaderboardQueryKey({ month, year }) });
+  };
 
   const hasData = leaderboard && leaderboard.length > 0 && leaderboard.some(e => e.score > 0);
 
@@ -76,7 +82,7 @@ export default function Leaderboard() {
           </h1>
           <p className="text-muted-foreground mt-1">Monthly performance rankings based on KPI, quality, attendance &amp; deadlines.</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 items-center">
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
@@ -95,6 +101,14 @@ export default function Leaderboard() {
               <option key={y} value={y} className="bg-card">{y}</option>
             ))}
           </select>
+          <button
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+            title="Refresh leaderboard"
+          >
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+          </button>
         </div>
       </div>
 

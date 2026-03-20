@@ -25,6 +25,7 @@ import {
   Award,
   BarChart3,
   Trash2,
+  RefreshCw,
 } from "lucide-react";
 import type { Task, User } from "@workspace/api-client-react";
 
@@ -54,7 +55,7 @@ function PercentBar({
 }
 
 export default function KPIs() {
-  const { data: kpis, isLoading } = useListKpis();
+  const { data: kpis, isLoading, isFetching } = useListKpis();
   const { data: users } = useListUsers();
   const { data: kpiEntries } = useListKpiEntries();
   const { data: tasks } = useListTasks();
@@ -154,8 +155,17 @@ export default function KPIs() {
           <p className="text-muted-foreground mt-1">Monitor individual performance metrics.</p>
         </div>
 
-        {isManager && (
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: getListKpisQueryKey() })}
+            disabled={isFetching}
+            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+            title="Refresh KPIs"
+          >
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+          {isManager && (
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg">
               <Plus className="w-4 h-4 mr-2" /> Assign KPI
@@ -213,6 +223,7 @@ export default function KPIs() {
           </DialogContent>
         </Dialog>
         )}
+        </div>
       </div>
 
       {/* Manual KPI cards */}

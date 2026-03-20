@@ -127,7 +127,7 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 
 export default function Tasks() {
   // SSE "tasks" event in use-live-events.ts invalidates immediately on any task change
-  const { data: tasks, isLoading, isFetching } = useListTasks({ query: { staleTime: 120_000 } });
+  const { data: tasks, isLoading, isFetching } = useListTasks({ query: {} });
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);

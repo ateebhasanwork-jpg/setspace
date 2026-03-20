@@ -28,10 +28,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      refetchOnMount: false,       // Use cached data when navigating between pages
+      refetchOnReconnect: false,   // Don't batch-refetch everything on network reconnect
       retry: false,
-      // Don't refetch queries that were fetched within the last 2 minutes.
-      // SSE events handle real-time invalidation so polling is not needed.
-      staleTime: 120_000,
+      // Data never becomes stale automatically — SSE events handle all invalidation.
+      // Pages only fetch on first load (empty cache) or after explicit mutation/invalidation.
+      staleTime: Infinity,
+      gcTime: 10 * 60_000,        // Keep unused cache in memory for 10 minutes
     }
   }
 });

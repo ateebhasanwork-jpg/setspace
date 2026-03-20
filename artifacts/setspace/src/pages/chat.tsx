@@ -558,7 +558,7 @@ function MentionDropdown({
 function GroupChat({ user, users }: { user: User; users: User[] }) {
   // SSE "messages" event in use-live-events.ts invalidates this query on every new message
   const { data: messages } = useListMessages(undefined, {
-    query: { queryKey: getListMessagesQueryKey(), staleTime: 60_000 },
+    query: { queryKey: getListMessagesQueryKey() },
   });
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
@@ -1126,7 +1126,7 @@ export default function TeamChat() {
 
   // SSE "messages" event invalidates this query instantly — no polling needed
   const { data: groupMessages } = useListMessages(undefined, {
-    query: { queryKey: getListMessagesQueryKey(), staleTime: 60_000 },
+    query: { queryKey: getListMessagesQueryKey() },
   });
 
   useEffect(() => {

@@ -191,9 +191,9 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 const TASK_NOTIF_TYPES = new Set(["task_assigned", "task_status", "task_completed"]);
 
 function useUnreadCounts(): UnreadCounts {
-  // SSE invalidates this query instantly via the "notifications" event
+  // SSE "notifications" event instantly invalidates this query — no polling needed
   const { data: notifications } = useListNotifications({
-    query: { queryKey: getListNotificationsQueryKey(), staleTime: 60_000 }
+    query: { queryKey: getListNotificationsQueryKey() }
   });
   const [dmCount, setDmCount] = useState(0);
   const [location] = useLocation();

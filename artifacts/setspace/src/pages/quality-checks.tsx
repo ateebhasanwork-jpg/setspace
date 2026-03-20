@@ -16,7 +16,7 @@ import { Star, Plus, RefreshCw, Trash2 } from "lucide-react";
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 export default function QualityChecks() {
-  const { data: checks, isLoading } = useListQualityChecks();
+  const { data: checks, isLoading, isFetching } = useListQualityChecks();
   const { data: tasks } = useListTasks();
   const { data: users } = useListUsers();
   const { data: currentUser } = useGetCurrentUser();
@@ -90,10 +90,19 @@ export default function QualityChecks() {
           </p>
         </div>
 
-        {isManager && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: getListQualityChecksQueryKey() })}
+            disabled={isFetching}
+            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+          {isManager && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/20">
                 <Plus className="w-4 h-4 mr-2" /> New Evaluation
               </Button>
             </DialogTrigger>
@@ -199,6 +208,7 @@ export default function QualityChecks() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       {isLoading ? (

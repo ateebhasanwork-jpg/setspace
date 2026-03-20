@@ -74,7 +74,7 @@ function getNotifStyle(type: string): NotifIconConfig {
 export default function Notifications() {
   // SSE "notifications" event in use-live-events.ts invalidates this instantly
   const { data: notifications, isLoading } = useListNotifications({
-    query: { queryKey: getListNotificationsQueryKey(), staleTime: 120_000 },
+    query: { queryKey: getListNotificationsQueryKey() },
   });
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
