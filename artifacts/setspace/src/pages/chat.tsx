@@ -556,8 +556,9 @@ function MentionDropdown({
 }
 
 function GroupChat({ user, users }: { user: User; users: User[] }) {
+  // SSE "messages" event in use-live-events.ts invalidates this query on every new message
   const { data: messages } = useListMessages(undefined, {
-    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 15000 },
+    query: { queryKey: getListMessagesQueryKey(), staleTime: 60_000 },
   });
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<LocalMessage | null>(null);
@@ -947,10 +948,10 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     isInitialRef.current = true;
     setDms([]);
     fetchDMs();
-    const id = setInterval(fetchDMs, 15000);
+    // SSE "dm" event triggers fetchDMs instantly — no polling needed
     const sseHandler = () => fetchDMs();
     window.addEventListener("sse:dm", sseHandler);
-    return () => { clearInterval(id); window.removeEventListener("sse:dm", sseHandler); };
+    return () => { window.removeEventListener("sse:dm", sseHandler); };
   }, [otherUser.id]);
 
 
@@ -1123,9 +1124,9 @@ export default function TeamChat() {
   const lastGroupMsgIdRef = useRef<number | null>(null);
   const groupInitRef = useRef(true);
 
-  // Poll group messages at the parent level so we can track unread even when not in group view
+  // SSE "messages" event invalidates this query instantly — no polling needed
   const { data: groupMessages } = useListMessages(undefined, {
-    query: { queryKey: getListMessagesQueryKey(), refetchInterval: 15000 },
+    query: { queryKey: getListMessagesQueryKey(), staleTime: 60_000 },
   });
 
   useEffect(() => {
@@ -1164,8 +1165,10 @@ export default function TeamChat() {
       } catch {}
     };
     fetchUnread();
-    const id = setInterval(fetchUnread, 15000);
-    return () => clearInterval(id);
+    // React instantly to SSE push — no polling needed
+    const sseHandler = () => fetchUnread();
+    window.addEventListener("sse:dm", sseHandler);
+    return () => window.removeEventListener("sse:dm", sseHandler);
   }, []);
 
   const otherUsers = (users ?? []).filter((u) => u.id !== user?.id);

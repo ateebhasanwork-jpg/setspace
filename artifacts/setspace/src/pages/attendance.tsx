@@ -60,8 +60,9 @@ function LiveTimer({
 export default function Attendance() {
   const queryClient = useQueryClient();
   const { data: records, isLoading } = useListAttendance();
+  // Only refetch on mount and after mutations (clock-in/out invalidates the query)
   const { data: today } = useGetTodayAttendance({
-    query: { queryKey: getGetTodayAttendanceQueryKey(), refetchInterval: 5000 },
+    query: { queryKey: getGetTodayAttendanceQueryKey(), staleTime: 120_000 },
   });
   const { data: currentUser } = useGetCurrentUser();
 

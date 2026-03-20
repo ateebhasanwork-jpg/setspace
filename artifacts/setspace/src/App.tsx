@@ -25,7 +25,15 @@ import TeamManagement from "./pages/team";
 import NotFound from "./pages/not-found";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false } }
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: false,
+      // Don't refetch queries that were fetched within the last 2 minutes.
+      // SSE events handle real-time invalidation so polling is not needed.
+      staleTime: 120_000,
+    }
+  }
 });
 
 function AuthWrapper({ children }: { children: React.ReactNode }) {

@@ -191,8 +191,9 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 const TASK_NOTIF_TYPES = new Set(["task_assigned", "task_status", "task_completed"]);
 
 function useUnreadCounts(): UnreadCounts {
+  // SSE invalidates this query instantly via the "notifications" event
   const { data: notifications } = useListNotifications({
-    query: { queryKey: getListNotificationsQueryKey(), refetchInterval: 15000 }
+    query: { queryKey: getListNotificationsQueryKey(), staleTime: 60_000 }
   });
   const [dmCount, setDmCount] = useState(0);
   const [location] = useLocation();
@@ -206,14 +207,12 @@ function useUnreadCounts(): UnreadCounts {
     } catch {}
   }, []);
 
-  // Fallback poll (SSE handles the real-time part via sse:dm event)
+  // Fetch once on route change (navigating to /chat clears DM badge)
   useEffect(() => {
     checkDmUnread();
-    const id = setInterval(checkDmUnread, 15000);
-    return () => clearInterval(id);
   }, [location, checkDmUnread]);
 
-  // React instantly to SSE push
+  // React instantly to SSE push — no setInterval needed
   useEffect(() => {
     const handler = () => checkDmUnread();
     window.addEventListener("sse:dm", handler);

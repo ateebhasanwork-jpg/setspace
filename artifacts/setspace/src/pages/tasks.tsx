@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw } from "lucide-react";
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null };
 
@@ -126,7 +126,8 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 }
 
 export default function Tasks() {
-  const { data: tasks, isLoading } = useListTasks({ query: { refetchInterval: 10000, refetchIntervalInBackground: true } });
+  // SSE "tasks" event in use-live-events.ts invalidates immediately on any task change
+  const { data: tasks, isLoading, isFetching } = useListTasks({ query: { staleTime: 120_000 } });
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -183,6 +184,7 @@ export default function Tasks() {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
   const refetch = () => queryClient.refetchQueries({ queryKey: getListTasksQueryKey() });
+  const handleRefresh = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
 
   const createMut = useCreateTask({
     mutation: {
@@ -349,9 +351,20 @@ export default function Tasks() {
             </button>
           </div>
 
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="rounded-xl border-white/10 hover:bg-white/5"
+            title="Refresh tasks"
+          >
+            <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
+
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 rounded-xl font-semibold px-6">
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 rounded-xl font-semibold px-6">
                 <Plus className="w-4 h-4 mr-2" /> New Task
               </Button>
             </DialogTrigger>
