@@ -3,12 +3,22 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
+import { recordActivity } from "./lib/idle";
+
 const app: Express = express();
 
 app.use(cors({ credentials: true, origin: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Track last activity so the idle manager can detect when the server
+// has been quiet long enough to let DB connections drain.
+app.use((_req: Request, _res: Response, next: NextFunction) => {
+  recordActivity();
+  next();
+});
+
 app.use(authMiddleware);
 
 // Global auth guard — allow: health, auth/login/callback/logout, mobile auth, public review, and storage objects

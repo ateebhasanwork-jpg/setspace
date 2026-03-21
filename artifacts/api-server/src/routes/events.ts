@@ -21,6 +21,9 @@ router.get("/events", (req, res) => {
 
   addSseClient(res, userId);
 
+  // Send an SSE comment every 30 s to keep the connection alive through
+  // proxies (typical timeout is 60 s).  Reduced from 20 s to cut idle
+  // write overhead by 33 %.
   const heartbeat = setInterval(() => {
     try {
       res.write(":\n\n");
@@ -28,7 +31,7 @@ router.get("/events", (req, res) => {
       removeSseClient(res, userId);
       clearInterval(heartbeat);
     }
-  }, 20000);
+  }, 30_000);
 
   req.on("close", () => {
     removeSseClient(res, userId);

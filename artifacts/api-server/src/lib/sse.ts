@@ -3,6 +3,10 @@ import type { Response } from "express";
 const clients = new Set<Response>();
 const userClients = new Map<string, Set<Response>>();
 
+export function getActiveClientCount(): number {
+  return clients.size;
+}
+
 export function addSseClient(res: Response, userId?: string) {
   clients.add(res);
   if (userId) {
