@@ -1,21 +1,22 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable, usersTable, notificationsTable } from "@workspace/db/schema";
+import { tasksTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
+import { getCachedUsers, getUserMap } from "../lib/cache";
 
 const router: IRouter = Router();
 
 router.get("/tasks", async (req, res) => {
   try {
-    const tasks = await db.select().from(tasksTable).orderBy(tasksTable.createdAt);
-    const users = await db.select().from(usersTable);
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const [tasks, users] = await Promise.all([
+      db.select().from(tasksTable).orderBy(tasksTable.createdAt),
+      getCachedUsers(),
+    ]);
+    const userMap = getUserMap(users);
     const result = tasks.map(t => {
-      // Compare date-only (YYYY-MM-DD) so completing at any time on the
-      // deadline day counts as on time, not late.
       const completedOnTime =
         t.completedAt != null && t.dueDate != null
           ? t.completedAt.toISOString().slice(0, 10) <= t.dueDate.toISOString().slice(0, 10)
@@ -75,10 +76,7 @@ router.get("/tasks/:taskId", async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
     const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
-    if (!task) {
-      res.status(404).json({ error: "Task not found" });
-      return;
-    }
+    if (!task) { res.status(404).json({ error: "Task not found" }); return; }
     res.json({ ...task, createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to get task" });
@@ -97,14 +95,10 @@ router.patch("/tasks/:taskId", async (req, res) => {
     if (attachmentName !== undefined) updates.attachmentName = attachmentName || null;
     if (status !== undefined) {
       updates.status = status;
-      // Auto-set completedAt when task is marked Done
       if (status === "Done") {
-        const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, parseInt(String(req.params.taskId))));
-        if (existing[0] && !existing[0].completedAt) {
-          updates.completedAt = new Date();
-        }
-      } else if (status !== "Done") {
-        // If un-done, clear completedAt
+        const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+        if (existing[0] && !existing[0].completedAt) updates.completedAt = new Date();
+      } else {
         updates.completedAt = null;
       }
     }
@@ -115,14 +109,10 @@ router.patch("/tasks/:taskId", async (req, res) => {
 
     const [existing] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
     const [updated] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, id)).returning();
-    if (!updated) {
-      res.status(404).json({ error: "Task not found" });
-      return;
-    }
+    if (!updated) { res.status(404).json({ error: "Task not found" }); return; }
 
     const newAssignee = assigneeId !== undefined ? assigneeId : null;
     const prevAssignee = existing?.assigneeId ?? null;
-
     if (newAssignee && newAssignee !== prevAssignee && newAssignee !== req.user!.id) {
       notifyUser(newAssignee, { type: "task_assigned", title: "Task Assigned to You", body: `You've been assigned: "${updated.title}"`, linkUrl: "/tasks" }).catch(() => {});
     }

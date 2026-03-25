@@ -920,26 +920,39 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
 
   const fetchDMs = async () => {
     try {
-      const res = await fetch(`${BASE}/api/dm/${otherUser.id}`, { credentials: "include" });
+      const isInitial = isInitialRef.current;
+      // On SSE updates (not the first load), only fetch messages newer than the last seen id
+      const sinceId = isInitial ? null : lastSeenIdRef.current;
+      const url = sinceId !== null
+        ? `${BASE}/api/dm/${otherUser.id}?since=${sinceId}`
+        : `${BASE}/api/dm/${otherUser.id}`;
+
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) return;
       const data = (await res.json()) as DM[];
+
       setDms((prev) => {
-        if (isInitialRef.current) {
+        if (isInitial) {
           isInitialRef.current = false;
           if (data.length) lastSeenIdRef.current = data[data.length - 1].id;
-          // Scroll after React has painted the messages
           setTimeout(() => scrollToBottom(false), 60);
           return data;
         }
-        const newFromOther = data.filter(
-          (m) => m.senderId === otherUser.id && m.id > (lastSeenIdRef.current ?? 0)
-        );
+
+        // Incremental update: data only contains truly new messages
+        if (data.length === 0) return prev;
+
+        const newFromOther = data.filter(m => m.senderId === otherUser.id);
         if (newFromOther.length > 0) {
           playMessageSound();
           if (isNearBottom()) scrollToBottom();
         }
         if (data.length) lastSeenIdRef.current = data[data.length - 1].id;
-        return data;
+
+        // Append new messages, guard against duplicates from optimistic updates
+        const existingIds = new Set(prev.filter(m => m.id > 0).map(m => m.id));
+        const toAdd = data.filter(m => !existingIds.has(m.id));
+        return toAdd.length > 0 ? [...prev.filter(m => m.id > 0 || m._optimistic), ...toAdd] : prev;
       });
     } catch {}
   };

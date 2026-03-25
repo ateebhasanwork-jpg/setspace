@@ -5,9 +5,20 @@ import { getListMessagesQueryKey, getListTasksQueryKey, getListNotificationsQuer
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 /**
- * Connects to the SSE /api/events stream and invalidates the relevant React Query
- * caches the instant the server pushes an event. Falls back gracefully with
- * exponential-backoff reconnect so a blip never leaves the app stale.
+ * Connects to the SSE /api/events stream and reacts to push events.
+ *
+ * Group messages:
+ *   Instead of invalidating the full list (which refetches all 50 messages),
+ *   we read the last known message id from the cache and only fetch
+ *   GET /api/messages?since=<lastId> — returning only new rows.
+ *   The result is merged into the existing cache without a full refetch.
+ *
+ * DM events:
+ *   Dispatched as a custom window event so DMConversation can do its own
+ *   incremental ?since= fetch, keeping the full DM list in local state.
+ *
+ * All other events (tasks, notifications):
+ *   Standard query invalidation — those datasets are small and infrequent.
  */
 export function useLiveEvents() {
   const queryClient = useQueryClient();
@@ -24,17 +35,43 @@ export function useLiveEvents() {
         retryDelay = 1000;
       });
 
-      es.addEventListener("messages", () => {
+      es.addEventListener("messages", async () => {
+        // Read the current cached group messages to find the last id
+        const cached = queryClient.getQueryData<Array<{ id: number }>>(getListMessagesQueryKey());
+        const lastId = cached && cached.length > 0 ? cached[cached.length - 1].id : null;
+
+        if (lastId && lastId > 0) {
+          try {
+            const res = await fetch(`${BASE}/api/messages?since=${lastId}`, { credentials: "include" });
+            if (res.ok) {
+              const newMessages = (await res.json()) as Array<{ id: number }>;
+              if (newMessages.length > 0) {
+                queryClient.setQueryData(
+                  getListMessagesQueryKey(),
+                  (old: Array<{ id: number }> | undefined) => {
+                    if (!old) return newMessages;
+                    const existingIds = new Set(old.map(m => m.id));
+                    const toAdd = newMessages.filter(m => !existingIds.has(m.id));
+                    return toAdd.length > 0 ? [...old, ...toAdd] : old;
+                  }
+                );
+              }
+              return;
+            }
+          } catch {
+            // fall through to invalidation
+          }
+        }
+
+        // Fallback: full invalidation (handles first load or fetch failure)
         queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
       });
 
       es.addEventListener("dm", (e) => {
-        // Let DMConversation / unread counters react without a raw setInterval round-trip
         try {
           const data = JSON.parse(e.data) as { senderId?: string; receiverId?: string };
           window.dispatchEvent(new CustomEvent("sse:dm", { detail: data }));
         } catch {}
-        // Also invalidate DM unread badge
         queryClient.invalidateQueries({ queryKey: ["dm-unread"] });
       });
 
