@@ -1,17 +1,20 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { qualityChecksTable, usersTable } from "@workspace/db/schema";
+import { qualityChecksTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { notifyUser } from "../lib/notify";
+import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
 
 router.get("/quality-checks", async (req, res) => {
   try {
-    const checks = await db.select().from(qualityChecksTable).orderBy(qualityChecksTable.createdAt);
-    const users = await db.select().from(usersTable);
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const [checks, users] = await Promise.all([
+      db.select().from(qualityChecksTable).orderBy(qualityChecksTable.createdAt),
+      getCachedUsers(),
+    ]);
+    const userMap = getUserMap(users);
     let result = checks.map(c => ({
       ...c,
       createdAt: c.createdAt.toISOString(),
@@ -51,6 +54,9 @@ router.post("/quality-checks", requireAdminOrHR, async (req, res) => {
       }).catch(() => {});
     }
 
+    // Quality data affects leaderboard scores
+    invalidateByPrefix("leaderboard:");
+
     res.status(201).json({ ...check, createdAt: check.createdAt.toISOString(), updatedAt: check.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to create quality check" });
@@ -69,10 +75,7 @@ router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
 
     const [existing] = await db.select().from(qualityChecksTable).where(eq(qualityChecksTable.id, id));
     const [updated] = await db.update(qualityChecksTable).set(updates).where(eq(qualityChecksTable.id, id)).returning();
-    if (!updated) {
-      res.status(404).json({ error: "Quality check not found" });
-      return;
-    }
+    if (!updated) { res.status(404).json({ error: "Quality check not found" }); return; }
 
     if (existing && updated.submitterId !== req.user!.id) {
       const ratingChanged = rating !== undefined && rating !== existing.rating;
@@ -89,6 +92,8 @@ router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
       }
     }
 
+    invalidateByPrefix("leaderboard:");
+
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
     res.status(500).json({ error: "Failed to update quality check" });
@@ -99,6 +104,7 @@ router.delete("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => 
   try {
     const id = parseInt(String(req.params.checkId));
     await db.delete(qualityChecksTable).where(eq(qualityChecksTable.id, id));
+    invalidateByPrefix("leaderboard:");
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete quality check" });

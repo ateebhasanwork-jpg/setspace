@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
-import { getCachedUsers, getUserMap } from "../lib/cache";
+import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -126,6 +126,11 @@ router.patch("/tasks/:taskId", async (req, res) => {
 
     if (status === "Done" && existing?.status !== "Done" && updated.createdById && updated.createdById !== req.user!.id) {
       notifyUser(updated.createdById, { type: "task_completed", title: "Task Completed", body: `"${updated.title}" has been marked as done.`, linkUrl: "/tasks" }).catch(() => {});
+    }
+
+    // Task completion affects on-time scores on the leaderboard
+    if (status === "Done" || (completedAt !== undefined)) {
+      invalidateByPrefix("leaderboard:");
     }
 
     broadcastSse("tasks", { action: "updated", taskId: updated.id });

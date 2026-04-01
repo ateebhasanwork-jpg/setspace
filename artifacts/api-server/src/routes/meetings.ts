@@ -1,11 +1,15 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { meetingsTable, meetingAttendeesTable, usersTable, notificationsTable } from "@workspace/db/schema";
+import { meetingsTable, meetingAttendeesTable, notificationsTable } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import nodemailer from "nodemailer";
 import { requireAdminOrHR } from "../middleware/roles";
+import { getCachedUsers, getCachedUser, getUserMap, getCached, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
+
+const MEETINGS_CACHE_KEY = "meetings";
+const MEETINGS_TTL_MS = 60_000;
 
 async function sendMeetingEmail(toEmail: string, name: string, meeting: { title: string; scheduledAt: Date; description?: string | null; meetingUrl?: string | null }) {
   if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
@@ -35,30 +39,62 @@ async function sendMeetingEmail(toEmail: string, name: string, meeting: { title:
   }
 }
 
-async function getMeetingWithAttendees(meetingId: number) {
-  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, meetingId));
-  if (!meeting) return null;
-  const attendeeRows = await db.select().from(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, meetingId));
-  const attendeeIds = attendeeRows.map(a => a.userId);
-  const attendees = attendeeIds.length > 0 ? await db.select().from(usersTable).where(inArray(usersTable.id, attendeeIds)) : [];
-  const [organizer] = await db.select().from(usersTable).where(eq(usersTable.id, meeting.organizerId));
-  return {
-    ...meeting,
-    scheduledAt: meeting.scheduledAt.toISOString(),
-    createdAt: meeting.createdAt.toISOString(),
-    updatedAt: meeting.updatedAt.toISOString(),
-    organizer: organizer ? { ...organizer, createdAt: organizer.createdAt.toISOString(), updatedAt: organizer.updatedAt.toISOString() } : null,
-    attendees: attendees.map(u => ({ ...u, createdAt: u.createdAt.toISOString(), updatedAt: u.updatedAt.toISOString() }))
-  };
+/**
+ * Bulk-load all meetings with attendees and organizers.
+ *
+ * Before: getMeetingWithAttendees() called per-meeting = 3 queries × N meetings.
+ * After : 3 bulk queries total, joined in JS, result cached 60 s.
+ */
+async function loadAllMeetings() {
+  const [meetings, allAttendeeRows, users] = await Promise.all([
+    db.select().from(meetingsTable).orderBy(meetingsTable.scheduledAt),
+    db.select().from(meetingAttendeesTable),
+    getCachedUsers(),
+  ]);
+
+  const userMap = getUserMap(users);
+
+  // Group attendee rows by meetingId
+  const attendeesByMeeting: Record<number, string[]> = {};
+  for (const row of allAttendeeRows) {
+    if (!attendeesByMeeting[row.meetingId]) attendeesByMeeting[row.meetingId] = [];
+    attendeesByMeeting[row.meetingId].push(row.userId);
+  }
+
+  return meetings.map(m => ({
+    ...m,
+    scheduledAt: m.scheduledAt.toISOString(),
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+    organizer: userMap[m.organizerId] ?? null,
+    attendees: (attendeesByMeeting[m.id] ?? []).map(uid => userMap[uid]).filter(Boolean),
+  }));
 }
 
+/**
+ * GET /api/meetings
+ * Served from 60-second cache. First request of each minute hits DB (3 queries);
+ * all subsequent requests within the window hit memory.
+ */
 router.get("/meetings", async (req, res) => {
   try {
-    const meetings = await db.select().from(meetingsTable).orderBy(meetingsTable.scheduledAt);
-    const result = await Promise.all(meetings.map(m => getMeetingWithAttendees(m.id)));
-    res.json(result.filter(Boolean));
+    const data = await getCached(MEETINGS_CACHE_KEY, MEETINGS_TTL_MS, loadAllMeetings);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to list meetings" });
+  }
+});
+
+router.get("/meetings/:meetingId", async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.meetingId));
+    // Pull from the cached list when possible
+    const cached = await getCached(MEETINGS_CACHE_KEY, MEETINGS_TTL_MS, loadAllMeetings);
+    const meeting = (cached as Array<{ id: number }>).find(m => m.id === id);
+    if (!meeting) { res.status(404).json({ error: "Meeting not found" }); return; }
+    res.json(meeting);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to get meeting" });
   }
 });
 
@@ -77,8 +113,9 @@ router.post("/meetings", requireAdminOrHR, async (req, res) => {
       await db.insert(meetingAttendeesTable).values(
         attendeeIds.map((uid: string) => ({ meetingId: meeting.id, userId: uid }))
       );
-      const attendees = await db.select().from(usersTable).where(inArray(usersTable.id, attendeeIds));
-      for (const attendee of attendees) {
+      const users = await getCachedUsers();
+      const invitedUsers = users.filter(u => (attendeeIds as string[]).includes(u.id));
+      await Promise.all(invitedUsers.map(async attendee => {
         await db.insert(notificationsTable).values({
           userId: attendee.id,
           type: "meeting_invite",
@@ -87,29 +124,30 @@ router.post("/meetings", requireAdminOrHR, async (req, res) => {
           linkUrl: `/meetings`
         });
         if (attendee.email) {
-          await sendMeetingEmail(attendee.email, attendee.firstName, {
+          sendMeetingEmail(attendee.email, attendee.firstName, {
             title, scheduledAt: new Date(scheduledAt), description, meetingUrl
           });
         }
-      }
+      }));
     }
-    const result = await getMeetingWithAttendees(meeting.id);
-    res.status(201).json(result);
+
+    invalidateResult(MEETINGS_CACHE_KEY);
+
+    // Build and return the new meeting shape
+    const organizer = await getCachedUser(req.user!.id);
+    const users = await getCachedUsers();
+    const userMap = getUserMap(users);
+    const attendees = (attendeeIds ?? []).map((uid: string) => userMap[uid]).filter(Boolean);
+    res.status(201).json({
+      ...meeting,
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      createdAt: meeting.createdAt.toISOString(),
+      updatedAt: meeting.updatedAt.toISOString(),
+      organizer: organizer ?? null,
+      attendees,
+    });
   } catch (err) {
     res.status(500).json({ error: "Failed to create meeting" });
-  }
-});
-
-router.get("/meetings/:meetingId", async (req, res) => {
-  try {
-    const result = await getMeetingWithAttendees(parseInt(String(req.params.meetingId)));
-    if (!result) {
-      res.status(404).json({ error: "Meeting not found" });
-      return;
-    }
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to get meeting" });
   }
 });
 
@@ -134,37 +172,39 @@ router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
       }
     }
 
-    // Always notify all current attendees about any meaningful update
     const meaningfulChange = title !== undefined || scheduledAt !== undefined || duration !== undefined || meetingUrl !== undefined || description !== undefined || attendeeIds !== undefined;
     if (meaningfulChange) {
       const [updatedMeeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
       const currentAttendeeRows = await db.select({ userId: meetingAttendeesTable.userId }).from(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, id));
       const currentAttendeeIds = currentAttendeeRows.map(r => r.userId);
       if (currentAttendeeIds.length > 0) {
-        const attendees = await db.select().from(usersTable).where(inArray(usersTable.id, currentAttendeeIds));
-        for (const attendee of attendees) {
+        const users = await getCachedUsers();
+        const attendees = users.filter(u => currentAttendeeIds.includes(u.id));
+        await Promise.all(attendees.map(async attendee => {
           await db.insert(notificationsTable).values({
             userId: attendee.id,
             type: "meeting_invite",
             title: `Meeting Updated: ${updatedMeeting?.title ?? ""}`,
-            body: scheduledAt
-              ? `Rescheduled to ${new Date(scheduledAt).toLocaleString()}`
-              : `Meeting details have been updated`,
+            body: scheduledAt ? `Rescheduled to ${new Date(scheduledAt).toLocaleString()}` : `Meeting details have been updated`,
             linkUrl: `/meetings`
           });
-          if (attendee.email) {
-            await sendMeetingEmail(attendee.email, attendee.firstName, {
-              title: updatedMeeting?.title ?? "",
-              scheduledAt: updatedMeeting?.scheduledAt ?? new Date(),
-              description: updatedMeeting?.description,
-              meetingUrl: updatedMeeting?.meetingUrl
+          if (attendee.email && updatedMeeting) {
+            sendMeetingEmail(attendee.email, attendee.firstName, {
+              title: updatedMeeting.title ?? "",
+              scheduledAt: updatedMeeting.scheduledAt ?? new Date(),
+              description: updatedMeeting.description,
+              meetingUrl: updatedMeeting.meetingUrl,
             });
           }
-        }
+        }));
       }
     }
 
-    const result = await getMeetingWithAttendees(id);
+    invalidateResult(MEETINGS_CACHE_KEY);
+
+    // Return updated meeting from a fresh load
+    const freshAll = await loadAllMeetings();
+    const result = freshAll.find(m => m.id === id) ?? null;
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Failed to update meeting" });
@@ -173,8 +213,10 @@ router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
 
 router.delete("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
   try {
-    await db.delete(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, parseInt(String(req.params.meetingId))));
-    await db.delete(meetingsTable).where(eq(meetingsTable.id, parseInt(String(req.params.meetingId))));
+    const id = parseInt(String(req.params.meetingId));
+    await db.delete(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, id));
+    await db.delete(meetingsTable).where(eq(meetingsTable.id, id));
+    invalidateResult(MEETINGS_CACHE_KEY);
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete meeting" });

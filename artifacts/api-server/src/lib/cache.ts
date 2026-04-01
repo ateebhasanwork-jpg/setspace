@@ -1,16 +1,25 @@
 /**
- * Lightweight in-memory cache for hot, infrequently-changing data.
+ * Shared in-memory cache for the API server.
  *
- * Users are queried on nearly every message/DM/task route.  A 60-second
- * cache eliminates the vast majority of those redundant round-trips.
+ * Two layers:
+ *   1. User cache  (60 s TTL) — eliminates redundant users SELECT on every route.
+ *   2. Result cache (configurable TTL) — caches full shaped API responses so
+ *      multiple users hitting the same endpoint in the same window share a
+ *      single DB round-trip instead of each paying separately.
  *
- * Call invalidateUsers() whenever a user record is written so the next
- * request gets fresh data.
+ * Invalidation rules:
+ *   • User writes (PATCH/DELETE /users)   → invalidateUsers()
+ *   • Task writes                         → invalidateResult("tasks"), invalidateByPrefix("leaderboard:")
+ *   • Quality check writes                → invalidateByPrefix("leaderboard:"), invalidateResult("quality-checks")
+ *   • Attendance writes                   → invalidateByPrefix("leaderboard:")
+ *   • KPI entry writes                    → invalidateByPrefix("leaderboard:")
+ *   • Meeting writes                      → invalidateResult("meetings")
  */
 
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+
+// ─── User cache ──────────────────────────────────────────────────────────────
 
 export type CachedUser = {
   id: string;
@@ -29,7 +38,7 @@ const USER_TTL_MS = 60_000;
 let usersCache: CachedUser[] | null = null;
 let usersCachedAt = 0;
 
-const SELECTED = {
+const USER_FIELDS = {
   id: usersTable.id,
   username: usersTable.username,
   firstName: usersTable.firstName,
@@ -43,7 +52,7 @@ const SELECTED = {
 
 export async function getCachedUsers(): Promise<CachedUser[]> {
   if (usersCache && Date.now() - usersCachedAt < USER_TTL_MS) return usersCache;
-  const rows = await db.select(SELECTED).from(usersTable);
+  const rows = await db.select(USER_FIELDS).from(usersTable);
   usersCache = rows as CachedUser[];
   usersCachedAt = Date.now();
   return usersCache;
@@ -65,4 +74,46 @@ export function invalidateUsers(): void {
 export function displayName(u: CachedUser | null | undefined): string {
   if (!u) return "Someone";
   return [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || "Someone";
+}
+
+// ─── Result cache ─────────────────────────────────────────────────────────────
+
+interface CacheEntry {
+  data: unknown;
+  cachedAt: number;
+  ttl: number;
+}
+
+const resultStore = new Map<string, CacheEntry>();
+
+/**
+ * Fetch from result cache or compute fresh.
+ *
+ * @param key    Cache key (e.g. "meetings", "leaderboard:2025-11")
+ * @param ttlMs  How long to keep the entry (milliseconds)
+ * @param fetch  Async function to produce fresh data when cache is cold
+ */
+export async function getCached<T>(
+  key: string,
+  ttlMs: number,
+  fetch: () => Promise<T>
+): Promise<T> {
+  const entry = resultStore.get(key);
+  if (entry && Date.now() - entry.cachedAt < entry.ttl) {
+    return entry.data as T;
+  }
+  const data = await fetch();
+  resultStore.set(key, { data, cachedAt: Date.now(), ttl: ttlMs });
+  return data;
+}
+
+export function invalidateResult(key: string): void {
+  resultStore.delete(key);
+}
+
+/** Invalidate all cache entries whose key starts with the given prefix. */
+export function invalidateByPrefix(prefix: string): void {
+  for (const key of resultStore.keys()) {
+    if (key.startsWith(prefix)) resultStore.delete(key);
+  }
 }

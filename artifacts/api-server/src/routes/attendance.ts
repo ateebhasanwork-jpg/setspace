@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { attendanceTable, usersTable } from "@workspace/db/schema";
+import { attendanceTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
+import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -13,7 +14,6 @@ function todayStr() {
 function computeTotalSeconds(r: typeof attendanceTable.$inferSelect): number {
   const base = r.accumulatedSeconds ?? 0;
   if (!r.clockOut) {
-    // Currently clocked in — add live session
     const sessionStart = r.lastClockIn ?? r.clockIn;
     const elapsed = Math.floor((Date.now() - sessionStart.getTime()) / 1000);
     return base + elapsed;
@@ -33,33 +33,36 @@ function formatRecord(r: typeof attendanceTable.$inferSelect) {
   };
 }
 
+/**
+ * GET /api/attendance[?userId=<id>][?date=<YYYY-MM-DD>]
+ * Filters pushed to DB instead of fetching everything then filtering in JS.
+ */
 router.get("/attendance", async (req, res) => {
   try {
-    const records = await db.select().from(attendanceTable).orderBy(attendanceTable.date);
-    const users = await db.select().from(usersTable);
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
-    let result = records.map(r => ({ ...formatRecord(r), user: userMap[r.userId] ?? null }));
-    if (req.query.userId) result = result.filter(r => r.userId === req.query.userId);
-    if (req.query.date) result = result.filter(r => r.date === req.query.date);
-    res.json(result);
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (req.query.userId) conditions.push(eq(attendanceTable.userId, req.query.userId as string));
+    if (req.query.date) conditions.push(eq(attendanceTable.date, req.query.date as string));
+
+    const [records, users] = await Promise.all([
+      conditions.length > 0
+        ? db.select().from(attendanceTable).where(and(...conditions)).orderBy(attendanceTable.date)
+        : db.select().from(attendanceTable).orderBy(attendanceTable.date),
+      getCachedUsers(),
+    ]);
+
+    const userMap = getUserMap(users);
+    res.json(records.map(r => ({ ...formatRecord(r), user: userMap[r.userId] ?? null })));
   } catch (err) {
     res.status(500).json({ error: "Failed to list attendance" });
   }
 });
 
 router.get("/attendance/today", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
-    const today = todayStr();
     const [record] = await db.select().from(attendanceTable)
-      .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
-    if (!record) {
-      res.status(404).json({ error: "No attendance record for today" });
-      return;
-    }
+      .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, todayStr())));
+    if (!record) { res.status(404).json({ error: "No attendance record for today" }); return; }
     res.json(formatRecord(record));
   } catch (err) {
     res.status(500).json({ error: "Failed to get today's attendance" });
@@ -67,17 +70,13 @@ router.get("/attendance/today", async (req, res) => {
 });
 
 router.post("/attendance/clock-in", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     const today = todayStr();
     const [existing] = await db.select().from(attendanceTable)
       .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
 
     if (!existing) {
-      // First clock-in of the day
       const now = new Date();
       const [record] = await db.insert(attendanceTable).values({
         userId: req.user.id,
@@ -87,23 +86,19 @@ router.post("/attendance/clock-in", async (req, res) => {
         status: "present",
         accumulatedSeconds: 0,
       }).returning();
+      invalidateByPrefix("leaderboard:");
       res.status(201).json(formatRecord(record));
       return;
     }
 
-    if (!existing.clockOut) {
-      // Already actively clocked in
-      res.status(400).json({ error: "Already clocked in" });
-      return;
-    }
+    if (!existing.clockOut) { res.status(400).json({ error: "Already clocked in" }); return; }
 
-    // Re-clock-in: resume the day — keep clockIn (first clock-in for on-time tracking)
-    // but update lastClockIn to now and clear clockOut
     const now = new Date();
     const [updated] = await db.update(attendanceTable)
       .set({ lastClockIn: now, clockOut: null })
       .where(eq(attendanceTable.id, existing.id))
       .returning();
+    invalidateByPrefix("leaderboard:");
     res.json(formatRecord(updated));
   } catch (err) {
     res.status(500).json({ error: "Failed to clock in" });
@@ -111,24 +106,14 @@ router.post("/attendance/clock-in", async (req, res) => {
 });
 
 router.post("/attendance/clock-out", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     const today = todayStr();
     const [existing] = await db.select().from(attendanceTable)
       .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
-    if (!existing) {
-      res.status(404).json({ error: "No clock-in found for today" });
-      return;
-    }
-    if (existing.clockOut) {
-      res.status(400).json({ error: "Already clocked out" });
-      return;
-    }
+    if (!existing) { res.status(404).json({ error: "No clock-in found for today" }); return; }
+    if (existing.clockOut) { res.status(400).json({ error: "Already clocked out" }); return; }
 
-    // Compute how long this session lasted and add to accumulated
     const sessionStart = existing.lastClockIn ?? existing.clockIn;
     const now = new Date();
     const sessionSeconds = Math.floor((now.getTime() - sessionStart.getTime()) / 1000);
@@ -138,6 +123,7 @@ router.post("/attendance/clock-out", async (req, res) => {
       .set({ clockOut: now, accumulatedSeconds: newAccumulated })
       .where(eq(attendanceTable.id, existing.id))
       .returning();
+    invalidateByPrefix("leaderboard:");
     res.json(formatRecord(updated));
   } catch (err) {
     res.status(500).json({ error: "Failed to clock out" });
@@ -146,8 +132,8 @@ router.post("/attendance/clock-out", async (req, res) => {
 
 router.delete("/attendance/:id", requireAdminOrHR, async (req, res) => {
   try {
-    const id = parseInt(String(req.params.id));
-    await db.delete(attendanceTable).where(eq(attendanceTable.id, id));
+    await db.delete(attendanceTable).where(eq(attendanceTable.id, parseInt(String(req.params.id))));
+    invalidateByPrefix("leaderboard:");
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete attendance record" });
