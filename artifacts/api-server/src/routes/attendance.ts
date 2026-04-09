@@ -7,6 +7,14 @@ import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
 
+// All employee schedules are in Pakistan Standard Time (UTC+5)
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+/** Day-of-week (0=Sun … 6=Sat) in PKT for any UTC Date */
+function pktDow(d: Date): number {
+  return new Date(d.getTime() + PKT_OFFSET_MS).getUTCDay();
+}
+
 function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
@@ -29,12 +37,18 @@ function computeLate(
 ): { isLate: boolean; lateMinutes: number } {
   if (!slot) return { isLate: false, lateMinutes: 0 };
 
-  // Build scheduled time for the same calendar date as clockIn
-  const scheduled = new Date(clockIn);
-  scheduled.setHours(slot.loginHour, slot.loginMinute, 0, 0);
+  // Shift clock-in to PKT so we work in the employee's local calendar date
+  const clockInPKT = new Date(clockIn.getTime() + PKT_OFFSET_MS);
 
-  const diffSeconds = (clockIn.getTime() - scheduled.getTime()) / 1000;
-  const isLate = diffSeconds > 10 * 60; // >10 min late
+  // Build the scheduled moment in PKT: same PKT calendar date, loginHour:loginMinute
+  const scheduledPKT = new Date(clockInPKT);
+  scheduledPKT.setUTCHours(slot.loginHour, slot.loginMinute, 0, 0);
+
+  // Convert back to real UTC for comparison
+  const scheduledUTC = new Date(scheduledPKT.getTime() - PKT_OFFSET_MS);
+
+  const diffSeconds = (clockIn.getTime() - scheduledUTC.getTime()) / 1000;
+  const isLate = diffSeconds > 10 * 60; // >10 min grace
   const lateMinutes = isLate ? Math.round(diffSeconds / 60) : 0;
   return { isLate, lateMinutes };
 }
@@ -85,7 +99,7 @@ router.get("/attendance", async (req, res) => {
 
     const userMap = getUserMap(users);
     res.json(records.map(r => {
-      const dow = r.clockIn.getDay();
+      const dow = pktDow(r.clockIn);
       const slot = slotMap[`${r.userId}:${dow}`];
       return { ...formatRecord(r, slot), user: userMap[r.userId] ?? null };
     }));
@@ -101,7 +115,7 @@ router.get("/attendance/today", async (req, res) => {
       .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, todayStr())));
     if (!record) { res.status(404).json({ error: "No attendance record for today" }); return; }
 
-    const dow = record.clockIn.getDay();
+    const dow = pktDow(record.clockIn);
     const [slot] = await db.select().from(scheduleSlotsTable)
       .where(and(eq(scheduleSlotsTable.userId, req.user.id), eq(scheduleSlotsTable.dayOfWeek, dow)));
     res.json(formatRecord(record, slot));
@@ -118,7 +132,7 @@ router.post("/attendance/clock-in", async (req, res) => {
       .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
 
     const now = new Date();
-    const dow = now.getDay();
+    const dow = pktDow(now);
     const [slot] = await db.select().from(scheduleSlotsTable)
       .where(and(eq(scheduleSlotsTable.userId, req.user.id), eq(scheduleSlotsTable.dayOfWeek, dow)));
 
@@ -176,7 +190,7 @@ router.post("/attendance/clock-out", async (req, res) => {
       .returning();
     invalidateByPrefix("leaderboard:");
 
-    const dow = updated.clockIn.getDay();
+    const dow = pktDow(updated.clockIn);
     const [slot] = await db.select().from(scheduleSlotsTable)
       .where(and(eq(scheduleSlotsTable.userId, req.user.id), eq(scheduleSlotsTable.dayOfWeek, dow)));
     res.json(formatRecord(updated, slot));

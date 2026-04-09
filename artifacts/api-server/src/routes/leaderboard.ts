@@ -6,6 +6,10 @@ import { getCachedUsers, getCached, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
 
+// All employee schedules are in Pakistan Standard Time (UTC+5)
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
+function pktDow(d: Date): number { return new Date(d.getTime() + PKT_OFFSET_MS).getUTCDay(); }
+
 /**
  * GET /api/leaderboard?month=<1-12>&year=<YYYY>
  *
@@ -105,13 +109,16 @@ router.get("/leaderboard", async (req, res) => {
         let onTimeLogins = 0;
         let scheduledLoginDays = 0;
         for (const rec of attendanceRecords) {
-          const dow = rec.clockIn.getDay();
+          const dow = pktDow(rec.clockIn);
           const slot = slotMap[`${user.id}:${dow}`];
           if (!slot) continue; // no schedule for this day → skip
           scheduledLoginDays++;
-          const scheduled = new Date(rec.clockIn);
-          scheduled.setHours(slot.loginHour, slot.loginMinute, 0, 0);
-          const diffSeconds = (rec.clockIn.getTime() - scheduled.getTime()) / 1000;
+          // Build scheduled time in PKT, then convert to UTC for comparison
+          const clockInPKT = new Date(rec.clockIn.getTime() + PKT_OFFSET_MS);
+          const scheduledPKT = new Date(clockInPKT);
+          scheduledPKT.setUTCHours(slot.loginHour, slot.loginMinute, 0, 0);
+          const scheduledUTC = new Date(scheduledPKT.getTime() - PKT_OFFSET_MS);
+          const diffSeconds = (rec.clockIn.getTime() - scheduledUTC.getTime()) / 1000;
           if (diffSeconds <= 10 * 60) onTimeLogins++;
         }
         const punctualityScore = scheduledLoginDays > 0
