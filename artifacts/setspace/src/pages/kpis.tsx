@@ -89,16 +89,17 @@ function PersonalPerformanceView({ userId, firstName, month, year }: {
       .filter(a => { const dt = new Date(a.date); return dt >= startDate && dt <= endDate; })
       .map(a => a.date)
   );
-  let absences = 0;
+  const absentDates: string[] = [];
   const c2 = new Date(startDate);
   while (c2 <= endDate) {
     const dow = c2.getDay();
     if (dow !== 0 && dow !== 6) {
       const ds = c2.toISOString().split("T")[0];
-      if (!presentDates.has(ds)) absences++;
+      if (!presentDates.has(ds)) absentDates.push(ds);
     }
     c2.setDate(c2.getDate() + 1);
   }
+  const absences = absentDates.length;
 
   const kpiTriggered = lateTasks.length >= 2;
   const depTriggered = absences >= 2;
@@ -144,6 +145,16 @@ function PersonalPerformanceView({ userId, firstName, month, year }: {
           <p className="text-xs text-muted-foreground pt-1">
             {workingDays - absences} / {workingDays} working days attended
           </p>
+          {absentDates.length > 0 && (
+            <ul className="space-y-1.5 pt-1">
+              {absentDates.map(ds => (
+                <li key={ds} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <XCircle className="w-3 h-3 text-orange-400 shrink-0" />
+                  <span>{new Date(ds + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
       {!kpiTriggered && !depTriggered && (
