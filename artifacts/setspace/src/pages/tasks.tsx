@@ -677,6 +677,18 @@ export default function Tasks() {
                         {showArchived ? "Hide old" : `+${archivedCount} older`}
                       </button>
                     )}
+                    {col === "Done" && allColTasks.length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (!confirm(`Delete all ${allColTasks.length} done task(s)? This cannot be undone.`)) return;
+                          allColTasks.forEach(t => deleteMut.mutate({ taskId: t.id }));
+                        }}
+                        className="text-[10px] text-red-400/70 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full transition-colors flex items-center gap-1"
+                        title="Delete all done tasks"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" /> Clear all
+                      </button>
+                    )}
                     <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
                       {colTasks.length}
                     </span>
@@ -700,12 +712,27 @@ export default function Tasks() {
                         >
                           {task.priority}
                         </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEdit(task); }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 text-muted-foreground"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {task.status === "Done" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!confirm("Delete this task? This cannot be undone.")) return;
+                                deleteMut.mutate({ taskId: task.id });
+                              }}
+                              className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+                              title="Delete task"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(task); }}
+                            className="p-1 rounded hover:bg-white/10 text-muted-foreground"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                       <h4 className="font-medium text-foreground leading-snug mb-2">{task.title}</h4>
 

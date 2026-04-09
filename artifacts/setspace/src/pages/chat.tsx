@@ -49,7 +49,7 @@ interface DM {
 }
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
-const ZOOM_QUICK_MEETING_URL = "https://us05web.zoom.us/meeting/tZUkf-2gpz8iEtc1cmy7l7cvxF88n8TPHydo/ics?icsToken=DGJzs6D62_X75jvOfgAALAAAABVf19RzeCNlQbzYkc8k1Tmcx2fe1bRZjhX7erBh1aRxHPaZGloO5Vq-v2y5YTz1rs7VLH2t_44aMz31jjAwMDAwMQ&meetingMasterEventId=9RGNBXoyTyqBFzqs5mKr4g";
+const ZOOM_QUICK_MEETING_URL = "https://us05web.zoom.us/j/81984894883?pwd=yfzSWbj8RbIHi78wy9rjA0gSs7xJWY.1";
 
 function resolveProfileImage(url: string | null | undefined): string | null {
   if (!url) return null;
