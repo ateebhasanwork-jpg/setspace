@@ -69,17 +69,23 @@ router.get("/leaderboard", async (req, res) => {
         // ── On-time tasks (40%) ──
         const tasks = tasksByUser[user.id] ?? [];
         const completedTasks = tasks.filter(t => t.completedAt);
-        const onTimeTasks = completedTasks.filter(t => !t.dueDate || t.completedAt! <= t.dueDate);
+        // Compare date strings ("YYYY-MM-DD") so a task done at 3 PM PKT on the due date
+        // is counted on-time — raw Date comparison would fail due to UTC midnight offset.
+        const onTimeTasks = completedTasks.filter(t =>
+          !t.dueDate ||
+          t.completedAt!.toISOString().slice(0, 10) <= t.dueDate.toISOString().slice(0, 10)
+        );
         const onTimeScore = completedTasks.length > 0
           ? (onTimeTasks.length / completedTasks.length) * 100
-          : 50; // neutral if no tasks
+          : 50; // neutral if no tasks this month
 
         // ── Quality (25%) ──
         const qualityChecks = qualityByUser[user.id] ?? [];
         const avgRating = qualityChecks.length > 0
           ? qualityChecks.reduce((sum, q) => sum + q.rating, 0) / qualityChecks.length
-          : 0;
-        const qualityScore = avgRating * 20;
+          : null;
+        // Neutral (50) when no evaluations yet — same philosophy as other metrics
+        const qualityScore = avgRating !== null ? avgRating * 20 : 50;
         const avgRevisions = qualityChecks.length > 0
           ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
           : 0;
