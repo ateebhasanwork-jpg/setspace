@@ -10,7 +10,7 @@ const router: IRouter = Router();
 
 router.get("/quality-checks", async (req, res) => {
   try {
-    const all = await getCached("quality-checks", 2 * 60_000, async () => {
+    const all = await getCached("quality-checks", 5 * 60_000, async () => {
       const [checks, users] = await Promise.all([
         db.select().from(qualityChecksTable).orderBy(qualityChecksTable.createdAt),
         getCachedUsers(),

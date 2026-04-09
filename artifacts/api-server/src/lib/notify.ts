@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
 import { sendPushToUser } from "./push";
 import { broadcastSseToUser } from "./sse";
+import { invalidateResult } from "./cache";
 
 interface NotifyPayload {
   type: string;
@@ -16,6 +17,9 @@ interface NotifyPayload {
  */
 export async function notifyUser(userId: string, payload: NotifyPayload) {
   const [notif] = await db.insert(notificationsTable).values({ userId, ...payload }).returning();
+
+  // Drop the per-user cache so the next fetch sees the new notification
+  invalidateResult(`notifications:${userId}`);
 
   // Instantly update the bell badge for the target user if they're connected
   broadcastSseToUser(userId, "notifications", { notifId: notif.id });

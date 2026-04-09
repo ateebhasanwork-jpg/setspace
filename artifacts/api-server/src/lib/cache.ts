@@ -12,9 +12,11 @@
  *   • Task writes                         → invalidateResult("tasks"), invalidateByPrefix("leaderboard:")
  *   • Quality check writes                → invalidateByPrefix("leaderboard:"), invalidateResult("quality-checks")
  *   • Attendance writes                   → invalidateByPrefix("leaderboard:")
- *   • KPI entry writes                    → invalidateByPrefix("leaderboard:")
+ *   • KPI / KPI-entry writes             → invalidateByPrefix("kpis:"), invalidateByPrefix("kpi-entries:"), invalidateByPrefix("leaderboard:")
  *   • Meeting writes                      → invalidateResult("meetings")
  *   • Schedule writes (PUT/DELETE)        → invalidateScheduleSlots()
+ *   • Notification create (notifyUser)    → invalidateResult("notifications:<userId>")
+ *   • Notification mark-read             → invalidateResult("notifications:<userId>")
  */
 
 import { db } from "@workspace/db";

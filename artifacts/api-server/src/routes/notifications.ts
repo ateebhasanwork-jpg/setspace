@@ -3,8 +3,15 @@ import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { broadcastSseToUser } from "../lib/sse";
+import { getCached, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
+
+const NOTIF_TTL_MS = 30_000; // 30 s — short TTL; invalidated on every write
+
+function notifKey(userId: string) {
+  return `notifications:${userId}`;
+}
 
 /**
  * GET /api/notifications
@@ -14,11 +21,15 @@ const router: IRouter = Router();
 router.get("/notifications", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
-    const notifs = await db.select().from(notificationsTable)
-      .where(eq(notificationsTable.userId, req.user.id))
-      .orderBy(desc(notificationsTable.createdAt))
-      .limit(50);
-    res.json(notifs.map(n => ({ ...n, createdAt: n.createdAt.toISOString() })));
+    const userId = req.user.id;
+    const notifs = await getCached(notifKey(userId), NOTIF_TTL_MS, async () => {
+      const rows = await db.select().from(notificationsTable)
+        .where(eq(notificationsTable.userId, userId))
+        .orderBy(desc(notificationsTable.createdAt))
+        .limit(50);
+      return rows.map(n => ({ ...n, createdAt: n.createdAt.toISOString() }));
+    });
+    res.json(notifs);
   } catch (err) {
     res.status(500).json({ error: "Failed to list notifications" });
   }
@@ -31,6 +42,7 @@ router.post("/notifications/:notificationId/read", async (req, res) => {
     const [notif] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, id));
     if (!notif || notif.userId !== req.user.id) { res.status(404).json({ error: "Notification not found" }); return; }
     const [updated] = await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.id, id)).returning();
+    invalidateResult(notifKey(req.user.id));
     // Sync other tabs via SSE
     broadcastSseToUser(req.user.id, "notifications", { action: "read", id });
     res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
@@ -43,6 +55,7 @@ router.post("/notifications/read-all", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.userId, req.user.id));
+    invalidateResult(notifKey(req.user.id));
     // Sync other tabs via SSE
     broadcastSseToUser(req.user.id, "notifications", { action: "read-all" });
     res.json({ success: true });
@@ -51,4 +64,5 @@ router.post("/notifications/read-all", async (req, res) => {
   }
 });
 
+export { notifKey };
 export default router;
