@@ -5,38 +5,40 @@ import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
-import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
+import { getCachedUsers, getUserMap, getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
 
 router.get("/tasks", async (req, res) => {
   try {
-    const [tasks, users] = await Promise.all([
-      db.select().from(tasksTable).orderBy(tasksTable.createdAt),
-      getCachedUsers(),
-    ]);
-    const userMap = getUserMap(users);
-    const result = tasks.map(t => {
-      const completedOnTime =
-        t.completedAt != null && t.dueDate != null
-          ? t.completedAt.toISOString().slice(0, 10) <= t.dueDate.toISOString().slice(0, 10)
-          : null;
-      return {
-        ...t,
-        dueDate: t.dueDate?.toISOString() ?? null,
-        completedAt: t.completedAt?.toISOString() ?? null,
-        completedOnTime,
-        createdAt: t.createdAt.toISOString(),
-        updatedAt: t.updatedAt.toISOString(),
-        assignee: t.assigneeId ? (userMap[t.assigneeId] ?? null) : null,
-      };
+    const result = await getCached("tasks", 60_000, async () => {
+      const [tasks, users] = await Promise.all([
+        db.select().from(tasksTable).orderBy(tasksTable.createdAt),
+        getCachedUsers(),
+      ]);
+      const userMap = getUserMap(users);
+      return tasks.map(t => {
+        const completedOnTime =
+          t.completedAt != null && t.dueDate != null
+            ? t.completedAt.toISOString().slice(0, 10) <= t.dueDate.toISOString().slice(0, 10)
+            : null;
+        return {
+          ...t,
+          dueDate: t.dueDate?.toISOString() ?? null,
+          completedAt: t.completedAt?.toISOString() ?? null,
+          completedOnTime,
+          createdAt: t.createdAt.toISOString(),
+          updatedAt: t.updatedAt.toISOString(),
+          assignee: t.assigneeId ? (userMap[t.assigneeId] ?? null) : null,
+        };
+      });
     });
     if (req.query.assigneeId) {
-      res.json(result.filter(t => t.assigneeId === req.query.assigneeId));
+      res.json(result.filter((t: { assigneeId: string | null }) => t.assigneeId === req.query.assigneeId));
       return;
     }
     if (req.query.status) {
-      res.json(result.filter(t => t.status === req.query.status));
+      res.json(result.filter((t: { status: string }) => t.status === req.query.status));
       return;
     }
     res.json(result);
@@ -65,6 +67,7 @@ router.post("/tasks", requireAdminOrHR, async (req, res) => {
       notifyUser(assigneeId, { type: "task_assigned", title: "New Task Assigned", body: `You've been assigned: "${title}"`, linkUrl: "/tasks" }).catch(() => {});
     }
 
+    invalidateResult("tasks");
     broadcastSse("tasks", { action: "created", taskId: task.id });
     res.status(201).json({ ...task, createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString() });
   } catch (err) {
@@ -133,6 +136,7 @@ router.patch("/tasks/:taskId", async (req, res) => {
       invalidateByPrefix("leaderboard:");
     }
 
+    invalidateResult("tasks");
     broadcastSse("tasks", { action: "updated", taskId: updated.id });
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
   } catch (err) {
@@ -144,6 +148,7 @@ router.delete("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
     await db.delete(tasksTable).where(eq(tasksTable.id, id));
+    invalidateResult("tasks");
     broadcastSse("tasks", { action: "deleted", taskId: id });
     res.status(204).send();
   } catch (err) {

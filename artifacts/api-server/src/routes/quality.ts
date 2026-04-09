@@ -4,25 +4,29 @@ import { qualityChecksTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { notifyUser } from "../lib/notify";
-import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
+import { getCachedUsers, getUserMap, getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
 
 router.get("/quality-checks", async (req, res) => {
   try {
-    const [checks, users] = await Promise.all([
-      db.select().from(qualityChecksTable).orderBy(qualityChecksTable.createdAt),
-      getCachedUsers(),
-    ]);
-    const userMap = getUserMap(users);
-    let result = checks.map(c => ({
-      ...c,
-      createdAt: c.createdAt.toISOString(),
-      updatedAt: c.updatedAt.toISOString(),
-      reviewer: userMap[c.reviewerId] ?? null,
-      submitter: userMap[c.submitterId] ?? null,
-    }));
-    if (req.query.taskId) result = result.filter(c => c.taskId === parseInt(req.query.taskId as string));
+    const all = await getCached("quality-checks", 60_000, async () => {
+      const [checks, users] = await Promise.all([
+        db.select().from(qualityChecksTable).orderBy(qualityChecksTable.createdAt),
+        getCachedUsers(),
+      ]);
+      const userMap = getUserMap(users);
+      return checks.map(c => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+        reviewer: userMap[c.reviewerId] ?? null,
+        submitter: userMap[c.submitterId] ?? null,
+      }));
+    });
+    const result = req.query.taskId
+      ? all.filter((c: { taskId: number | null }) => c.taskId === parseInt(req.query.taskId as string))
+      : all;
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Failed to list quality checks" });
@@ -55,6 +59,7 @@ router.post("/quality-checks", requireAdminOrHR, async (req, res) => {
     }
 
     // Quality data affects leaderboard scores
+    invalidateResult("quality-checks");
     invalidateByPrefix("leaderboard:");
 
     res.status(201).json({ ...check, createdAt: check.createdAt.toISOString(), updatedAt: check.updatedAt.toISOString() });
@@ -92,6 +97,7 @@ router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
       }
     }
 
+    invalidateResult("quality-checks");
     invalidateByPrefix("leaderboard:");
 
     res.json({ ...updated, createdAt: updated.createdAt.toISOString(), updatedAt: updated.updatedAt.toISOString() });
@@ -104,6 +110,7 @@ router.delete("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => 
   try {
     const id = parseInt(String(req.params.checkId));
     await db.delete(qualityChecksTable).where(eq(qualityChecksTable.id, id));
+    invalidateResult("quality-checks");
     invalidateByPrefix("leaderboard:");
     res.status(204).send();
   } catch (err) {

@@ -33,7 +33,7 @@ export type CachedUser = {
   title: string | null;
 };
 
-const USER_TTL_MS = 60_000;
+const USER_TTL_MS = 5 * 60_000; // 5 minutes — users change rarely
 
 let usersCache: CachedUser[] | null = null;
 let usersCachedAt = 0;

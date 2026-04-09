@@ -24,7 +24,7 @@ router.get("/leaderboard", async (req, res) => {
     const year = parseInt(req.query.year as string) || now.getFullYear();
     const cacheKey = `leaderboard:${year}-${month}`;
 
-    const data = await getCached(cacheKey, 5 * 60_000, async () => {
+    const data = await getCached(cacheKey, 15 * 60_000, async () => {
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
 
