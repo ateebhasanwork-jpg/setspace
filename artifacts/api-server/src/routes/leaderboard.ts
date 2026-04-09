@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable, attendanceTable, qualityChecksTable } from "@workspace/db/schema";
+import { tasksTable, attendanceTable, qualityChecksTable, scheduleSlotsTable } from "@workspace/db/schema";
 import { and, gte, lte } from "drizzle-orm";
 import { getCachedUsers, getCached, invalidateByPrefix } from "../lib/cache";
 
@@ -9,10 +9,11 @@ const router: IRouter = Router();
 /**
  * GET /api/leaderboard?month=<1-12>&year=<YYYY>
  *
- * 3-metric scoring:
- *   On-Time Tasks   50%  — % of assigned Done tasks completed before due date
- *   Quality Score   30%  — avg star rating × 20  (5 stars → 100 pts)
- *   Attendance      20%  — days present / working days in month × 100
+ * 4-metric scoring:
+ *   On-Time Tasks    40%  — % of assigned Done tasks completed on or before due date
+ *   Quality Score    25%  — avg star rating × 20  (5 stars → 100 pts)
+ *   Attendance       20%  — days present / scheduled working days
+ *   Punctuality      15%  — % of scheduled days clocked in on time (within 10 min)
  *
  * Result cached 5 min.
  */
@@ -27,7 +28,7 @@ router.get("/leaderboard", async (req, res) => {
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
 
-      const [users, allAttendance, allQuality, allTasks] = await Promise.all([
+      const [users, allAttendance, allQuality, allTasks, allSlots] = await Promise.all([
         getCachedUsers(),
         db.select().from(attendanceTable).where(
           and(gte(attendanceTable.clockIn, startDate), lte(attendanceTable.clockIn, endDate))
@@ -38,7 +39,14 @@ router.get("/leaderboard", async (req, res) => {
         db.select().from(tasksTable).where(
           and(gte(tasksTable.completedAt, startDate), lte(tasksTable.completedAt, endDate))
         ),
+        db.select().from(scheduleSlotsTable),
       ]);
+
+      // Index schedule slots by "userId:dayOfWeek"
+      const slotMap: Record<string, { loginHour: number; loginMinute: number; shiftHours: number }> = {};
+      for (const s of allSlots) {
+        slotMap[`${s.userId}:${s.dayOfWeek}`] = s;
+      }
 
       // Count working days (Mon–Fri) in the month
       let workingDays = 0;
@@ -54,18 +62,15 @@ router.get("/leaderboard", async (req, res) => {
       const tasksByUser = groupBy(allTasks, t => t.assigneeId ?? "");
 
       const leaderboard = users.map(user => {
-        // On-time score: % of completed tasks done before due date (tasks with no due date count as on-time)
+        // ── On-time tasks (40%) ──
         const tasks = tasksByUser[user.id] ?? [];
         const completedTasks = tasks.filter(t => t.completedAt);
-        const onTimeTasks = completedTasks.filter(t => {
-          if (!t.dueDate) return true;
-          return t.completedAt! <= t.dueDate;
-        });
+        const onTimeTasks = completedTasks.filter(t => !t.dueDate || t.completedAt! <= t.dueDate);
         const onTimeScore = completedTasks.length > 0
           ? (onTimeTasks.length / completedTasks.length) * 100
           : 50; // neutral if no tasks
 
-        // Quality score: avg rating × 20
+        // ── Quality (25%) ──
         const qualityChecks = qualityByUser[user.id] ?? [];
         const avgRating = qualityChecks.length > 0
           ? qualityChecks.reduce((sum, q) => sum + q.rating, 0) / qualityChecks.length
@@ -75,12 +80,46 @@ router.get("/leaderboard", async (req, res) => {
           ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
           : 0;
 
-        // Attendance score: days present / working days × 100
+        // ── Attendance (20%) ──
         const attendanceRecords = attendanceByUser[user.id] ?? [];
-        const attendanceScore = Math.min((attendanceRecords.length / workingDays) * 100, 100);
 
-        // Composite score
-        const score = onTimeScore * 0.5 + qualityScore * 0.3 + attendanceScore * 0.2;
+        // Use scheduled working days for this user (or fall back to Mon-Fri)
+        const userScheduledDows = new Set(
+          allSlots.filter(s => s.userId === user.id).map(s => s.dayOfWeek)
+        );
+        let userWorkingDays = workingDays; // default Mon-Fri count
+        if (userScheduledDows.size > 0) {
+          // Recount using user's specific schedule days
+          userWorkingDays = 0;
+          const c = new Date(startDate);
+          while (c <= endDate) {
+            if (userScheduledDows.has(c.getDay())) userWorkingDays++;
+            c.setDate(c.getDate() + 1);
+          }
+        }
+        const attendanceScore = userWorkingDays > 0
+          ? Math.min((attendanceRecords.length / userWorkingDays) * 100, 100)
+          : 0;
+
+        // ── Punctuality (15%) — on-time clock-ins ──
+        let onTimeLogins = 0;
+        let scheduledLoginDays = 0;
+        for (const rec of attendanceRecords) {
+          const dow = rec.clockIn.getDay();
+          const slot = slotMap[`${user.id}:${dow}`];
+          if (!slot) continue; // no schedule for this day → skip
+          scheduledLoginDays++;
+          const scheduled = new Date(rec.clockIn);
+          scheduled.setHours(slot.loginHour, slot.loginMinute, 0, 0);
+          const diffSeconds = (rec.clockIn.getTime() - scheduled.getTime()) / 1000;
+          if (diffSeconds <= 10 * 60) onTimeLogins++;
+        }
+        const punctualityScore = scheduledLoginDays > 0
+          ? (onTimeLogins / scheduledLoginDays) * 100
+          : 75; // neutral if no schedule
+
+        // ── Composite ──
+        const score = onTimeScore * 0.40 + qualityScore * 0.25 + attendanceScore * 0.20 + punctualityScore * 0.15;
 
         return {
           userId: user.id,
@@ -89,13 +128,15 @@ router.get("/leaderboard", async (req, res) => {
           onTimeScore: Math.round(onTimeScore * 10) / 10,
           qualityScore: Math.round(qualityScore * 10) / 10,
           attendanceScore: Math.round(attendanceScore * 10) / 10,
-          // legacy fields kept for compatibility
+          punctualityScore: Math.round(punctualityScore * 10) / 10,
+          onTimeLogins,
+          scheduledLoginDays,
           kpiScore: 0,
           avgRevisions,
           completedTasks: completedTasks.length,
           onTimeTasks: onTimeTasks.length,
           presentDays: attendanceRecords.length,
-          workingDays,
+          workingDays: userWorkingDays,
           month, year, rank: 0,
         };
       });

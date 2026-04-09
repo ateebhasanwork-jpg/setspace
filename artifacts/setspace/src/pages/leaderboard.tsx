@@ -17,6 +17,9 @@ type LeaderEntry = {
   onTimeScore: number;
   qualityScore: number;
   attendanceScore: number;
+  punctualityScore?: number;
+  onTimeLogins?: number;
+  scheduledLoginDays?: number;
   avgRevisions?: number;
   completedTasks?: number;
   onTimeTasks?: number;
@@ -66,6 +69,7 @@ export default function Leaderboard() {
     "On-Time": (entry as LeaderEntry).onTimeScore,
     Quality: (entry as LeaderEntry).qualityScore,
     Attendance: (entry as LeaderEntry).attendanceScore,
+    Punctuality: (entry as LeaderEntry).punctualityScore ?? 0,
   })) || [];
 
   const fullName = (entry: LeaderEntry) =>
@@ -113,9 +117,10 @@ export default function Leaderboard() {
 
       {/* Score formula legend */}
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> On-Time Tasks 50%</span>
-        <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-violet-300" /> Quality Score 30%</span>
+        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> On-Time Tasks 40%</span>
+        <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-violet-300" /> Quality Score 25%</span>
         <span className="flex items-center gap-1.5"><CalendarCheck className="w-3.5 h-3.5 text-emerald-400" /> Attendance 20%</span>
+        <span className="flex items-center gap-1.5"><LayoutList className="w-3.5 h-3.5 text-sky-400" /> Punctuality 15%</span>
       </div>
 
       {isLoading ? (
@@ -143,10 +148,11 @@ export default function Leaderboard() {
                 </div>
                 <h3 className="font-bold text-base text-center">{fullName(leaderboard[1] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[1].score.toFixed(0)} pts</p>
-                <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 w-full justify-center">
+                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/10 w-full justify-center">
                   <ScorePill label="On-Time" value={(leaderboard[1] as LeaderEntry).onTimeScore} color="text-amber-400" />
                   <ScorePill label="Quality" value={(leaderboard[1] as LeaderEntry).qualityScore} color="text-violet-300" />
                   <ScorePill label="Attend." value={(leaderboard[1] as LeaderEntry).attendanceScore} color="text-emerald-400" />
+                  <ScorePill label="Punctual." value={(leaderboard[1] as LeaderEntry).punctualityScore ?? 0} color="text-sky-400" />
                 </div>
               </Card>
             )}
@@ -164,10 +170,11 @@ export default function Leaderboard() {
                 <h3 className="font-display font-bold text-2xl text-yellow-400 text-center">{fullName(leaderboard[0] as LeaderEntry)}</h3>
                 <p className="text-white font-mono text-xl mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
                 <p className="text-xs text-yellow-400/70 mt-1 font-semibold tracking-wider uppercase">Employee of the Month</p>
-                <div className="flex gap-5 mt-5 pt-4 border-t border-white/10 w-full justify-center">
+                <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-white/10 w-full justify-center">
                   <ScorePill label="On-Time" value={(leaderboard[0] as LeaderEntry).onTimeScore} color="text-amber-400" />
                   <ScorePill label="Quality" value={(leaderboard[0] as LeaderEntry).qualityScore} color="text-violet-300" />
                   <ScorePill label="Attend." value={(leaderboard[0] as LeaderEntry).attendanceScore} color="text-emerald-400" />
+                  <ScorePill label="Punctual." value={(leaderboard[0] as LeaderEntry).punctualityScore ?? 0} color="text-sky-400" />
                 </div>
                 {(leaderboard[0] as LeaderEntry).completedTasks !== undefined && (
                   <p className="text-xs text-muted-foreground mt-3">
@@ -187,10 +194,11 @@ export default function Leaderboard() {
                 </div>
                 <h3 className="font-bold text-base text-center">{fullName(leaderboard[2] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[2].score.toFixed(0)} pts</p>
-                <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 w-full justify-center">
+                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/10 w-full justify-center">
                   <ScorePill label="On-Time" value={(leaderboard[2] as LeaderEntry).onTimeScore} color="text-amber-400" />
                   <ScorePill label="Quality" value={(leaderboard[2] as LeaderEntry).qualityScore} color="text-violet-300" />
                   <ScorePill label="Attend." value={(leaderboard[2] as LeaderEntry).attendanceScore} color="text-emerald-400" />
+                  <ScorePill label="Punctual." value={(leaderboard[2] as LeaderEntry).punctualityScore ?? 0} color="text-sky-400" />
                 </div>
               </Card>
             )}
@@ -213,7 +221,8 @@ export default function Leaderboard() {
                     <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "16px" }} />
                     <Bar dataKey="On-Time" stackId="a" fill="#f59e0b" radius={[0, 0, 4, 4]} />
                     <Bar dataKey="Quality" stackId="a" fill="#a78bfa" />
-                    <Bar dataKey="Attendance" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Attendance" stackId="a" fill="#10b981" />
+                    <Bar dataKey="Punctuality" stackId="a" fill="#38bdf8" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -247,6 +256,7 @@ export default function Leaderboard() {
                           <span className="text-[10px] text-amber-400">{(entry as LeaderEntry).onTimeScore.toFixed(0)} OT</span>
                           <span className="text-[10px] text-violet-300">{(entry as LeaderEntry).qualityScore.toFixed(0)} Q</span>
                           <span className="text-[10px] text-emerald-400">{(entry as LeaderEntry).attendanceScore.toFixed(0)} A</span>
+                          <span className="text-[10px] text-sky-400">{((entry as LeaderEntry).punctualityScore ?? 0).toFixed(0)} P</span>
                         </div>
                       </div>
                     </div>

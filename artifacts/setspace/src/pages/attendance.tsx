@@ -12,18 +12,18 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, LogIn, LogOut, Calendar as CalIcon, TimerReset, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, LogIn, LogOut, Calendar as CalIcon, TimerReset, Trash2, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 
 type AttendanceWithExtra = AttendanceRecord & {
   accumulatedSeconds?: number;
   lastClockIn?: string | null;
   totalSeconds?: number;
+  isLate?: boolean;
+  lateMinutes?: number;
+  scheduledShiftHours?: number;
 };
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
-
-// Standard shift = 4 hours. Anything above is overtime.
-const STANDARD_SHIFT_SECONDS = 4 * 3600;
 
 function formatSeconds(totalSecs: number): string {
   const h = Math.floor(totalSecs / 3600);
@@ -172,6 +172,17 @@ export default function Attendance() {
                 <p className="text-sm font-mono">{new Date(today.clockIn).toLocaleTimeString()}</p>
               </div>
 
+              {/* Late warning for today */}
+              {todayEx?.isLate && (
+                <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="text-red-400 font-semibold text-sm">Clocked in late</p>
+                    <p className="text-xs text-muted-foreground">{todayEx.lateMinutes} min after scheduled time</p>
+                  </div>
+                </div>
+              )}
+
               <div className="py-4 rounded-2xl bg-black/30 border border-white/5 flex flex-col items-center gap-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-widest mb-1">
                   Time Worked
@@ -237,6 +248,7 @@ export default function Attendance() {
             const [yr, mo] = monthKey.split("-");
             const monthLabel = `${MONTHS[mo] ?? mo} ${yr}`;
             const isCollapsed = collapsedMonths.has(monthKey);
+            const lateCount = recs.filter(r => (r as AttendanceWithExtra).isLate).length;
             return (
               <Card key={monthKey} className="glass-panel overflow-hidden">
                 <button
@@ -249,6 +261,11 @@ export default function Attendance() {
                     <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
                       {recs.length} record{recs.length !== 1 ? "s" : ""}
                     </span>
+                    {lateCount > 0 && (
+                      <span className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                        {lateCount} late
+                      </span>
+                    )}
                   </div>
                   {isCollapsed
                     ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -273,9 +290,11 @@ export default function Attendance() {
                       </thead>
                       <tbody>
                         {recs.map((rec) => {
-                          const totalSecs = (rec as AttendanceWithExtra).totalSeconds ?? 0;
-                          const basicSecs = Math.min(totalSecs, STANDARD_SHIFT_SECONDS);
-                          const overtimeSecs = Math.max(0, totalSecs - STANDARD_SHIFT_SECONDS);
+                          const recEx = rec as AttendanceWithExtra;
+                          const totalSecs = recEx.totalSeconds ?? 0;
+                          const shiftSecs = (recEx.scheduledShiftHours ?? 4) * 3600;
+                          const basicSecs = Math.min(totalSecs, shiftSecs);
+                          const overtimeSecs = Math.max(0, totalSecs - shiftSecs);
                           return (
                             <tr
                               key={rec.id}
@@ -288,7 +307,18 @@ export default function Attendance() {
                                 {new Date(rec.date).toLocaleDateString()}
                               </td>
                               <td className="px-5 py-3 font-mono text-sm">
-                                {new Date(rec.clockIn).toLocaleTimeString()}
+                                <div className="flex items-center gap-1.5">
+                                  <span>{new Date(rec.clockIn).toLocaleTimeString()}</span>
+                                  {recEx.isLate && (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/25"
+                                      title={`${recEx.lateMinutes} min late`}
+                                    >
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                      Late
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-5 py-3 font-mono text-sm">
                                 {rec.clockOut ? (

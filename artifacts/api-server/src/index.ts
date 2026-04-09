@@ -1,4 +1,5 @@
 import app from "./app";
+import { seedSchedules } from "./routes/schedules";
 
 const rawPort = process.env["PORT"];
 
@@ -16,4 +17,6 @@ if (Number.isNaN(port) || port <= 0) {
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
+  // Seed employee schedules (safe to run on every start — uses upsert)
+  seedSchedules().then(() => console.log("[schedules] Seed complete")).catch(console.error);
 });
