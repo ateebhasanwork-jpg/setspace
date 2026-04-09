@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   useGetCurrentUser,
+  useListTasks,
 } from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   Clock3,
   TrendingDown,
   UserCheck,
+  XCircle,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -44,6 +46,114 @@ type SalaryRow = {
 
 function formatPKR(n: number): string {
   return `PKR ${n.toLocaleString()}`;
+}
+
+type AttendanceRec = { date: string };
+type TaskItem = { id: number; title: string; assigneeId: string | null; status: string; completedAt: string | null; dueDate: string | null };
+
+function PersonalPerformanceView({ userId, firstName, month, year }: {
+  userId: string; firstName: string; month: number; year: number;
+}) {
+  const { data: allTasks } = useListTasks();
+  const [attendance, setAttendance] = useState<AttendanceRec[]>([]);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/attendance?userId=${userId}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then((d: AttendanceRec[]) => setAttendance(d))
+      .catch(() => {});
+  }, [userId]);
+
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
+  const doneTasks = ((allTasks as TaskItem[] | undefined) ?? []).filter(t =>
+    t.assigneeId === userId && t.status === "Done" && t.completedAt && t.dueDate
+  );
+  const thisMonthDone = doneTasks.filter(t => {
+    const c = new Date(t.completedAt!);
+    return c >= startDate && c <= endDate;
+  });
+  const lateTasks = thisMonthDone.filter(t => new Date(t.completedAt!) > new Date(t.dueDate!));
+
+  let workingDays = 0;
+  const d = new Date(startDate);
+  while (d <= endDate) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) workingDays++;
+    d.setDate(d.getDate() + 1);
+  }
+
+  const presentDates = new Set(
+    attendance
+      .filter(a => { const dt = new Date(a.date); return dt >= startDate && dt <= endDate; })
+      .map(a => a.date)
+  );
+  let absences = 0;
+  const c2 = new Date(startDate);
+  while (c2 <= endDate) {
+    const dow = c2.getDay();
+    if (dow !== 0 && dow !== 6) {
+      const ds = c2.toISOString().split("T")[0];
+      if (!presentDates.has(ds)) absences++;
+    }
+    c2.setDate(c2.getDate() + 1);
+  }
+
+  const kpiTriggered = lateTasks.length >= 2;
+  const depTriggered = absences >= 2;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-display font-bold text-foreground">Your Performance</h1>
+        <p className="text-muted-foreground mt-1 text-sm">{MONTHS[month - 1]} {year} — late deliveries & attendance.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="glass-panel p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className={`w-5 h-5 ${kpiTriggered ? "text-red-400" : "text-muted-foreground"}`} />
+            <h3 className="text-sm font-semibold text-foreground">Late Deliveries</h3>
+            <span className={`ml-auto text-3xl font-bold ${kpiTriggered ? "text-red-400" : "text-foreground"}`}>{lateTasks.length}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">KPI deduction triggers at 2+ late tasks in a month.</p>
+          <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${kpiTriggered ? "bg-red-500/12 text-red-300 border-red-500/25" : "bg-green-500/8 text-green-300 border-green-500/20"}`}>
+            {kpiTriggered ? "⚠ KPI deduction triggered" : "✓ No KPI deduction this month"}
+          </div>
+          {lateTasks.length > 0 && (
+            <ul className="space-y-1.5 pt-1">
+              {lateTasks.map(t => (
+                <li key={t.id} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                  <XCircle className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
+                  <span className="truncate">{t.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card className="glass-panel p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <UserCheck className={`w-5 h-5 ${depTriggered ? "text-orange-400" : "text-muted-foreground"}`} />
+            <h3 className="text-sm font-semibold text-foreground">Absences</h3>
+            <span className={`ml-auto text-3xl font-bold ${depTriggered ? "text-orange-400" : "text-foreground"}`}>{absences}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">Dependability deduction triggers at 2+ absences.</p>
+          <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${depTriggered ? "bg-orange-500/12 text-orange-300 border-orange-500/25" : "bg-green-500/8 text-green-300 border-green-500/20"}`}>
+            {depTriggered ? "⚠ Dependability deduction triggered" : "✓ No deduction this month"}
+          </div>
+          <p className="text-xs text-muted-foreground pt-1">
+            {workingDays - absences} / {workingDays} working days attended
+          </p>
+        </Card>
+      </div>
+      {!kpiTriggered && !depTriggered && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-500/8 border border-green-500/20">
+          <Award className="w-5 h-5 text-green-400 shrink-0" />
+          <p className="text-sm text-green-300 font-medium">Great month, {firstName}! No deductions triggered.</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function KPIs() {
@@ -111,10 +221,21 @@ export default function KPIs() {
   };
 
   if (!isAdminOrHR) {
+    const myId = (currentUser as { id?: string } | undefined)?.id ?? "";
+    const myFirst = (currentUser as { firstName?: string } | undefined)?.firstName ?? "";
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3">
-        <TrendingDown className="w-10 h-10 text-muted-foreground opacity-30" />
-        <p className="text-muted-foreground text-sm">No data available.</p>
+      <div className="space-y-5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={month} onChange={e => setMonth(Number(e.target.value))}
+            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground">
+            {MONTHS.map((m, i) => <option key={i + 1} value={i + 1} className="bg-card">{m}</option>)}
+          </select>
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground">
+            {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <PersonalPerformanceView userId={myId} firstName={myFirst} month={month} year={year} />
       </div>
     );
   }

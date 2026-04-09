@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable } from "@workspace/db/schema";
+import { tasksTable, taskCommentsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
-import { getCachedUsers, getUserMap, getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
+import { getCachedUsers, getCachedUser, getUserMap, getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -154,6 +154,53 @@ router.delete("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: "Failed to delete task" });
+  }
+});
+
+router.get("/tasks/:taskId/comments", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const taskId = parseInt(String(req.params.taskId));
+    const [comments, users] = await Promise.all([
+      db.select().from(taskCommentsTable).where(eq(taskCommentsTable.taskId, taskId)),
+      getCachedUsers(),
+    ]);
+    const userMap = getUserMap(users);
+    res.json(comments.map(c => ({
+      id: c.id,
+      taskId: c.taskId,
+      authorId: c.authorId,
+      content: c.content,
+      createdAt: c.createdAt.toISOString(),
+      author: userMap[c.authorId] ?? null,
+    })));
+  } catch (err) {
+    res.status(500).json({ error: "Failed to list comments" });
+  }
+});
+
+router.post("/tasks/:taskId/comments", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const taskId = parseInt(String(req.params.taskId));
+    const { content } = req.body;
+    if (!content?.trim()) { res.status(400).json({ error: "Comment cannot be empty" }); return; }
+    const [comment] = await db.insert(taskCommentsTable).values({
+      taskId,
+      authorId: req.user.id,
+      content: content.trim(),
+    }).returning();
+    const author = await getCachedUser(req.user.id);
+    res.status(201).json({
+      id: comment.id,
+      taskId: comment.taskId,
+      authorId: comment.authorId,
+      content: comment.content,
+      createdAt: comment.createdAt.toISOString(),
+      author: author ?? null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to post comment" });
   }
 });
 

@@ -20,7 +20,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, LayoutGrid, List as ListIcon, Clock, Check, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw, Video, ExternalLink, Archive } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, Clock, Check, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw, Video, ExternalLink, Archive, MessageSquare, Send } from "lucide-react";
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null };
 
@@ -126,6 +128,113 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
   );
 }
 
+type TaskCommentData = {
+  id: number;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  author: { firstName: string; lastName: string } | null;
+};
+
+function relTime(iso: string) {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function TaskComments({ taskId }: { taskId: number }) {
+  const [comments, setComments] = useState<TaskCommentData[]>([]);
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setComments([]);
+    setText("");
+    fetch(`${BASE}/api/tasks/${taskId}/comments`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: TaskCommentData[]) => {
+        setComments(data);
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+      })
+      .catch(() => {});
+  }, [taskId]);
+
+  const post = async () => {
+    if (!text.trim() || posting) return;
+    setPosting(true);
+    try {
+      const res = await fetch(`${BASE}/api/tasks/${taskId}/comments`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text.trim() }),
+      });
+      if (res.ok) {
+        const comment: TaskCommentData = await res.json();
+        setComments(prev => [...prev, comment]);
+        setText("");
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+      }
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <MessageSquare className="w-3.5 h-3.5" />
+        Comments {comments.length > 0 && `(${comments.length})`}
+      </p>
+      <div className="space-y-2 max-h-44 overflow-y-auto pr-0.5">
+        {comments.length === 0 && (
+          <p className="text-xs text-muted-foreground italic py-1">No comments yet.</p>
+        )}
+        {comments.map(c => (
+          <div key={c.id} className="flex gap-2">
+            <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-200 shrink-0 mt-0.5">
+              {c.author?.firstName?.[0]}{c.author?.lastName?.[0]}
+            </div>
+            <div className="flex-1 bg-black/20 rounded-lg px-3 py-2 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-semibold text-foreground truncate">
+                  {c.author ? `${c.author.firstName} ${c.author.lastName}` : "Unknown"}
+                </span>
+                <span className="text-[10px] text-muted-foreground shrink-0">{relTime(c.createdAt)}</span>
+              </div>
+              <p className="text-xs text-foreground/80 whitespace-pre-wrap break-words">{c.content}</p>
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <div className="flex gap-2 items-end">
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); post(); } }}
+          placeholder="Add a comment… (Enter to send, Shift+Enter for new line)"
+          rows={2}
+          className="flex-1 rounded-lg bg-black/20 border border-white/10 focus:border-indigo-500/60 focus:outline-none px-3 py-2 text-sm resize-none text-foreground placeholder:text-muted-foreground/60"
+        />
+        <button
+          type="button"
+          onClick={post}
+          disabled={!text.trim() || posting}
+          className="h-9 w-9 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 shrink-0 transition-colors"
+        >
+          <Send className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Tasks() {
   const { user: authUser } = useAuth();
   const isAdminOrHR = authUser?.role === "admin" || authUser?.role === "hr";
@@ -184,7 +293,7 @@ export default function Tasks() {
   const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
   const draggingTaskId = useRef<number | null>(null);
 
-  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
 
   async function uploadFile(file: File): Promise<{ url: string; name: string } | null> {
     setUploading(true);
@@ -501,7 +610,7 @@ export default function Tasks() {
 
       {/* ── Edit Task Dialog ── */}
       <Dialog open={!!editingTask} onOpenChange={(open) => { if (!open) { setEditingTask(null); setConfirmDelete(false); } }}>
-        <DialogContent className="glass-panel border-white/10 sm:max-w-md">
+        <DialogContent className="glass-panel border-white/10 sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display">Edit Task</DialogTitle>
           </DialogHeader>
@@ -637,6 +746,11 @@ export default function Tasks() {
               )}
             </div>
           </form>
+          {editingTask && (
+            <div className="mt-5 pt-4 border-t border-white/10">
+              <TaskComments taskId={editingTask.id} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

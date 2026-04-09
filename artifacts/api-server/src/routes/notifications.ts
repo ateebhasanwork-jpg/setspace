@@ -7,16 +7,15 @@ import { getCached, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
 
-const NOTIF_TTL_MS = 30_000; // 30 s — short TTL; invalidated on every write
+const NOTIF_TTL_MS = 30_000;
 
-function notifKey(userId: string) {
+export function notifKey(userId: string) {
   return `notifications:${userId}`;
 }
 
 /**
  * GET /api/notifications
- * Limited to the 50 most recent notifications per user.
- * Old notifications beyond 50 are not shown but remain in the DB.
+ * Returns unread notifications for the current user (deleted on dismiss).
  */
 router.get("/notifications", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -27,7 +26,7 @@ router.get("/notifications", async (req, res) => {
         .where(eq(notificationsTable.userId, userId))
         .orderBy(desc(notificationsTable.createdAt))
         .limit(50);
-      return rows.map(n => ({ ...n, createdAt: n.createdAt.toISOString() }));
+      return rows.map(n => ({ ...n, isRead: false, createdAt: n.createdAt.toISOString() }));
     });
     res.json(notifs);
   } catch (err) {
@@ -35,34 +34,39 @@ router.get("/notifications", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/notifications/:notificationId/read
+ * Deletes the notification (shown notifications are always unread until dismissed).
+ */
 router.post("/notifications/:notificationId/read", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     const id = parseInt(req.params.notificationId);
     const [notif] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, id));
     if (!notif || notif.userId !== req.user.id) { res.status(404).json({ error: "Notification not found" }); return; }
-    const [updated] = await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.id, id)).returning();
+    await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
     invalidateResult(notifKey(req.user.id));
-    // Sync other tabs via SSE
-    broadcastSseToUser(req.user.id, "notifications", { action: "read", id });
-    res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+    broadcastSseToUser(req.user.id, "notifications", { action: "dismissed", id });
+    res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to mark notification read" });
+    res.status(500).json({ error: "Failed to dismiss notification" });
   }
 });
 
+/**
+ * POST /api/notifications/read-all
+ * Deletes all notifications for the current user.
+ */
 router.post("/notifications/read-all", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
-    await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.userId, req.user.id));
+    await db.delete(notificationsTable).where(eq(notificationsTable.userId, req.user.id));
     invalidateResult(notifKey(req.user.id));
-    // Sync other tabs via SSE
-    broadcastSseToUser(req.user.id, "notifications", { action: "read-all" });
+    broadcastSseToUser(req.user.id, "notifications", { action: "dismissed-all" });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to mark all read" });
+    res.status(500).json({ error: "Failed to dismiss all notifications" });
   }
 });
 
-export { notifKey };
 export default router;

@@ -570,7 +570,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
@@ -639,6 +639,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
       },
       onSettled: () => {
         setContent("");
+        if (inputRef.current) inputRef.current.style.height = "auto";
         setReplyTo(null);
         setMentionSearch(null);
         inputRef.current?.focus();
@@ -680,6 +681,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
       setPendingFile(null);
     }
     setContent("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setMentionSearch(null);
     mut.mutate({ data: { content: trimmed, parentId: replyTo?.id ?? undefined, attachmentUrl, attachmentName } as Parameters<typeof mut.mutate>[0]["data"] });
   };
@@ -863,10 +865,15 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
             >
               <Paperclip className="w-4 h-4" />
             </button>
-            <Input
+            <textarea
               ref={inputRef}
               value={content}
-              onChange={(e) => handleContentChange(e.target.value)}
+              rows={1}
+              onChange={(e) => {
+                handleContentChange(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && mentionSearch !== null) {
                   setMentionSearch(null);
@@ -878,7 +885,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
                 }
               }}
               placeholder={replyTo ? "Write a reply… (@ to mention)" : "Type a message… (@ to mention)"}
-              className="flex-1 bg-card/50 border-white/10 focus-visible:ring-indigo-500 h-12 rounded-xl"
+              className="flex-1 bg-card/50 border border-white/10 focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-xl resize-none px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground leading-5"
+              style={{ minHeight: "48px", maxHeight: "120px" }}
               autoComplete="off"
             />
             <Button
@@ -902,7 +910,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
@@ -993,6 +1001,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     }
 
     setContent("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setSending(true);
     const optimistic: DM = {
       id: -Date.now(),
@@ -1106,15 +1115,21 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           >
             <Paperclip className="w-4 h-4" />
           </button>
-          <Input
+          <textarea
             ref={inputRef}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            rows={1}
+            onChange={(e) => {
+              setContent(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
             placeholder={`Message ${otherUser.firstName}…`}
-            className="flex-1 bg-card/50 border-white/10 focus-visible:ring-indigo-500 h-12 rounded-xl"
+            className="flex-1 bg-card/50 border border-white/10 focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-xl resize-none px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground leading-5"
+            style={{ minHeight: "48px", maxHeight: "120px" }}
             autoComplete="off"
           />
           <Button

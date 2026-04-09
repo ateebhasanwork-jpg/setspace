@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useLocation } from "wouter";
 import {
   useListNotifications,
@@ -72,31 +72,11 @@ function getNotifStyle(type: string): NotifIconConfig {
 }
 
 export default function Notifications() {
-  // SSE "notifications" event in use-live-events.ts invalidates this instantly
   const { data: notifications, isLoading } = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey() },
   });
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const [filter, setFilter] = useState<"all" | "unread">("unread");
-
-  /** Optimistically remove a single notification from the cache, then mark read via API. */
-  const dismissOne = (id: number) => {
-    queryClient.setQueryData(
-      getListNotificationsQueryKey(),
-      (old: typeof notifications) => old?.filter((n) => n.id !== id) ?? []
-    );
-    markReadMut.mutate({ notificationId: id });
-  };
-
-  /** Optimistically clear all unread from cache, then call mark-all API. */
-  const dismissAll = () => {
-    queryClient.setQueryData(
-      getListNotificationsQueryKey(),
-      (old: typeof notifications) => old?.filter((n) => n.isRead) ?? []
-    );
-    markAllMut.mutate();
-  };
 
   const markReadMut = useMarkNotificationRead({
     mutation: {
@@ -110,21 +90,30 @@ export default function Notifications() {
     },
   });
 
-  const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
-  const displayed = filter === "unread"
-    ? notifications?.filter((n) => !n.isRead)
-    : notifications;
+  const dismissOne = (id: number) => {
+    queryClient.setQueryData(
+      getListNotificationsQueryKey(),
+      (old: typeof notifications) => old?.filter((n) => n.id !== id) ?? []
+    );
+    markReadMut.mutate({ notificationId: id });
+  };
+
+  const dismissAll = () => {
+    queryClient.setQueryData(getListNotificationsQueryKey(), () => []);
+    markAllMut.mutate();
+  };
+
+  const count = notifications?.length ?? 0;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto w-full">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-display font-bold text-foreground">Notifications</h1>
-            {unreadCount > 0 && (
+            {count > 0 && (
               <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
-                {unreadCount}
+                {count}
               </span>
             )}
           </div>
@@ -133,105 +122,64 @@ export default function Notifications() {
         <Button
           variant="outline"
           onClick={dismissAll}
-          disabled={markAllMut.isPending || unreadCount === 0}
+          disabled={markAllMut.isPending || count === 0}
           className="bg-black/20 border-white/10 text-muted-foreground hover:text-white gap-2 shrink-0"
         >
           <CheckCheck className="w-4 h-4" /> Dismiss all
         </Button>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1 p-1 bg-black/20 rounded-xl border border-white/5 w-fit">
-        {(["all", "unread"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setFilter(tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              filter === tab
-                ? "bg-white/10 text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab === "all" ? "All" : `Unread${unreadCount > 0 ? ` (${unreadCount})` : ""}`}
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
       <Card className="glass-panel overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-20">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
           </div>
-        ) : !displayed?.length ? (
+        ) : !count ? (
           <div className="text-center py-20 text-muted-foreground">
             <Bell className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p className="font-medium">
-              {filter === "unread" ? "No unread notifications" : "No notifications yet"}
-            </p>
-            <p className="text-sm mt-1 opacity-60">
-              {filter === "unread"
-                ? "You're all caught up!"
-                : "Task updates and messages will appear here."}
-            </p>
+            <p className="font-medium">You're all caught up!</p>
+            <p className="text-sm mt-1 opacity-60">Task updates and messages will appear here.</p>
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {displayed.map((notif) => {
+            {notifications!.map((notif) => {
               const style = getNotifStyle(notif.type);
               const handleRowClick = () => {
-                if (!notif.isRead) dismissOne(notif.id);
+                dismissOne(notif.id);
                 if (notif.linkUrl) navigate(notif.linkUrl);
               };
               return (
                 <div
                   key={notif.id}
                   onClick={handleRowClick}
-                  className={`flex items-start gap-4 px-5 py-4 transition-colors ${
-                    notif.linkUrl ? "cursor-pointer hover:bg-white/5" : ""
-                  } ${
-                    notif.isRead
-                      ? "opacity-55 hover:opacity-75"
-                      : "bg-indigo-500/5 hover:bg-indigo-500/8 border-l-2 border-l-indigo-500/60"
+                  className={`flex items-start gap-4 px-5 py-4 transition-colors bg-indigo-500/5 hover:bg-indigo-500/8 border-l-2 border-l-indigo-500/60 ${
+                    notif.linkUrl ? "cursor-pointer" : ""
                   }`}
                 >
-                  {/* Icon */}
                   <div className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${style.bg}`}>
                     {style.icon}
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
-                      <p className={`text-sm leading-snug ${notif.isRead ? "text-muted-foreground" : "text-foreground font-semibold"}`}>
-                        {notif.title}
-                      </p>
+                      <p className="text-sm leading-snug text-foreground font-semibold">{notif.title}</p>
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap font-mono shrink-0">
                         {relativeTime(notif.createdAt)}
                       </span>
                     </div>
                     {notif.body && (
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                        {notif.body}
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.body}</p>
                     )}
                     {notif.linkUrl && (
-                      <span className="text-xs text-indigo-400 mt-1 inline-block">
-                        View →
-                      </span>
+                      <span className="text-xs text-indigo-400 mt-1 inline-block">View →</span>
                     )}
                   </div>
-
-                  {/* Dismiss */}
-                  {!notif.isRead && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dismissOne(notif.id); }}
-                      title="Dismiss"
-                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-green-400 hover:bg-green-500/10 transition-colors mt-0.5"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); dismissOne(notif.id); }}
+                    title="Dismiss"
+                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-green-400 hover:bg-green-500/10 transition-colors mt-0.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               );
             })}

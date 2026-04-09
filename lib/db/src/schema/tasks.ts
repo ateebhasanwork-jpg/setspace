@@ -49,3 +49,13 @@ export const kpiEntriesTable = pgTable("kpi_entries", {
 });
 
 export type KpiEntry = typeof kpiEntriesTable.$inferSelect;
+
+export const taskCommentsTable = pgTable("task_comments", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull().references(() => tasksTable.id, { onDelete: "cascade" }),
+  authorId: text("author_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type TaskComment = typeof taskCommentsTable.$inferSelect;
