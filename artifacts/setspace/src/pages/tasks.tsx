@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Task, User } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, LayoutGrid, List as ListIcon, Clock, Check, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw, Video, ExternalLink } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, Clock, Check, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw, Video, ExternalLink, Archive } from "lucide-react";
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null };
 
@@ -126,6 +127,9 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
 }
 
 export default function Tasks() {
+  const { user: authUser } = useAuth();
+  const isAdminOrHR = authUser?.role === "admin" || authUser?.role === "hr";
+
   // SSE "tasks" event in use-live-events.ts invalidates immediately on any task change
   const { data: tasks, isLoading, isFetching } = useListTasks({ query: {} });
   const { data: users } = useListUsers();
@@ -644,13 +648,11 @@ export default function Tasks() {
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto pb-4">
           {COLUMNS.map((col) => {
             const allColTasks = (tasks as TaskWithDerived[] | undefined)?.filter((t) => t.status === col) ?? [];
-            const thisMonthStart = new Date();
-            thisMonthStart.setDate(1);
-            thisMonthStart.setHours(0, 0, 0, 0);
+            const archivedTasks = col === "Done" ? allColTasks.filter(t => t.archived) : [];
             const colTasks = col === "Done" && !showArchived
-              ? allColTasks.filter(t => t.completedAt && new Date(t.completedAt) >= thisMonthStart)
+              ? allColTasks.filter(t => !t.archived)
               : allColTasks;
-            const archivedCount = col === "Done" ? allColTasks.length - allColTasks.filter(t => t.completedAt && new Date(t.completedAt) >= thisMonthStart).length : 0;
+            const archivedCount = archivedTasks.length;
             const isOver = dragOverCol === col;
             return (
               <div
@@ -672,12 +674,12 @@ export default function Tasks() {
                       <button
                         onClick={() => setShowArchived(v => !v)}
                         className="text-[10px] text-muted-foreground hover:text-foreground bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-0.5 rounded-full transition-colors"
-                        title={showArchived ? "Hide older tasks" : `${archivedCount} older tasks hidden`}
+                        title={showArchived ? "Hide archived tasks" : `${archivedCount} archived task(s) hidden`}
                       >
-                        {showArchived ? "Hide old" : `+${archivedCount} older`}
+                        {showArchived ? "Hide archived" : `+${archivedCount} archived`}
                       </button>
                     )}
-                    {col === "Done" && allColTasks.length > 0 && (
+                    {col === "Done" && isAdminOrHR && allColTasks.length > 0 && (
                       <button
                         onClick={() => {
                           if (!confirm(`Delete all ${allColTasks.length} done task(s)? This cannot be undone.`)) return;
@@ -703,7 +705,7 @@ export default function Tasks() {
                       draggable
                       onDragStart={(e) => onDragStart(e, task.id)}
                       onDragEnd={onDragEnd}
-                      className={`p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95 border-l-4 ${memberColor?.border ?? "border-l-white/10"}`}
+                      className={`p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95 border-l-4 ${memberColor?.border ?? "border-l-white/10"} ${task.archived ? "opacity-55" : ""}`}
                       onClick={() => openEdit(task)}
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -713,18 +715,31 @@ export default function Tasks() {
                           {task.priority}
                         </span>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {task.status === "Done" && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!confirm("Delete this task? This cannot be undone.")) return;
-                                deleteMut.mutate({ taskId: task.id });
-                              }}
-                              className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
-                              title="Delete task"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                          {task.status === "Done" && isAdminOrHR && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isArchived = task.archived;
+                                  updateMut.mutate({ taskId: task.id, data: { archived: !isArchived } as Parameters<typeof updateMut.mutate>[0]["data"] });
+                                }}
+                                className={`p-1 rounded transition-colors ${task.archived ? "text-amber-400 hover:bg-amber-500/20" : "text-muted-foreground hover:bg-amber-500/15 hover:text-amber-400"}`}
+                                title={task.archived ? "Unarchive task" : "Archive task"}
+                              >
+                                <Archive className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!confirm("Delete this task? This cannot be undone.")) return;
+                                  deleteMut.mutate({ taskId: task.id });
+                                }}
+                                className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+                                title="Delete task"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </>
                           )}
                           <button
                             onClick={(e) => { e.stopPropagation(); openEdit(task); }}
@@ -844,8 +859,10 @@ export default function Tasks() {
               </tr>
             </thead>
             <tbody>
-              {(tasks as TaskWithDerived[] | undefined)?.map((task) => (
-                <tr key={task.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+              {(tasks as TaskWithDerived[] | undefined)?.filter(t =>
+                !(t.status === "Done" && t.archived && !showArchived)
+              ).map((task) => (
+                <tr key={task.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors group ${task.archived ? "opacity-50" : ""}`}>
                   <td className="px-6 py-4 font-medium text-foreground">{task.title}</td>
                   <td className="px-6 py-4">
                     {task.assignee ? (
@@ -938,12 +955,26 @@ export default function Tasks() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <button
-                      onClick={() => openEdit(task)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {task.status === "Done" && isAdminOrHR && (
+                        <button
+                          onClick={() => {
+                            const isArchived = task.archived;
+                            updateMut.mutate({ taskId: task.id, data: { archived: !isArchived } as Parameters<typeof updateMut.mutate>[0]["data"] });
+                          }}
+                          className={`p-1.5 rounded transition-colors ${task.archived ? "text-amber-400 hover:bg-amber-500/20" : "text-muted-foreground hover:bg-amber-500/15 hover:text-amber-400"}`}
+                          title={task.archived ? "Unarchive task" : "Archive task"}
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openEdit(task)}
+                        className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-opacity"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

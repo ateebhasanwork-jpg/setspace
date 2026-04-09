@@ -89,13 +89,14 @@ router.get("/tasks/:taskId", async (req, res) => {
 router.patch("/tasks/:taskId", async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
-    const { title, description, status, priority, assigneeId, dueDate, completedAt, externalLink, attachmentUrl, attachmentName } = req.body;
+    const { title, description, status, priority, assigneeId, dueDate, completedAt, externalLink, attachmentUrl, attachmentName, archived } = req.body;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
     if (externalLink !== undefined) updates.externalLink = externalLink || null;
     if (attachmentUrl !== undefined) updates.attachmentUrl = attachmentUrl || null;
     if (attachmentName !== undefined) updates.attachmentName = attachmentName || null;
+    if (archived !== undefined) updates.archived = Boolean(archived);
     if (status !== undefined) {
       updates.status = status;
       if (status === "Done") {

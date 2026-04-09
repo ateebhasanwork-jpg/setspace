@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, serial, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -16,6 +16,7 @@ export const tasksTable = pgTable("tasks", {
   externalLink: text("external_link"),
   attachmentUrl: text("attachment_url"),
   attachmentName: text("attachment_name"),
+  archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

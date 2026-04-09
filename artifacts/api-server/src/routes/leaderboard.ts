@@ -67,17 +67,20 @@ router.get("/leaderboard", async (req, res) => {
 
       const leaderboard = users.map(user => {
         // ── On-time tasks (40%) ──
+        // Only tasks WITH an explicit due date count towards this metric.
+        // Tasks without a due date are excluded entirely (can't measure on-time).
+        // If no completed tasks have a due date → neutral 50.
         const tasks = tasksByUser[user.id] ?? [];
         const completedTasks = tasks.filter(t => t.completedAt);
+        const tasksWithDueDate = completedTasks.filter(t => t.dueDate);
         // Compare date strings ("YYYY-MM-DD") so a task done at 3 PM PKT on the due date
         // is counted on-time — raw Date comparison would fail due to UTC midnight offset.
-        const onTimeTasks = completedTasks.filter(t =>
-          !t.dueDate ||
-          t.completedAt!.toISOString().slice(0, 10) <= t.dueDate.toISOString().slice(0, 10)
+        const onTimeTasks = tasksWithDueDate.filter(t =>
+          t.completedAt!.toISOString().slice(0, 10) <= t.dueDate!.toISOString().slice(0, 10)
         );
-        const onTimeScore = completedTasks.length > 0
-          ? (onTimeTasks.length / completedTasks.length) * 100
-          : 50; // neutral if no tasks this month
+        const onTimeScore = tasksWithDueDate.length > 0
+          ? (onTimeTasks.length / tasksWithDueDate.length) * 100
+          : 50; // neutral if no tasks with due dates this month
 
         // ── Quality (25%) ──
         const qualityChecks = qualityByUser[user.id] ?? [];

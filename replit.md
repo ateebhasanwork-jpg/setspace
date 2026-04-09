@@ -23,11 +23,11 @@ Full-stack internal management platform for a video editing agency. Built as a p
 ## Features
 
 - **Dashboard**: KPI summaries, attendance overview, recent activity
-- **Task Management**: Kanban-style board with assignees, priority, due dates
+- **Task Management**: Kanban-style board with assignees, priority, due dates. Done tasks can be archived (hidden from default view) or deleted; admin/HR only. Archive toggle in Done column header shows count of archived tasks.
 - **KPI & Payroll**: Simplified payroll view with 3 salary components (Basic Salary, Dependability Deduction, KPI Payment Deduction) — deductions auto-triggered from attendance/task data. Plus Editor Performance tracking.
 - **Attendance**: Clock in/out with month-grouped records, sticky clock card, basic/overtime hours breakdown. Day-boundary clock-out fix for overnight sessions.
 - **Quality Checks**: 1–5 star peer reviews with feedback, task name shown, newest-first ordering, month filter.
-- **Leaderboard**: Automated "Employee of the Month" scoring (On-Time Tasks 50%, Quality 30%, Attendance 20%) with prominent winner podium.
+- **Leaderboard**: Automated "Employee of the Month" scoring (On-Time Tasks 40%, Quality 25%, Attendance 20%, Punctuality 15%). Only tasks WITH explicit due dates count toward on-time score; neutral 50 if no due-dated tasks. Schedule slots auto-seeded at startup for all employees including Ateeb (Mon-Fri 5:30 PM, 6h).
 - **Team Chat**: Real-time-style threaded messages
 - **Meetings**: Scheduling with attendees, email notifications, and calendar links
 - **Notifications**: Per-user notification feed

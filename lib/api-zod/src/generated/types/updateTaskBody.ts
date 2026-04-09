@@ -14,4 +14,8 @@ export interface UpdateTaskBody {
   assigneeId?: string | null;
   dueDate?: string | null;
   completedAt?: string | null;
+  externalLink?: string | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  archived?: boolean;
 }

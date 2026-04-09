@@ -12,7 +12,8 @@ const router: IRouter = Router();
  * dayOfWeek: 0=Sun, 1=Mon, ..., 6=Sat
  */
 const SCHEDULE_SEED: Array<{
-  firstName: string;
+  firstName?: string;
+  username?: string;
   slots: Array<{ dayOfWeek: number; loginHour: number; loginMinute: number; shiftHours: number }>;
 }> = [
   {
@@ -46,6 +47,11 @@ const SCHEDULE_SEED: Array<{
     firstName: "Salman",
     slots: [1, 2, 3, 4, 5].map(d => ({ dayOfWeek: d, loginHour: 20, loginMinute: 0, shiftHours: 4 })),
   },
+  {
+    // Ateeb Hasan — Mon–Fri 5:30 PM PKT, 6-hour shift
+    username: "ateebhasanwork",
+    slots: [1, 2, 3, 4, 5].map(d => ({ dayOfWeek: d, loginHour: 17, loginMinute: 30, shiftHours: 6 })),
+  },
 ];
 
 /**
@@ -56,9 +62,11 @@ export async function seedSchedules() {
   try {
     const users = await getCachedUsers();
     for (const entry of SCHEDULE_SEED) {
-      const user = users.find(u =>
-        (u.firstName ?? "").toLowerCase() === entry.firstName.toLowerCase()
-      );
+      const user = users.find(u => {
+        if (entry.username) return u.username?.toLowerCase() === entry.username.toLowerCase();
+        if (entry.firstName) return (u.firstName ?? "").toLowerCase() === entry.firstName.toLowerCase();
+        return false;
+      });
       if (!user) continue;
       for (const slot of entry.slots) {
         await db.insert(scheduleSlotsTable)
