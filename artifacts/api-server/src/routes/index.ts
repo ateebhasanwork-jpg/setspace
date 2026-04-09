@@ -15,6 +15,7 @@ import videosRouter from "./videos";
 import framioRouter from "./frameio";
 import eventsRouter from "./events";
 import pushRouter from "./push";
+import salariesRouter from "./salaries";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,7 @@ router.use(messagesRouter);
 router.use(meetingsRouter);
 router.use(notificationsRouter);
 router.use(leaderboardRouter);
+router.use(salariesRouter);
 router.use(storageRouter);
 router.use(videosRouter);
 router.use(framioRouter);

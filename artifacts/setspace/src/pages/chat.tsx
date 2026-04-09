@@ -1197,26 +1197,26 @@ export default function TeamChat() {
         <p className="text-muted-foreground text-sm mt-0.5">Group channel and direct messages</p>
       </div>
 
-      <div className="flex gap-4 h-[560px]">
+      <div className="flex gap-4 h-[640px]">
         {/* Sidebar */}
-        <div className="w-48 shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden">
+        <div className="w-52 shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden">
           <div className="p-4 border-b border-white/8 shrink-0">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Chat</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 py-2">Channels</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70 px-3 py-2">Channels</p>
             <button
               onClick={() => { setView("group"); setGroupUnread(0); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 view === "group"
-                  ? "bg-indigo-600/25 text-indigo-300 border border-indigo-500/20"
+                  ? "bg-indigo-600/30 text-indigo-200 border border-indigo-500/30"
                   : groupUnread > 0
                   ? "text-white bg-indigo-600/10 border border-indigo-500/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  : "text-muted-foreground hover:text-indigo-300 hover:bg-indigo-500/10"
               }`}
             >
               <div className="relative shrink-0">
-                <Hash className="w-4 h-4" />
+                <Hash className="w-4 h-4 text-indigo-400" />
                 {groupUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold px-0.5">
                     {groupUnread > 99 ? "99+" : groupUnread}
@@ -1229,7 +1229,7 @@ export default function TeamChat() {
               )}
             </button>
 
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 pt-4 pb-2">Direct Messages</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-400/70 px-3 pt-4 pb-2">Direct Messages</p>
             {otherUsers.map((u) => {
               const unread = unreadByUser[u.id] ?? 0;
               const isActive = view === u.id;
@@ -1242,16 +1242,16 @@ export default function TeamChat() {
                   }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? "bg-indigo-600/25 text-indigo-300 border border-indigo-500/20"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      ? "bg-teal-600/25 text-teal-200 border border-teal-500/25"
+                      : "text-muted-foreground hover:text-teal-300 hover:bg-teal-500/10"
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <div className="w-6 h-6 rounded-full bg-indigo-600/30 flex items-center justify-center text-[10px] font-bold text-indigo-200">
+                    <div className="w-6 h-6 rounded-full bg-teal-600/30 border border-teal-500/20 flex items-center justify-center text-[10px] font-bold text-teal-200">
                       {u.firstName?.[0]}
                     </div>
                     {unread > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
                         {unread > 9 ? "9+" : unread}
                       </span>
                     )}

@@ -5,3 +5,4 @@ export * from "./quality";
 export * from "./communication";
 export * from "./videos";
 export * from "./settings";
+export * from "./salaries";

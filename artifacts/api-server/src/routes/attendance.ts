@@ -108,10 +108,19 @@ router.post("/attendance/clock-in", async (req, res) => {
 router.post("/attendance/clock-out", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
+    // First try today; if nothing open, pick the most recent open record (day-boundary fix)
     const today = todayStr();
-    const [existing] = await db.select().from(attendanceTable)
+    let [existing] = await db.select().from(attendanceTable)
       .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
-    if (!existing) { res.status(404).json({ error: "No clock-in found for today" }); return; }
+    if (!existing) {
+      // Look for any open session from a previous day
+      const open = await db.select().from(attendanceTable)
+        .where(eq(attendanceTable.userId, req.user.id))
+        .orderBy(attendanceTable.clockIn);
+      const openRecord = open.filter(r => !r.clockOut).pop();
+      if (!openRecord) { res.status(404).json({ error: "No open clock-in found" }); return; }
+      existing = openRecord;
+    }
     if (existing.clockOut) { res.status(400).json({ error: "Already clocked out" }); return; }
 
     const sessionStart = existing.lastClockIn ?? existing.clockIn;

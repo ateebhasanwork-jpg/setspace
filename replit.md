@@ -24,10 +24,10 @@ Full-stack internal management platform for a video editing agency. Built as a p
 
 - **Dashboard**: KPI summaries, attendance overview, recent activity
 - **Task Management**: Kanban-style board with assignees, priority, due dates
-- **KPIs**: Per-employee KPI tracking with target vs. actual entries
-- **Attendance**: Clock in/out with daily records and status tracking
-- **Quality Checks**: 1–5 star peer reviews with feedback and approval workflow
-- **Leaderboard**: Automated "Employee of the Month" scoring (KPI 35%, attendance 25%, quality 25%, on-time 15%)
+- **KPI & Payroll**: Simplified payroll view with 3 salary components (Basic Salary, Dependability Deduction, KPI Payment Deduction) — deductions auto-triggered from attendance/task data. Plus Editor Performance tracking.
+- **Attendance**: Clock in/out with month-grouped records, sticky clock card, basic/overtime hours breakdown. Day-boundary clock-out fix for overnight sessions.
+- **Quality Checks**: 1–5 star peer reviews with feedback, task name shown, newest-first ordering, month filter.
+- **Leaderboard**: Automated "Employee of the Month" scoring (On-Time Tasks 50%, Quality 30%, Attendance 20%) with prominent winner podium.
 - **Team Chat**: Real-time-style threaded messages
 - **Meetings**: Scheduling with attendees, email notifications, and calendar links
 - **Notifications**: Per-user notification feed
@@ -57,7 +57,7 @@ workspace/
 
 ## Database Schema
 
-Tables: `users`, `sessions`, `tasks`, `kpis`, `kpi_entries`, `attendance`, `quality_checks`, `messages`, `meetings`, `meeting_attendees`, `notifications`, `video_projects`, `video_versions`, `video_comments`, `video_share_tokens`
+Tables: `users`, `sessions`, `tasks`, `kpis`, `kpi_entries`, `attendance`, `quality_checks`, `messages`, `meetings`, `meeting_attendees`, `notifications`, `video_projects`, `video_versions`, `video_comments`, `video_share_tokens`, `salaries`
 
 ## Key Routes (API)
 
@@ -68,7 +68,9 @@ Tables: `users`, `sessions`, `tasks`, `kpis`, `kpi_entries`, `attendance`, `qual
 - `GET/POST /api/quality-checks` — quality reviews
 - `GET/POST /api/messages` — team chat
 - `GET/POST /api/meetings` — meeting scheduling
-- `GET /api/leaderboard` — employee of the month rankings
+- `GET /api/leaderboard` — employee of the month rankings (3 metrics: on-time 50%, quality 30%, attendance 20%)
+- `GET /api/salaries` — payroll view with deduction triggers (admin/HR only)
+- `PUT /api/salaries/:userId` — upsert salary config (admin/HR only)
 - `GET/POST /api/video-projects`, `/api/video-versions`, `/api/video-comments` — video studio
 - `POST /api/video-versions/:id/share-token` — generate public share link
 - `GET/POST /api/review/:token` — public client review (no auth required)

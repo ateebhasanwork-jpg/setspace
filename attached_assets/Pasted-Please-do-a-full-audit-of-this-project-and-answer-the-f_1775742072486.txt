@@ -1,0 +1,73 @@
+Please do a full audit of this project and answer the following before making any changes:
+
+1. What is the tech stack (frontend framework, backend language, database)?
+2. What is currently consuming the most resources/cost?
+3. Are there any unnecessary dependencies, background processes, or always-on services running?
+
+---
+
+Once you've audited, please apply the following fixes one by one. Do NOT increase compute usage or add new paid services. Keep daily Replit cost at or below $6.50/day.
+
+**EMPLOYEE SCHEDULE (use this throughout all fixes):**
+- Abdullah: Mon–Fri, 8:00 PM login, 4-hour shift
+- Laiba: Mon–Fri, 9:30 PM login, 4-hour shift
+- Ahad: Mon–Sat, 9:30 PM login, 4-hour shift
+- Jafar: Mon–Fri, 8:00 PM login, 4-hour shift
+- Sani: Mon–Fri, 4-hour shift — Mon/Tue/Thu/Fri at 8:00 PM, Wednesday at 12:00 AM
+- Zayd: Mon–Fri, 6:00 PM login, 6-hour shift
+- Salman: Mon–Fri, 8:00 PM login (shift duration unspecified — please flag)
+Anyone logging in more than 10 minutes after their scheduled login time should be marked as LATE.
+
+---
+
+**FIX LIST:**
+
+[CLOCK IN/OUT]
+- Fix: If an employee forgets to clock out before the system resets for the next day, the clock-out option should remain available for the previous shift. Never remove clock-out without a completed entry.
+- Fix: Clock In / Clock Out button must always be pinned/fixed at the top of the Attendance tab — it should never scroll out of view.
+
+[ATTENDANCE]
+- Fix: Divide attendance records by month. Each month should be a separate collapsible section.
+- Fix: Clearly highlight Basic Hours vs Overtime hours in each record.
+- Fix: Use each employee's schedule above to calculate if they were on time, late, or absent.
+
+[TASKS TAB]
+- Fix: In the 'Done' column, automatically archive tasks older than the current month. Add a button to view archived tasks separately.
+- Fix: When moving a task to 'Done', if the task was completed on time, allow the user to mark it as 'On Time' even after it has been moved. This option should remain available, not disappear.
+
+[KPI]
+- Simplify KPI to exactly 3 components per employee:
+  1. Basic Salary (fixed)
+  2. Dependability Deduction: deducted if employee takes 2 or more days off in a month
+  3. KPI Payment Deduction: deducted if employee has 2 or more late tasks in a month
+- Remove any other KPI metrics. Make the display clean and simple.
+
+[NOTIFICATIONS]
+- Fix: When a notification is read in any tab or session, mark it as read everywhere simultaneously (sync across all open tabs/sessions).
+
+[SESSION CONTINUITY]
+- Fix: Employee sessions should not expire or log out during their assigned working hours, even if they are inactive. Only allow session timeout outside of working hours.
+
+[TEXT / CHAT INTERFACE]
+- Fix: Make the text channel interface larger — it should cover more of the screen to make reading multiple messages easier.
+- Fix: Apply color coding to distinguish Team Chat vs Individual (DM) chats visually.
+
+[QUALITY CHECK]
+- Fix: Show the task name clearly on every quality check evaluation entry.
+- Fix: New evaluations should appear at the TOP of the list, not the bottom.
+- Fix: Add a month filter so evaluations can be viewed month by month.
+
+[LEADERBOARD / EMPLOYEE OF THE MONTH]
+- Use exactly 3 metrics to determine Employee of the Month:
+  1. Most tasks completed on time (KPI achievement)
+  2. Fewest late logins
+  3. Best average quality evaluation score
+- Remove any other metrics from the leaderboard calculation. Display the winner prominently.
+
+[PERFORMANCE & COST OPTIMIZATION]
+- Review all background jobs, cron tasks, and polling intervals — reduce frequency where possible.
+- If using an always-on server, confirm it is necessary; otherwise switch to a cheaper tier.
+- Minimize database reads/writes by caching repeated queries where safe.
+- Flag anything that could push daily cost above $6.50 and suggest alternatives.
+
+Please confirm each fix as you apply it, and let me know if any fix requires clarification or a decision from me before proceeding.

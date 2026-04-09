@@ -1,22 +1,20 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable, attendanceTable, qualityChecksTable, kpiEntriesTable, kpisTable } from "@workspace/db/schema";
-import { and, eq, gte, lte } from "drizzle-orm";
-import { getCachedUsers, getUserMap, getCached, invalidateByPrefix } from "../lib/cache";
+import { tasksTable, attendanceTable, qualityChecksTable } from "@workspace/db/schema";
+import { and, gte, lte } from "drizzle-orm";
+import { getCachedUsers, getCached, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
-
-function toDateStr(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  return new Date(d).toISOString().slice(0, 10);
-}
 
 /**
  * GET /api/leaderboard?month=<1-12>&year=<YYYY>
  *
- * Before: 1 users SELECT + (4 queries × N users) = 41 queries for 10 users.
- * After : 6 bulk queries total, all computation done in JS, result cached 5 min.
- * With 8 concurrent users: 6 queries (first user) + 0 queries × 7 (cache hit).
+ * 3-metric scoring:
+ *   On-Time Tasks   50%  — % of assigned Done tasks completed before due date
+ *   Quality Score   30%  — avg star rating × 20  (5 stars → 100 pts)
+ *   Attendance      20%  — days present / working days in month × 100
+ *
+ * Result cached 5 min.
  */
 router.get("/leaderboard", async (req, res) => {
   try {
@@ -29,76 +27,75 @@ router.get("/leaderboard", async (req, res) => {
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
 
-      // 6 bulk queries instead of 1 + (4 × N)
-      const [users, allKpiEntries, allKpis, allAttendance, allQuality, allTasks] = await Promise.all([
+      const [users, allAttendance, allQuality, allTasks] = await Promise.all([
         getCachedUsers(),
-        db.select().from(kpiEntriesTable).where(and(gte(kpiEntriesTable.recordedAt, startDate), lte(kpiEntriesTable.recordedAt, endDate))),
-        db.select().from(kpisTable),
-        db.select().from(attendanceTable).where(and(eq(attendanceTable.status, "present"), gte(attendanceTable.clockIn, startDate), lte(attendanceTable.clockIn, endDate))),
-        db.select().from(qualityChecksTable).where(and(gte(qualityChecksTable.createdAt, startDate), lte(qualityChecksTable.createdAt, endDate))),
-        db.select().from(tasksTable).where(and(gte(tasksTable.completedAt, startDate), lte(tasksTable.completedAt, endDate))),
+        db.select().from(attendanceTable).where(
+          and(gte(attendanceTable.clockIn, startDate), lte(attendanceTable.clockIn, endDate))
+        ),
+        db.select().from(qualityChecksTable).where(
+          and(gte(qualityChecksTable.createdAt, startDate), lte(qualityChecksTable.createdAt, endDate))
+        ),
+        db.select().from(tasksTable).where(
+          and(gte(tasksTable.completedAt, startDate), lte(tasksTable.completedAt, endDate))
+        ),
       ]);
 
-      // Group all data by userId in JS — zero additional queries
-      const kpiEntriesByUser = groupBy(allKpiEntries, e => e.userId);
-      const kpisByUser = groupBy(allKpis, k => k.userId);
+      // Count working days (Mon–Fri) in the month
+      let workingDays = 0;
+      const d = new Date(startDate);
+      while (d <= endDate) {
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) workingDays++;
+        d.setDate(d.getDate() + 1);
+      }
+
       const attendanceByUser = groupBy(allAttendance, a => a.userId);
       const qualityByUser = groupBy(allQuality, q => q.submitterId);
       const tasksByUser = groupBy(allTasks, t => t.assigneeId ?? "");
 
       const leaderboard = users.map(user => {
-        // KPI score
-        const kpis = kpisByUser[user.id] ?? [];
-        const kpiEntries = kpiEntriesByUser[user.id] ?? [];
-        let kpiScore = 0;
-        if (kpis.length > 0) {
-          const achievements = kpis.map(kpi => {
-            const total = kpiEntries
-              .filter(e => e.kpiId === kpi.id)
-              .reduce((sum, e) => sum + parseFloat(e.actualValue), 0);
-            if (total === 0) return 0;
-            return Math.min((total / parseFloat(kpi.targetValue)) * 100, 100);
-          });
-          kpiScore = achievements.reduce((a, b) => a + b, 0) / kpis.length;
-        }
-
-        // Attendance score
-        const attendanceRecords = attendanceByUser[user.id] ?? [];
-        const workingDays = 22;
-        const attendanceScore = Math.min((attendanceRecords.length / workingDays) * 100, 100);
-
-        // Quality score
-        const qualityChecks = qualityByUser[user.id] ?? [];
-        const qualityScore = qualityChecks.length > 0
-          ? (qualityChecks.reduce((sum, q) => sum + q.rating, 0) / qualityChecks.length) * 20
-          : 0;
-        const avgRevisions = qualityChecks.length > 0
-          ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
-          : 0;
-
-        // On-time score
+        // On-time score: % of completed tasks done before due date (tasks with no due date count as on-time)
         const tasks = tasksByUser[user.id] ?? [];
         const completedTasks = tasks.filter(t => t.completedAt);
         const onTimeTasks = completedTasks.filter(t => {
           if (!t.dueDate) return true;
-          return toDateStr(t.completedAt) <= toDateStr(t.dueDate);
+          return t.completedAt! <= t.dueDate;
         });
-        const onTimeScore = completedTasks.length > 0 ? (onTimeTasks.length / completedTasks.length) * 100 : 50;
+        const onTimeScore = completedTasks.length > 0
+          ? (onTimeTasks.length / completedTasks.length) * 100
+          : 50; // neutral if no tasks
 
-        const score = kpiScore * 0.35 + attendanceScore * 0.25 + qualityScore * 0.25 + onTimeScore * 0.15;
+        // Quality score: avg rating × 20
+        const qualityChecks = qualityByUser[user.id] ?? [];
+        const avgRating = qualityChecks.length > 0
+          ? qualityChecks.reduce((sum, q) => sum + q.rating, 0) / qualityChecks.length
+          : 0;
+        const qualityScore = avgRating * 20;
+        const avgRevisions = qualityChecks.length > 0
+          ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
+          : 0;
+
+        // Attendance score: days present / working days × 100
+        const attendanceRecords = attendanceByUser[user.id] ?? [];
+        const attendanceScore = Math.min((attendanceRecords.length / workingDays) * 100, 100);
+
+        // Composite score
+        const score = onTimeScore * 0.5 + qualityScore * 0.3 + attendanceScore * 0.2;
 
         return {
           userId: user.id,
           user,
           score: Math.round(score * 10) / 10,
-          kpiScore: Math.round(kpiScore * 10) / 10,
-          attendanceScore: Math.round(attendanceScore * 10) / 10,
-          qualityScore: Math.round(qualityScore * 10) / 10,
           onTimeScore: Math.round(onTimeScore * 10) / 10,
+          qualityScore: Math.round(qualityScore * 10) / 10,
+          attendanceScore: Math.round(attendanceScore * 10) / 10,
+          // legacy fields kept for compatibility
+          kpiScore: 0,
           avgRevisions,
           completedTasks: completedTasks.length,
           onTimeTasks: onTimeTasks.length,
           presentDays: attendanceRecords.length,
+          workingDays,
           month, year, rank: 0,
         };
       });

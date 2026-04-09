@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useGetLeaderboard, getGetLeaderboardQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Trophy, RefreshCw, Target, Star, Clock, CalendarCheck, LayoutList } from "lucide-react";
+import { Trophy, RefreshCw, Star, CalendarCheck, Clock, LayoutList } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const MONTHS = [
@@ -14,14 +14,14 @@ type LeaderEntry = {
   userId: string;
   user?: { firstName?: string | null; lastName?: string | null; profileImage?: string | null } | null;
   score: number;
-  kpiScore: number;
-  attendanceScore: number;
-  qualityScore: number;
   onTimeScore: number;
+  qualityScore: number;
+  attendanceScore: number;
   avgRevisions?: number;
   completedTasks?: number;
   onTimeTasks?: number;
   presentDays?: number;
+  workingDays?: number;
   rank: number;
 };
 
@@ -63,10 +63,9 @@ export default function Leaderboard() {
 
   const chartData = leaderboard?.map((entry) => ({
     name: entry.user?.firstName || "Unknown",
-    KPI: entry.kpiScore,
-    Quality: entry.qualityScore,
-    Attendance: entry.attendanceScore,
-    "On-Time": entry.onTimeScore,
+    "On-Time": (entry as LeaderEntry).onTimeScore,
+    Quality: (entry as LeaderEntry).qualityScore,
+    Attendance: (entry as LeaderEntry).attendanceScore,
   })) || [];
 
   const fullName = (entry: LeaderEntry) =>
@@ -80,7 +79,7 @@ export default function Leaderboard() {
           <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
             <Trophy className="w-8 h-8 text-yellow-400" /> Employee of the Month
           </h1>
-          <p className="text-muted-foreground mt-1">Monthly performance rankings based on KPI, quality, attendance &amp; deadlines.</p>
+          <p className="text-muted-foreground mt-1">Monthly rankings — on-time delivery, quality &amp; attendance.</p>
         </div>
         <div className="flex gap-2 shrink-0 items-center">
           <select
@@ -114,10 +113,9 @@ export default function Leaderboard() {
 
       {/* Score formula legend */}
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-white" /> KPI 35%</span>
-        <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-violet-300" /> Quality 25%</span>
-        <span className="flex items-center gap-1.5"><CalendarCheck className="w-3.5 h-3.5 text-emerald-400" /> Attendance 25%</span>
-        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> On-Time 15%</span>
+        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> On-Time Tasks 50%</span>
+        <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-violet-300" /> Quality Score 30%</span>
+        <span className="flex items-center gap-1.5"><CalendarCheck className="w-3.5 h-3.5 text-emerald-400" /> Attendance 20%</span>
       </div>
 
       {isLoading ? (
@@ -146,30 +144,37 @@ export default function Leaderboard() {
                 <h3 className="font-bold text-base text-center">{fullName(leaderboard[1] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[1].score.toFixed(0)} pts</p>
                 <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 w-full justify-center">
-                  <ScorePill label="KPI" value={leaderboard[1].kpiScore} color="text-white" />
-                  <ScorePill label="Quality" value={leaderboard[1].qualityScore} color="text-violet-300" />
-                  <ScorePill label="Attend." value={leaderboard[1].attendanceScore} color="text-emerald-400" />
+                  <ScorePill label="On-Time" value={(leaderboard[1] as LeaderEntry).onTimeScore} color="text-amber-400" />
+                  <ScorePill label="Quality" value={(leaderboard[1] as LeaderEntry).qualityScore} color="text-violet-300" />
+                  <ScorePill label="Attend." value={(leaderboard[1] as LeaderEntry).attendanceScore} color="text-emerald-400" />
                 </div>
               </Card>
             )}
 
-            {/* 1st Place */}
+            {/* 1st Place — prominent winner */}
             {leaderboard[0] && (
-              <Card className="glass-panel w-full md:w-72 p-8 flex flex-col items-center relative border-t-4 border-t-yellow-400 order-1 md:order-2 transform md:-translate-y-4 shadow-xl shadow-yellow-500/10">
-                <div className="absolute -top-8 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full flex items-center justify-center text-yellow-900 font-bold text-3xl shadow-xl border-4 border-background z-10">
+              <Card className="glass-panel w-full md:w-80 p-8 flex flex-col items-center relative border-t-4 border-t-yellow-400 order-1 md:order-2 transform md:-translate-y-6 shadow-2xl shadow-yellow-500/15">
+                <div className="absolute -top-10 w-20 h-20 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full flex items-center justify-center text-yellow-900 font-bold text-4xl shadow-xl border-4 border-background z-10">
                   🏆
                 </div>
-                <div className="mt-5 mb-4">
+                <div className="absolute inset-0 rounded-xl bg-yellow-400/3 pointer-events-none" />
+                <div className="mt-8 mb-4">
                   <Avatar entry={leaderboard[0] as LeaderEntry} size="lg" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-yellow-400 text-center">{fullName(leaderboard[0] as LeaderEntry)}</h3>
-                <p className="text-white font-mono text-lg mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
-                <div className="flex gap-4 mt-4 pt-4 border-t border-white/10 w-full justify-center">
-                  <ScorePill label="KPI" value={leaderboard[0].kpiScore} color="text-white" />
-                  <ScorePill label="Quality" value={leaderboard[0].qualityScore} color="text-violet-300" />
-                  <ScorePill label="Attend." value={leaderboard[0].attendanceScore} color="text-emerald-400" />
-                  <ScorePill label="On-Time" value={leaderboard[0].onTimeScore} color="text-amber-400" />
+                <h3 className="font-display font-bold text-2xl text-yellow-400 text-center">{fullName(leaderboard[0] as LeaderEntry)}</h3>
+                <p className="text-white font-mono text-xl mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
+                <p className="text-xs text-yellow-400/70 mt-1 font-semibold tracking-wider uppercase">Employee of the Month</p>
+                <div className="flex gap-5 mt-5 pt-4 border-t border-white/10 w-full justify-center">
+                  <ScorePill label="On-Time" value={(leaderboard[0] as LeaderEntry).onTimeScore} color="text-amber-400" />
+                  <ScorePill label="Quality" value={(leaderboard[0] as LeaderEntry).qualityScore} color="text-violet-300" />
+                  <ScorePill label="Attend." value={(leaderboard[0] as LeaderEntry).attendanceScore} color="text-emerald-400" />
                 </div>
+                {(leaderboard[0] as LeaderEntry).completedTasks !== undefined && (
+                  <p className="text-xs text-muted-foreground mt-3">
+                    {(leaderboard[0] as LeaderEntry).onTimeTasks}/{(leaderboard[0] as LeaderEntry).completedTasks} tasks on time
+                    · {(leaderboard[0] as LeaderEntry).presentDays}/{(leaderboard[0] as LeaderEntry).workingDays} days present
+                  </p>
+                )}
               </Card>
             )}
 
@@ -183,9 +188,9 @@ export default function Leaderboard() {
                 <h3 className="font-bold text-base text-center">{fullName(leaderboard[2] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[2].score.toFixed(0)} pts</p>
                 <div className="flex gap-4 mt-3 pt-3 border-t border-white/10 w-full justify-center">
-                  <ScorePill label="KPI" value={leaderboard[2].kpiScore} color="text-white" />
-                  <ScorePill label="Quality" value={leaderboard[2].qualityScore} color="text-violet-300" />
-                  <ScorePill label="Attend." value={leaderboard[2].attendanceScore} color="text-emerald-400" />
+                  <ScorePill label="On-Time" value={(leaderboard[2] as LeaderEntry).onTimeScore} color="text-amber-400" />
+                  <ScorePill label="Quality" value={(leaderboard[2] as LeaderEntry).qualityScore} color="text-violet-300" />
+                  <ScorePill label="Attend." value={(leaderboard[2] as LeaderEntry).attendanceScore} color="text-emerald-400" />
                 </div>
               </Card>
             )}
@@ -206,10 +211,9 @@ export default function Leaderboard() {
                       contentStyle={{ backgroundColor: "#111", borderColor: "#333", borderRadius: "10px", fontSize: "12px" }}
                     />
                     <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "16px" }} />
-                    <Bar dataKey="KPI" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 4, 4]} />
+                    <Bar dataKey="On-Time" stackId="a" fill="#f59e0b" radius={[0, 0, 4, 4]} />
                     <Bar dataKey="Quality" stackId="a" fill="#a78bfa" />
-                    <Bar dataKey="Attendance" stackId="a" fill="#10b981" />
-                    <Bar dataKey="On-Time" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Attendance" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -239,12 +243,11 @@ export default function Leaderboard() {
                       </div>
                       <div>
                         <span className="font-medium text-sm text-foreground">{fullName(entry as LeaderEntry)}</span>
-                        {(entry as LeaderEntry).avgRevisions !== undefined && (entry as LeaderEntry).avgRevisions! > 0 && (
-                          <div className="flex items-center gap-1 text-[10px] text-orange-400 mt-0.5">
-                            <RefreshCw className="w-2.5 h-2.5" />
-                            {(entry as LeaderEntry).avgRevisions} avg revisions
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-amber-400">{(entry as LeaderEntry).onTimeScore.toFixed(0)} OT</span>
+                          <span className="text-[10px] text-violet-300">{(entry as LeaderEntry).qualityScore.toFixed(0)} Q</span>
+                          <span className="text-[10px] text-emerald-400">{(entry as LeaderEntry).attendanceScore.toFixed(0)} A</span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">

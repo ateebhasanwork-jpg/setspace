@@ -82,6 +82,17 @@ export async function authMiddleware(
 
   const refreshed = await refreshIfExpired(sid, session);
 
+  // Rolling session: extend expiry on every request so active users never get logged out
+  // Update only once per 10 minutes to avoid excessive DB writes
+  const now = Date.now();
+  const sessionExp = refreshed.expires_at ? refreshed.expires_at * 1000 : 0;
+  const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  if (sessionExp - now < SESSION_TTL_MS - 10 * 60 * 1000) {
+    // More than 10 minutes has elapsed since last extension — roll it
+    refreshed.expires_at = Math.floor((now + SESSION_TTL_MS) / 1000);
+    updateSession(sid, refreshed).catch(() => {});
+  }
+
   // Always fetch fresh user from DB so role/profile changes take effect immediately
   const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, refreshed.user.id));
   if (!dbUser) {

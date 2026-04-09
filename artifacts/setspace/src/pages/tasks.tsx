@@ -131,6 +131,7 @@ export default function Tasks() {
   const { data: users } = useListUsers();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -623,7 +624,14 @@ export default function Tasks() {
       ) : viewMode === "board" ? (
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto pb-4">
           {COLUMNS.map((col) => {
-            const colTasks = (tasks as TaskWithDerived[] | undefined)?.filter((t) => t.status === col) ?? [];
+            const allColTasks = (tasks as TaskWithDerived[] | undefined)?.filter((t) => t.status === col) ?? [];
+            const thisMonthStart = new Date();
+            thisMonthStart.setDate(1);
+            thisMonthStart.setHours(0, 0, 0, 0);
+            const colTasks = col === "Done" && !showArchived
+              ? allColTasks.filter(t => t.completedAt && new Date(t.completedAt) >= thisMonthStart)
+              : allColTasks;
+            const archivedCount = col === "Done" ? allColTasks.length - allColTasks.filter(t => t.completedAt && new Date(t.completedAt) >= thisMonthStart).length : 0;
             const isOver = dragOverCol === col;
             return (
               <div
@@ -640,9 +648,20 @@ export default function Tasks() {
               >
                 <div className="flex items-center justify-between mb-4 px-2">
                   <h3 className={`font-semibold ${COL_HEADER[col]}`}>{col}</h3>
-                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
-                    {colTasks.length}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {col === "Done" && archivedCount > 0 && (
+                      <button
+                        onClick={() => setShowArchived(v => !v)}
+                        className="text-[10px] text-muted-foreground hover:text-foreground bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-0.5 rounded-full transition-colors"
+                        title={showArchived ? "Hide older tasks" : `${archivedCount} older tasks hidden`}
+                      >
+                        {showArchived ? "Hide old" : `+${archivedCount} older`}
+                      </button>
+                    )}
+                    <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
+                      {colTasks.length}
+                    </span>
+                  </div>
                 </div>
                 <div className="space-y-3 flex-1 overflow-y-auto min-h-[60px]">
                   {colTasks.map((task) => {
