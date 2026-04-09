@@ -78,17 +78,35 @@ export default function Notifications() {
   });
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [filter, setFilter] = useState<"all" | "unread">("unread");
+
+  /** Optimistically remove a single notification from the cache, then mark read via API. */
+  const dismissOne = (id: number) => {
+    queryClient.setQueryData(
+      getListNotificationsQueryKey(),
+      (old: typeof notifications) => old?.filter((n) => n.id !== id) ?? []
+    );
+    markReadMut.mutate({ notificationId: id });
+  };
+
+  /** Optimistically clear all unread from cache, then call mark-all API. */
+  const dismissAll = () => {
+    queryClient.setQueryData(
+      getListNotificationsQueryKey(),
+      (old: typeof notifications) => old?.filter((n) => n.isRead) ?? []
+    );
+    markAllMut.mutate();
+  };
 
   const markReadMut = useMarkNotificationRead({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
+      onError: () => queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
     },
   });
 
   const markAllMut = useMarkAllNotificationsRead({
     mutation: {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
+      onError: () => queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
     },
   });
 
@@ -114,11 +132,11 @@ export default function Notifications() {
         </div>
         <Button
           variant="outline"
-          onClick={() => markAllMut.mutate()}
+          onClick={dismissAll}
           disabled={markAllMut.isPending || unreadCount === 0}
           className="bg-black/20 border-white/10 text-muted-foreground hover:text-white gap-2 shrink-0"
         >
-          <CheckCheck className="w-4 h-4" /> Mark all read
+          <CheckCheck className="w-4 h-4" /> Dismiss all
         </Button>
       </div>
 
@@ -162,7 +180,7 @@ export default function Notifications() {
             {displayed.map((notif) => {
               const style = getNotifStyle(notif.type);
               const handleRowClick = () => {
-                if (!notif.isRead) markReadMut.mutate({ notificationId: notif.id });
+                if (!notif.isRead) dismissOne(notif.id);
                 if (notif.linkUrl) navigate(notif.linkUrl);
               };
               return (
@@ -170,7 +188,7 @@ export default function Notifications() {
                   key={notif.id}
                   onClick={handleRowClick}
                   className={`flex items-start gap-4 px-5 py-4 transition-colors ${
-                    notif.linkUrl ? "cursor-pointer" : ""
+                    notif.linkUrl ? "cursor-pointer hover:bg-white/5" : ""
                   } ${
                     notif.isRead
                       ? "opacity-55 hover:opacity-75"
@@ -204,12 +222,11 @@ export default function Notifications() {
                     )}
                   </div>
 
-                  {/* Mark read */}
+                  {/* Dismiss */}
                   {!notif.isRead && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); markReadMut.mutate({ notificationId: notif.id }); }}
-                      disabled={markReadMut.isPending}
-                      title="Mark as read"
+                      onClick={(e) => { e.stopPropagation(); dismissOne(notif.id); }}
+                      title="Dismiss"
                       className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-green-400 hover:bg-green-500/10 transition-colors mt-0.5"
                     >
                       <Check className="w-3.5 h-3.5" />
