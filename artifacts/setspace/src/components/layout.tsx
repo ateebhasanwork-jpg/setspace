@@ -5,6 +5,7 @@ import { useListNotifications, getListNotificationsQueryKey, type Notification }
 import { useLiveEvents } from "@/hooks/use-live-events";
 import { motion } from "framer-motion";
 import { playNotificationSound, initAudio } from "@/lib/sounds";
+import { useFaviconBadge } from "@/hooks/use-favicon-badge";
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -255,6 +256,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const counts = useUnreadCounts();
   useNotificationSoundEffect(counts);
+  useFaviconBadge(counts.notifCount + counts.dmCount);
   useLiveEvents();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
