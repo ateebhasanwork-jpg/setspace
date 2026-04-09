@@ -14,10 +14,11 @@
  *   • Attendance writes                   → invalidateByPrefix("leaderboard:")
  *   • KPI entry writes                    → invalidateByPrefix("leaderboard:")
  *   • Meeting writes                      → invalidateResult("meetings")
+ *   • Schedule writes (PUT/DELETE)        → invalidateScheduleSlots()
  */
 
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
+import { usersTable, scheduleSlotsTable } from "@workspace/db/schema";
 
 // ─── User cache ──────────────────────────────────────────────────────────────
 
@@ -74,6 +75,41 @@ export function invalidateUsers(): void {
 export function displayName(u: CachedUser | null | undefined): string {
   if (!u) return "Someone";
   return [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || "Someone";
+}
+
+// ─── Schedule slot cache ──────────────────────────────────────────────────────
+// Slots are essentially static — only changed by admin via PUT/DELETE /schedules.
+// Cache for 30 min; invalidate on every schedule write.
+
+export type CachedSlot = {
+  userId: string;
+  dayOfWeek: number;
+  loginHour: number;
+  loginMinute: number;
+  shiftHours: number;
+};
+
+const SLOT_TTL_MS = 30 * 60_000;
+let slotsCache: CachedSlot[] | null = null;
+let slotsCachedAt = 0;
+
+export async function getCachedScheduleSlots(): Promise<CachedSlot[]> {
+  if (slotsCache && Date.now() - slotsCachedAt < SLOT_TTL_MS) return slotsCache;
+  const rows = await db.select({
+    userId: scheduleSlotsTable.userId,
+    dayOfWeek: scheduleSlotsTable.dayOfWeek,
+    loginHour: scheduleSlotsTable.loginHour,
+    loginMinute: scheduleSlotsTable.loginMinute,
+    shiftHours: scheduleSlotsTable.shiftHours,
+  }).from(scheduleSlotsTable);
+  slotsCache = rows;
+  slotsCachedAt = Date.now();
+  return slotsCache;
+}
+
+export function invalidateScheduleSlots(): void {
+  slotsCache = null;
+  slotsCachedAt = 0;
 }
 
 // ─── Result cache ─────────────────────────────────────────────────────────────

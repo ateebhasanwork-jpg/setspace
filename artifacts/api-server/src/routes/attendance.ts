@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { attendanceTable, scheduleSlotsTable } from "@workspace/db/schema";
+import { attendanceTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
-import { getCachedUsers, getUserMap, invalidateByPrefix } from "../lib/cache";
+import { getCachedUsers, getUserMap, getCachedScheduleSlots, invalidateByPrefix } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -88,7 +88,7 @@ router.get("/attendance", async (req, res) => {
         ? db.select().from(attendanceTable).where(and(...conditions)).orderBy(attendanceTable.date)
         : db.select().from(attendanceTable).orderBy(attendanceTable.date),
       getCachedUsers(),
-      db.select().from(scheduleSlotsTable),
+      getCachedScheduleSlots(),
     ]);
 
     // Index slots by "userId:dayOfWeek"
@@ -116,8 +116,8 @@ router.get("/attendance/today", async (req, res) => {
     if (!record) { res.status(404).json({ error: "No attendance record for today" }); return; }
 
     const dow = pktDow(record.clockIn);
-    const [slot] = await db.select().from(scheduleSlotsTable)
-      .where(and(eq(scheduleSlotsTable.userId, req.user.id), eq(scheduleSlotsTable.dayOfWeek, dow)));
+    const allSlots = await getCachedScheduleSlots();
+    const slot = allSlots.find(s => s.userId === req.user.id && s.dayOfWeek === dow);
     res.json(formatRecord(record, slot));
   } catch (err) {
     res.status(500).json({ error: "Failed to get today's attendance" });
@@ -133,8 +133,8 @@ router.post("/attendance/clock-in", async (req, res) => {
 
     const now = new Date();
     const dow = pktDow(now);
-    const [slot] = await db.select().from(scheduleSlotsTable)
-      .where(and(eq(scheduleSlotsTable.userId, req.user.id), eq(scheduleSlotsTable.dayOfWeek, dow)));
+    const allSlots = await getCachedScheduleSlots();
+    const slot = allSlots.find(s => s.userId === req.user.id && s.dayOfWeek === dow);
 
     if (!existing) {
       const [record] = await db.insert(attendanceTable).values({
@@ -191,8 +191,8 @@ router.post("/attendance/clock-out", async (req, res) => {
     invalidateByPrefix("leaderboard:");
 
     const dow = pktDow(updated.clockIn);
-    const [slot] = await db.select().from(scheduleSlotsTable)
-      .where(and(eq(scheduleSlotsTable.userId, req.user.id), eq(scheduleSlotsTable.dayOfWeek, dow)));
+    const allSlots2 = await getCachedScheduleSlots();
+    const slot = allSlots2.find(s => s.userId === req.user.id && s.dayOfWeek === dow);
     res.json(formatRecord(updated, slot));
   } catch (err) {
     res.status(500).json({ error: "Failed to clock out" });

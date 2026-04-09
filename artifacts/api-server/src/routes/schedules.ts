@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { scheduleSlotsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
-import { getCachedUsers } from "../lib/cache";
+import { getCachedUsers, getCachedScheduleSlots, invalidateScheduleSlots } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -82,7 +82,7 @@ export async function seedSchedules() {
 router.get("/schedules", requireAdminOrHR, async (_req, res) => {
   try {
     const [slots, users] = await Promise.all([
-      db.select().from(scheduleSlotsTable).orderBy(scheduleSlotsTable.userId, scheduleSlotsTable.dayOfWeek),
+      getCachedScheduleSlots(),
       getCachedUsers(),
     ]);
     const userMap = Object.fromEntries(users.map(u => [u.id, u]));
@@ -106,6 +106,7 @@ router.put("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res) =
         target: [scheduleSlotsTable.userId, scheduleSlotsTable.dayOfWeek],
         set: { loginHour, loginMinute: loginMinute ?? 0, shiftHours: shiftHours ?? 4 },
       });
+    invalidateScheduleSlots();
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to upsert schedule" });
@@ -121,6 +122,7 @@ router.delete("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res
         eq(scheduleSlotsTable.dayOfWeek, parseInt(req.params.dayOfWeek))
       )
     );
+    invalidateScheduleSlots();
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Failed to delete schedule" });
@@ -130,6 +132,7 @@ router.delete("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res
 /** POST /api/schedules/seed — re-run seed (admin/HR) */
 router.post("/schedules/seed", requireAdminOrHR, async (_req, res) => {
   await seedSchedules();
+  invalidateScheduleSlots();
   res.json({ ok: true });
 });
 

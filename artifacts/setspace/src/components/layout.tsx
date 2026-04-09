@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState, useContext, createContext, useCallback } from "react";
+import React, { useEffect, useRef, useContext, createContext } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
+import { useQuery } from "@tanstack/react-query";
 import { useListNotifications, getListNotificationsQueryKey, type Notification } from "@workspace/api-client-react";
 import { useLiveEvents } from "@/hooks/use-live-events";
 import { motion } from "framer-motion";
@@ -194,29 +195,19 @@ function useUnreadCounts(): UnreadCounts {
   const { data: notifications } = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey() }
   });
-  const [dmCount, setDmCount] = useState(0);
-  const [location] = useLocation();
 
-  const checkDmUnread = useCallback(async () => {
-    try {
+  // Use React Query so DM unread is cached across page navigations.
+  // SSE "dm" events already call queryClient.invalidateQueries(["dm-unread"])
+  // in use-live-events.ts, so the count refreshes instantly on new messages.
+  const { data: dmUnreadData } = useQuery<{ total: number; bySender: Record<string, number> }>({
+    queryKey: ["dm-unread"],
+    queryFn: async () => {
       const res = await fetch(`${BASE}/api/dm-unread`, { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json() as { total: number };
-      setDmCount(data.total ?? 0);
-    } catch {}
-  }, []);
-
-  // Fetch once on route change (navigating to /chat clears DM badge)
-  useEffect(() => {
-    checkDmUnread();
-  }, [location, checkDmUnread]);
-
-  // React instantly to SSE push — no setInterval needed
-  useEffect(() => {
-    const handler = () => checkDmUnread();
-    window.addEventListener("sse:dm", handler);
-    return () => window.removeEventListener("sse:dm", handler);
-  }, [checkDmUnread]);
+      if (!res.ok) throw new Error("Failed to fetch DM unread");
+      return res.json();
+    },
+  });
+  const dmCount = dmUnreadData?.total ?? 0;
 
   const notifs = (notifications as Notification[] | undefined) ?? [];
   const unread = notifs.filter(n => !n.isRead);

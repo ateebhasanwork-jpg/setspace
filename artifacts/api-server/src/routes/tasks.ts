@@ -11,7 +11,7 @@ const router: IRouter = Router();
 
 router.get("/tasks", async (req, res) => {
   try {
-    const result = await getCached("tasks", 60_000, async () => {
+    const result = await getCached("tasks", 2 * 60_000, async () => {
       const [tasks, users] = await Promise.all([
         db.select().from(tasksTable).orderBy(tasksTable.createdAt),
         getCachedUsers(),

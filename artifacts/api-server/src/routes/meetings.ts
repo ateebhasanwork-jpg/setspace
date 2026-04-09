@@ -9,7 +9,7 @@ import { getCachedUsers, getCachedUser, getUserMap, getCached, invalidateResult 
 const router: IRouter = Router();
 
 const MEETINGS_CACHE_KEY = "meetings";
-const MEETINGS_TTL_MS = 60_000;
+const MEETINGS_TTL_MS = 5 * 60_000;
 
 async function sendMeetingEmail(toEmail: string, name: string, meeting: { title: string; scheduledAt: Date; description?: string | null; meetingUrl?: string | null }) {
   if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
