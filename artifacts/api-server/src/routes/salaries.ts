@@ -76,9 +76,10 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       const kpiTriggered = lateTasks >= 2;
 
       const basicSalary = salary?.basicSalary ?? 0;
+      const overtimePayment = salary?.overtimePayment ?? 0;
       const dependabilityDeduction = dependabilityTriggered ? (salary?.dependabilityDeductionAmount ?? 0) : 0;
       const kpiDeduction = kpiTriggered ? (salary?.kpiDeductionAmount ?? 0) : 0;
-      const netSalary = basicSalary - dependabilityDeduction - kpiDeduction;
+      const netSalary = basicSalary + overtimePayment - dependabilityDeduction - kpiDeduction;
 
       return {
         user,
@@ -89,6 +90,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         dependabilityTriggered,
         kpiTriggered,
         basicSalary,
+        overtimePayment,
         dependabilityDeduction,
         kpiDeduction,
         netSalary,
@@ -109,8 +111,9 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
 router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { basicSalary, dependabilityDeductionAmount, kpiDeductionAmount } = req.body as {
+    const { basicSalary, overtimePayment, dependabilityDeductionAmount, kpiDeductionAmount } = req.body as {
       basicSalary?: number;
+      overtimePayment?: number;
       dependabilityDeductionAmount?: number;
       kpiDeductionAmount?: number;
     };
@@ -121,6 +124,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       const [updated] = await db.update(salariesTable)
         .set({
           basicSalary: basicSalary ?? existing.basicSalary,
+          overtimePayment: overtimePayment ?? existing.overtimePayment,
           dependabilityDeductionAmount: dependabilityDeductionAmount ?? existing.dependabilityDeductionAmount,
           kpiDeductionAmount: kpiDeductionAmount ?? existing.kpiDeductionAmount,
           updatedAt: new Date(),
@@ -132,6 +136,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       const [created] = await db.insert(salariesTable).values({
         userId,
         basicSalary: basicSalary ?? 0,
+        overtimePayment: overtimePayment ?? 0,
         dependabilityDeductionAmount: dependabilityDeductionAmount ?? 0,
         kpiDeductionAmount: kpiDeductionAmount ?? 0,
       }).returning();

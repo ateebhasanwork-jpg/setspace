@@ -10,8 +10,6 @@ import { AppLayout } from "./components/layout";
 import { OnboardingGate } from "./components/onboarding";
 import Dashboard from "./pages/dashboard";
 import Tasks from "./pages/tasks";
-import VideoProjects from "./pages/video-projects";
-import VideoStudio from "./pages/video-studio";
 import PublicReview from "./pages/public-review";
 import KPIs from "./pages/kpis";
 import Attendance from "./pages/attendance";
@@ -93,8 +91,6 @@ function Router() {
             <Switch>
               <Route path="/" component={Dashboard} />
               <Route path="/tasks" component={Tasks} />
-              <Route path="/videos" component={VideoStudio} />
-              <Route path="/videos/:id" component={VideoStudio} />
               <Route path="/kpis" component={KPIs} />
               <Route path="/attendance" component={Attendance} />
               <Route path="/quality" component={QualityChecks} />

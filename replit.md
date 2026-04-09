@@ -31,7 +31,7 @@ Full-stack internal management platform for a video editing agency. Built as a p
 - **Team Chat**: Real-time-style threaded messages
 - **Meetings**: Scheduling with attendees, email notifications, and calendar links
 - **Notifications**: Per-user notification feed
-- **Video Review Studio**: Native Frame.io-style — video upload via presigned URLs, timestamped comments, version history, approval workflow, public client share links (`/review/:token`)
+- **Public Review**: Client-facing public review link (`/review/:token`) — removed internal Video Studio UI for now
 
 ## Structure
 

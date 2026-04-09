@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import {
   useListTasks,
   useGetTodayAttendance,
-  useListVideoProjects,
   useGetLeaderboard,
   useListQualityChecks,
   useListUsers,
@@ -24,7 +23,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  PlayCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -95,7 +93,6 @@ function AdminDashboard() {
   const { data: allQC } = useListQualityChecks({});
   const { data: users } = useListUsers();
   const { data: allAttendance } = useListAttendance({});
-  const { data: projects } = useListVideoProjects();
   const { data: leaderboard } = useGetLeaderboard({ month: selMonth, year: selYear });
   const { data: myAttendance } = useGetTodayAttendance();
 
@@ -304,34 +301,6 @@ function AdminDashboard() {
           </div>
         </Card>
 
-        {/* Recent videos */}
-        <Card className="glass-panel p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-display font-bold">Recent Video Reviews</h2>
-            <Link href="/videos" className="text-xs text-muted-foreground hover:text-foreground transition-colors">View All</Link>
-          </div>
-          <div className="space-y-2">
-            {(projects ?? []).slice(0, 4).map(proj => (
-              <Link key={proj.id} href={`/videos/${proj.id}`}>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/5 hover:bg-white/8 transition-colors cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <PlayCircle className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{proj.title}</p>
-                      <p className="text-xs text-muted-foreground">{proj.clientName || "Internal"}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${proj.status === "Approved" ? "bg-green-500/15 text-green-400" : proj.status === "Needs Revision" ? "bg-red-500/15 text-red-400" : "bg-white/10 text-muted-foreground"}`}>
-                    {proj.status}
-                  </span>
-                </div>
-              </Link>
-            ))}
-            {!projects?.length && <p className="text-center text-sm text-muted-foreground py-6">No video projects yet</p>}
-          </div>
-        </Card>
       </div>
     </div>
   );

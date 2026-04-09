@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
   CheckSquare, 
-  Video, 
   TrendingUp, 
   Clock, 
   Star, 
@@ -48,7 +47,6 @@ const UnreadCountsCtx = createContext<UnreadCounts>({ notifCount: 0, dmCount: 0,
 const NAV_ITEMS = [
   { title: "Dashboard",    href: "/",             icon: LayoutDashboard, badge: null as null | "notif" | "dm" | "task", managerOnly: false },
   { title: "Tasks",        href: "/tasks",         icon: CheckSquare,     badge: "task"  as const,                       managerOnly: false },
-  { title: "Video Studio", href: "/videos",        icon: Video,           badge: null,                                   managerOnly: false },
   { title: "KPIs",         href: "/kpis",          icon: TrendingUp,      badge: null,                                   managerOnly: false },
   { title: "Attendance",   href: "/attendance",    icon: Clock,           badge: null,                                   managerOnly: false },
   { title: "Quality Check",href: "/quality",       icon: Star,            badge: null,                                   managerOnly: false },
@@ -293,25 +291,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </header>
 
-            {location.startsWith("/videos") ? (
-              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                {children}
+            <div className="flex-1 overflow-y-auto min-h-0" ref={scrollContainerRef}>
+              <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 min-h-full flex flex-col">
+                <motion.div
+                  key={location}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="flex-1 flex flex-col"
+                >
+                  {children}
+                </motion.div>
               </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto min-h-0" ref={scrollContainerRef}>
-                <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full relative z-10 min-h-full flex flex-col">
-                  <motion.div
-                    key={location}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="flex-1 flex flex-col"
-                  >
-                    {children}
-                  </motion.div>
-                </div>
-              </div>
-            )}
+            </div>
           </main>
         </div>
       </SidebarProvider>
