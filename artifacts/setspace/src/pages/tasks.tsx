@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, LayoutGrid, List as ListIcon, Clock, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, Clock, Check, CheckCircle2, XCircle, Pencil, Trash2, Paperclip, Link2, X, Upload, RefreshCw, Video, ExternalLink } from "lucide-react";
 
 type TaskWithDerived = Task & { completedOnTime?: boolean | null };
 
@@ -156,6 +156,25 @@ export default function Tasks() {
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [attachmentName, setAttachmentName] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  // Inline video-link editing on cards
+  const [linkEditingTaskId, setLinkEditingTaskId] = useState<number | null>(null);
+  const [linkEditValue, setLinkEditValue] = useState("");
+
+  function openLinkEdit(task: TaskWithDerived, e: React.MouseEvent) {
+    e.stopPropagation();
+    setLinkEditingTaskId(task.id);
+    setLinkEditValue((task as Task & { externalLink?: string }).externalLink ?? "");
+  }
+
+  function saveLinkEdit(taskId: number, e: React.FormEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    updateMut.mutate(
+      { taskId, data: { externalLink: linkEditValue || undefined } as Parameters<typeof updateMut.mutate>[0]["data"] },
+      { onSuccess: () => { setLinkEditingTaskId(null); refetch(); }, onError: () => setLinkEditingTaskId(null) }
+    );
+  }
 
   // Drag state
   const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
@@ -429,7 +448,7 @@ export default function Tasks() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1 block flex items-center gap-1.5">
-                    <Link2 className="w-3.5 h-3.5" /> External Link
+                    <Video className="w-3.5 h-3.5 text-violet-400" /> Video Link
                   </label>
                   <Input
                     type="url"
@@ -549,7 +568,7 @@ export default function Tasks() {
 
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block flex items-center gap-1.5">
-                <Link2 className="w-3.5 h-3.5" /> External Link
+                <Video className="w-3.5 h-3.5 text-violet-400" /> Video Link
               </label>
               <Input
                 type="url"
@@ -689,18 +708,65 @@ export default function Tasks() {
                         </button>
                       </div>
                       <h4 className="font-medium text-foreground leading-snug mb-2">{task.title}</h4>
-                      {((task as Task & { externalLink?: string }).externalLink || (task as Task & { attachmentUrl?: string }).attachmentUrl) && (
-                        <div className="flex items-center gap-2 mt-2">
-                          {(task as Task & { externalLink?: string }).externalLink && (
-                            <a href={(task as Task & { externalLink?: string }).externalLink!} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full">
-                              <Link2 className="w-2.5 h-2.5" /> Link
-                            </a>
-                          )}
-                          {(task as Task & { attachmentUrl?: string }).attachmentUrl && (
-                            <span className="flex items-center gap-1 text-[10px] text-primary/80 bg-primary/10 px-2 py-0.5 rounded-full">
-                              <Paperclip className="w-2.5 h-2.5" /> {(task as Task & { attachmentName?: string }).attachmentName || "File"}
-                            </span>
-                          )}
+
+                      {/* ── Video Link section ── */}
+                      {linkEditingTaskId === task.id ? (
+                        <form onSubmit={(e) => saveLinkEdit(task.id, e)} onClick={e => e.stopPropagation()} className="mt-2 mb-1">
+                          <div className="flex items-center gap-1">
+                            <input
+                              autoFocus
+                              type="url"
+                              value={linkEditValue}
+                              onChange={e => setLinkEditValue(e.target.value)}
+                              placeholder="https://..."
+                              className="flex-1 h-7 rounded-md bg-black/30 border border-white/15 px-2 text-xs text-foreground focus:outline-none focus:border-indigo-500 placeholder:text-muted-foreground/50"
+                              onKeyDown={e => { if (e.key === "Escape") setLinkEditingTaskId(null); }}
+                            />
+                            <button type="submit" className="h-7 px-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shrink-0 transition-colors">
+                              <Check className="w-3 h-3" />
+                            </button>
+                            <button type="button" onClick={() => setLinkEditingTaskId(null)} className="h-7 px-1.5 rounded-md hover:bg-white/10 text-muted-foreground shrink-0 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </form>
+                      ) : (task as Task & { externalLink?: string }).externalLink ? (
+                        <div className="mt-2 mb-1 flex items-center gap-1">
+                          <a
+                            href={(task as Task & { externalLink?: string }).externalLink!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/12 border border-violet-500/25 hover:bg-violet-500/20 transition-colors group/link"
+                          >
+                            <Video className="w-3 h-3 text-violet-400 shrink-0" />
+                            <span className="text-xs font-medium text-violet-300 truncate flex-1">Video Link</span>
+                            <ExternalLink className="w-2.5 h-2.5 text-violet-400/50 group-hover/link:text-violet-400 transition-colors shrink-0" />
+                          </a>
+                          <button
+                            onClick={(e) => openLinkEdit(task, e)}
+                            className="h-[30px] w-[30px] flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground transition-colors shrink-0"
+                            title="Edit video link"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => openLinkEdit(task, e)}
+                          className="mt-2 mb-1 w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-white/10 hover:border-violet-500/30 hover:bg-violet-500/5 text-muted-foreground hover:text-violet-400 transition-colors text-xs"
+                        >
+                          <Video className="w-3 h-3" />
+                          <span>Add video link</span>
+                        </button>
+                      )}
+
+                      {/* Attachment pill */}
+                      {(task as Task & { attachmentUrl?: string }).attachmentUrl && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="flex items-center gap-1 text-[10px] text-primary/80 bg-primary/10 px-2 py-0.5 rounded-full">
+                            <Paperclip className="w-2.5 h-2.5" /> {(task as Task & { attachmentName?: string }).attachmentName || "File"}
+                          </span>
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
@@ -746,6 +812,7 @@ export default function Tasks() {
                 <th className="px-6 py-4 font-medium">Priority</th>
                 <th className="px-6 py-4 font-medium">Due Date</th>
                 <th className="px-6 py-4 font-medium">On Time</th>
+                <th className="px-6 py-4 font-medium">Video Link</th>
                 <th className="px-6 py-4 font-medium"></th>
               </tr>
             </thead>
@@ -794,6 +861,54 @@ export default function Tasks() {
                   <td className="px-6 py-4">
                     <OnTimeBadge task={task} />
                     {task.status !== "Done" && <span className="text-muted-foreground text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-4">
+                    {linkEditingTaskId === task.id ? (
+                      <form onSubmit={(e) => saveLinkEdit(task.id, e)} onClick={e => e.stopPropagation()} className="flex items-center gap-1">
+                        <input
+                          autoFocus
+                          type="url"
+                          value={linkEditValue}
+                          onChange={e => setLinkEditValue(e.target.value)}
+                          placeholder="https://..."
+                          className="w-40 h-7 rounded-md bg-black/30 border border-white/15 px-2 text-xs text-foreground focus:outline-none focus:border-indigo-500 placeholder:text-muted-foreground/50"
+                          onKeyDown={e => { if (e.key === "Escape") setLinkEditingTaskId(null); }}
+                        />
+                        <button type="submit" className="h-7 px-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs shrink-0 transition-colors">
+                          <Check className="w-3 h-3" />
+                        </button>
+                        <button type="button" onClick={() => setLinkEditingTaskId(null)} className="h-7 px-1 rounded-md hover:bg-white/10 text-muted-foreground shrink-0">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </form>
+                    ) : (task as Task & { externalLink?: string }).externalLink ? (
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={(task as Task & { externalLink?: string }).externalLink!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/12 border border-violet-500/25 hover:bg-violet-500/20 transition-colors text-xs font-medium text-violet-300"
+                        >
+                          <Video className="w-3 h-3 text-violet-400 shrink-0" />
+                          Open
+                          <ExternalLink className="w-2.5 h-2.5 opacity-60 shrink-0" />
+                        </a>
+                        <button
+                          onClick={(e) => openLinkEdit(task, e)}
+                          className="p-1 rounded hover:bg-white/10 text-muted-foreground transition-colors"
+                          title="Edit link"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => openLinkEdit(task, e)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-violet-400 transition-colors"
+                      >
+                        <Video className="w-3 h-3" /> Add link
+                      </button>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <button
