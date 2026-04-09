@@ -108,6 +108,20 @@ export default function QualityChecks() {
     return m;
   }, [tasks]);
 
+  // Only show tasks that haven't been evaluated yet in the New Evaluation dialog
+  const evaluatedTaskIds = React.useMemo(() => {
+    const ids = new Set<number>();
+    for (const c of checks ?? []) {
+      if (c.taskId != null) ids.add(c.taskId);
+    }
+    return ids;
+  }, [checks]);
+
+  const unevaluatedTasks = React.useMemo(
+    () => (tasks ?? []).filter(t => !evaluatedTaskIds.has(t.id)),
+    [tasks, evaluatedTaskIds]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -167,11 +181,16 @@ export default function QualityChecks() {
                     className="w-full p-2 bg-black/20 border border-white/10 rounded-lg text-sm text-foreground"
                   >
                     <option value="">No linked task</option>
-                    {tasks?.map((t) => (
+                    {unevaluatedTasks.map((t) => (
                       <option key={t.id} value={t.id} className="bg-card">
                         {t.title}
                       </option>
                     ))}
+                    {unevaluatedTasks.length === 0 && (
+                      <option disabled value="" className="bg-card text-muted-foreground">
+                        All tasks have been evaluated
+                      </option>
+                    )}
                   </select>
                 </div>
                 <div>
