@@ -51,8 +51,8 @@ function formatPKR(n: number): string {
 type AttendanceRec = { date: string };
 type TaskItem = { id: number; title: string; assigneeId: string | null; status: string; completedAt: string | null; dueDate: string | null };
 
-function PersonalPerformanceView({ userId, firstName, month, year }: {
-  userId: string; firstName: string; month: number; year: number;
+function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, fullName }: {
+  userId: string; firstName: string; month: number; year: number; asAdmin?: boolean; fullName?: string;
 }) {
   const { data: allTasks } = useListTasks();
   const [attendance, setAttendance] = useState<AttendanceRec[]>([]);
@@ -110,10 +110,23 @@ function PersonalPerformanceView({ userId, firstName, month, year }: {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-foreground">Your Performance</h1>
-        <p className="text-muted-foreground mt-1 text-sm">{MONTHS[month - 1]} {year} — late deliveries & attendance.</p>
-      </div>
+      {!asAdmin && (
+        <div>
+          <h1 className="text-3xl font-display font-bold text-foreground">Your Performance</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{MONTHS[month - 1]} {year} — late deliveries & attendance.</p>
+        </div>
+      )}
+      {asAdmin && (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-sm font-bold text-indigo-200 shrink-0">
+            {firstName?.[0]}{fullName?.split(" ")[1]?.[0]}
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">{fullName}</p>
+            <p className="text-xs text-muted-foreground">{MONTHS[month - 1]} {year}</p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="glass-panel p-5 space-y-3">
           <div className="flex items-center gap-2">
@@ -164,7 +177,9 @@ function PersonalPerformanceView({ userId, firstName, month, year }: {
       {!kpiTriggered && !depTriggered && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-500/8 border border-green-500/20">
           <Award className="w-5 h-5 text-green-400 shrink-0" />
-          <p className="text-sm text-green-300 font-medium">Great month, {firstName}! No deductions triggered.</p>
+          <p className="text-sm text-green-300 font-medium">
+            {asAdmin ? `${firstName} has no deductions this month.` : `Great month, ${firstName}! No deductions triggered.`}
+          </p>
         </div>
       )}
     </div>
@@ -181,7 +196,7 @@ export default function KPIs() {
   const canSeePayroll = PAYROLL_USERNAMES.includes(username);
 
   const now = new Date();
-  const [activeTab, setActiveTab] = useState<"payroll" | "deductions">(canSeePayroll ? "payroll" : "deductions");
+  const [activeTab, setActiveTab] = useState<"payroll" | "deductions" | "employees">(canSeePayroll ? "payroll" : "deductions");
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [salaryData, setSalaryData] = useState<SalaryRow[]>([]);
@@ -313,6 +328,16 @@ export default function KPIs() {
           }`}
         >
           <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Deductions</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("employees")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === "employees"
+              ? "bg-indigo-600 text-white shadow"
+              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+          }`}
+        >
+          <span className="flex items-center gap-1.5"><UserCheck className="w-3.5 h-3.5" /> Employee View</span>
         </button>
       </div>
 
@@ -588,6 +613,33 @@ export default function KPIs() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Employee View Tab ── */}
+      {!loading && activeTab === "employees" && (
+        <>
+          {salaryData.length === 0 ? (
+            <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
+              <UserCheck className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
+              <p className="text-muted-foreground text-sm">No employee data for this period.</p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {salaryData.map(row => (
+                <div key={row.user.id} className="glass-panel rounded-2xl border border-white/8 p-5">
+                  <PersonalPerformanceView
+                    userId={row.user.id}
+                    firstName={row.user.firstName ?? ""}
+                    fullName={`${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim()}
+                    month={month}
+                    year={year}
+                    asAdmin
+                  />
+                </div>
+              ))}
             </div>
           )}
         </>
