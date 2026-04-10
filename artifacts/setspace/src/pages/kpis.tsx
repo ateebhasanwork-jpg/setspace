@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   useGetCurrentUser,
   useListTasks,
@@ -55,14 +56,14 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
   userId: string; firstName: string; month: number; year: number; asAdmin?: boolean; fullName?: string;
 }) {
   const { data: allTasks } = useListTasks();
-  const [attendance, setAttendance] = useState<AttendanceRec[]>([]);
-
-  useEffect(() => {
-    fetch(`${BASE}/api/attendance?userId=${userId}`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : [])
-      .then((d: AttendanceRec[]) => setAttendance(d))
-      .catch(() => {});
-  }, [userId]);
+  const { data: attendance = [] } = useQuery<AttendanceRec[]>({
+    queryKey: ["attendance-user", userId],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/attendance?userId=${userId}`, { credentials: "include" });
+      if (res.ok) return res.json();
+      return [];
+    },
+  });
 
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59);

@@ -3,7 +3,9 @@ import { db } from "@workspace/db";
 import { attendanceTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
-import { getCachedUsers, getUserMap, getCachedScheduleSlots, invalidateByPrefix } from "../lib/cache";
+import { getCachedUsers, getUserMap, getCachedScheduleSlots, invalidateByPrefix, getCached } from "../lib/cache";
+
+const ATTENDANCE_TTL_MS = 2 * 60_000; // 2 minutes
 
 const router: IRouter = Router();
 
@@ -79,30 +81,37 @@ function formatRecord(
  */
 router.get("/attendance", async (req, res) => {
   try {
-    const conditions: ReturnType<typeof eq>[] = [];
-    if (req.query.userId) conditions.push(eq(attendanceTable.userId, req.query.userId as string));
-    if (req.query.date) conditions.push(eq(attendanceTable.date, req.query.date as string));
+    const userId = req.query.userId as string | undefined;
+    const date = req.query.date as string | undefined;
+    const cacheKey = `attendance:${userId ?? "all"}:${date ?? "all"}`;
 
-    const [records, users, allSlots] = await Promise.all([
-      conditions.length > 0
-        ? db.select().from(attendanceTable).where(and(...conditions)).orderBy(attendanceTable.date)
-        : db.select().from(attendanceTable).orderBy(attendanceTable.date),
-      getCachedUsers(),
-      getCachedScheduleSlots(),
-    ]);
+    const result = await getCached(cacheKey, ATTENDANCE_TTL_MS, async () => {
+      const conditions: ReturnType<typeof eq>[] = [];
+      if (userId) conditions.push(eq(attendanceTable.userId, userId));
+      if (date) conditions.push(eq(attendanceTable.date, date));
 
-    // Index slots by "userId:dayOfWeek"
-    const slotMap: Record<string, ScheduleSlot> = {};
-    for (const s of allSlots) {
-      slotMap[`${s.userId}:${s.dayOfWeek}`] = s;
-    }
+      const [records, users, allSlots] = await Promise.all([
+        conditions.length > 0
+          ? db.select().from(attendanceTable).where(and(...conditions)).orderBy(attendanceTable.date)
+          : db.select().from(attendanceTable).orderBy(attendanceTable.date),
+        getCachedUsers(),
+        getCachedScheduleSlots(),
+      ]);
 
-    const userMap = getUserMap(users);
-    res.json(records.map(r => {
-      const dow = pktDow(r.clockIn);
-      const slot = slotMap[`${r.userId}:${dow}`];
-      return { ...formatRecord(r, slot), user: userMap[r.userId] ?? null };
-    }));
+      const slotMap: Record<string, ScheduleSlot> = {};
+      for (const s of allSlots) {
+        slotMap[`${s.userId}:${s.dayOfWeek}`] = s;
+      }
+
+      const userMap = getUserMap(users);
+      return records.map(r => {
+        const dow = pktDow(r.clockIn);
+        const slot = slotMap[`${r.userId}:${dow}`];
+        return { ...formatRecord(r, slot), user: userMap[r.userId] ?? null };
+      });
+    });
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: "Failed to list attendance" });
   }
@@ -146,6 +155,7 @@ router.post("/attendance/clock-in", async (req, res) => {
         accumulatedSeconds: 0,
       }).returning();
       invalidateByPrefix("leaderboard:");
+      invalidateByPrefix("attendance:");
       res.status(201).json(formatRecord(record, slot));
       return;
     }
@@ -157,6 +167,7 @@ router.post("/attendance/clock-in", async (req, res) => {
       .where(eq(attendanceTable.id, existing.id))
       .returning();
     invalidateByPrefix("leaderboard:");
+    invalidateByPrefix("attendance:");
     res.json(formatRecord(updated, slot));
   } catch (err) {
     res.status(500).json({ error: "Failed to clock in" });
@@ -189,6 +200,7 @@ router.post("/attendance/clock-out", async (req, res) => {
       .where(eq(attendanceTable.id, existing.id))
       .returning();
     invalidateByPrefix("leaderboard:");
+    invalidateByPrefix("attendance:");
 
     const dow = pktDow(updated.clockIn);
     const allSlots2 = await getCachedScheduleSlots();

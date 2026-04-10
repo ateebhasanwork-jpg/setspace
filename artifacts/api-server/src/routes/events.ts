@@ -31,7 +31,7 @@ router.get("/events", (req, res) => {
       removeSseClient(res, userId);
       clearInterval(heartbeat);
     }
-  }, 30_000);
+  }, 45_000);
 
   req.on("close", () => {
     removeSseClient(res, userId);
