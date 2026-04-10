@@ -74,7 +74,11 @@ function PersonalPerformanceView({ userId, firstName, month, year }: {
     const c = new Date(t.completedAt!);
     return c >= startDate && c <= endDate;
   });
-  const lateTasks = thisMonthDone.filter(t => new Date(t.completedAt!) > new Date(t.dueDate!));
+  const lateTasks = thisMonthDone.filter(t => {
+    const completedDay = new Date(t.completedAt!).toISOString().split("T")[0];
+    const dueDay = new Date(t.dueDate!).toISOString().split("T")[0];
+    return completedDay > dueDay;
+  });
 
   let workingDays = 0;
   const d = new Date(startDate);
