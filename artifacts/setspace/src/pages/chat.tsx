@@ -130,13 +130,19 @@ function useVoiceRecorder(onRecorded: (file: File) => void) {
   const start = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "audio/ogg";
       const mr = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        const ext = mimeType.includes("webm") ? "webm" : "ogg";
+        const ext = mimeType.includes("webm") ? "webm" : mimeType.includes("mp4") ? "mp4" : "ogg";
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const file = new File([blob], `voice-note.${ext}`, { type: mimeType });
         onRecorded(file);
@@ -288,6 +294,7 @@ function QuotedReply({ parent, isMe }: { parent: LocalMessage; isMe: boolean }) 
 function MessageBubble({
   msg,
   isMe,
+  canDelete,
   showAvatar,
   onReply,
   onReact,
@@ -298,6 +305,7 @@ function MessageBubble({
 }: {
   msg: LocalMessage;
   isMe: boolean;
+  canDelete?: boolean;
   showAvatar: boolean;
   onReply: (m: LocalMessage) => void;
   onReact: (msgId: number, emoji: string) => void;
@@ -440,12 +448,12 @@ function MessageBubble({
                 )}
               </div>
 
-              {/* Delete — own messages only */}
-              {isMe && (
+              {/* Delete — own messages or admin */}
+              {canDelete && (
                 <button
                   onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
                   className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all ${
-                    hovered ? "opacity-100" : "opacity-0"
+                    hovered ? "opacity-100" : "opacity-30"
                   }`}
                   title="Delete message"
                 >
@@ -583,7 +591,7 @@ function DMBubble({
                 <button
                   onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
                   className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all ${
-                    hovered ? "opacity-100" : "opacity-0"
+                    hovered ? "opacity-100" : "opacity-30"
                   }`}
                   title="Delete message"
                 >
@@ -844,6 +852,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
               <MessageBubble
                 msg={msg}
                 isMe={isMe}
+                canDelete={isMe || (user as { role?: string })?.role === "admin"}
                 showAvatar={showAvatar}
                 onReply={setReplyTo}
                 onReact={handleReact}
