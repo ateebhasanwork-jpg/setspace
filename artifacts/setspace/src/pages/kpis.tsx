@@ -18,6 +18,7 @@ import {
   TrendingDown,
   UserCheck,
   XCircle,
+  CalendarDays,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -30,11 +31,23 @@ const MONTHS = [
   "July","August","September","October","November","December",
 ];
 
+type SalaryConfig = {
+  basicSalary: number;
+  overtimePayment: number;
+  dependabilityDeductionAmount: number;
+  kpiDeductionAmount: number;
+  workingDaysOverride: number | null;
+  kpiThreshold: number;
+  dependabilityThreshold: number;
+} | null;
+
 type SalaryRow = {
   user: User;
-  salary: { basicSalary: number; overtimePayment: number; dependabilityDeductionAmount: number; kpiDeductionAmount: number } | null;
+  salary: SalaryConfig;
   absences: number;
   workingDays: number;
+  kpiThreshold: number;
+  dependabilityThreshold: number;
   lateTasks: number;
   dependabilityTriggered: boolean;
   kpiTriggered: boolean;
@@ -52,8 +65,9 @@ function formatPKR(n: number): string {
 type AttendanceRec = { date: string };
 type TaskItem = { id: number; title: string; assigneeId: string | null; status: string; completedAt: string | null; dueDate: string | null };
 
-function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, fullName }: {
+function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, fullName, salaryConfig: salaryConfigProp }: {
   userId: string; firstName: string; month: number; year: number; asAdmin?: boolean; fullName?: string;
+  salaryConfig?: { workingDaysOverride?: number | null; kpiThreshold?: number; dependabilityThreshold?: number } | null;
 }) {
   const { data: allTasks } = useListTasks();
   const { data: attendance = [] } = useQuery<AttendanceRec[]>({
@@ -64,6 +78,21 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
       return [];
     },
   });
+
+  // For non-admin users, fetch their own salary config to get correct thresholds
+  const { data: mySalaryConfig } = useQuery<{ workingDaysOverride: number | null; kpiThreshold: number; dependabilityThreshold: number }>({
+    queryKey: ["salary-me"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/salaries/me`, { credentials: "include" });
+      if (res.ok) return res.json();
+      return { workingDaysOverride: null, kpiThreshold: 2, dependabilityThreshold: 2 };
+    },
+    enabled: !asAdmin,
+  });
+
+  const resolvedConfig = salaryConfigProp ?? mySalaryConfig;
+  const kpiThreshold = resolvedConfig?.kpiThreshold ?? 2;
+  const dependabilityThreshold = resolvedConfig?.dependabilityThreshold ?? 2;
 
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -81,13 +110,15 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
     return completedDay > dueDay;
   });
 
-  let workingDays = 0;
+  // Compute working days (auto Mon–Fri, or override per employee)
+  let autoWorkingDays = 0;
   const d = new Date(startDate);
   while (d <= endDate) {
     const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) workingDays++;
+    if (dow !== 0 && dow !== 6) autoWorkingDays++;
     d.setDate(d.getDate() + 1);
   }
+  const workingDays = resolvedConfig?.workingDaysOverride ?? autoWorkingDays;
 
   const presentDates = new Set(
     attendance
@@ -104,10 +135,12 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
     }
     c2.setDate(c2.getDate() + 1);
   }
-  const absences = absentDates.length;
+  const rawAbsences = absentDates.length;
+  // If working days is overridden, cap absences to that value
+  const absences = resolvedConfig?.workingDaysOverride != null ? Math.min(rawAbsences, workingDays) : rawAbsences;
 
-  const kpiTriggered = lateTasks.length >= 2;
-  const depTriggered = absences >= 2;
+  const kpiTriggered = lateTasks.length >= kpiThreshold;
+  const depTriggered = absences >= dependabilityThreshold;
 
   return (
     <div className="space-y-6">
@@ -135,7 +168,7 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
             <h3 className="text-sm font-semibold text-foreground">Late Deliveries</h3>
             <span className={`ml-auto text-3xl font-bold ${kpiTriggered ? "text-red-400" : "text-foreground"}`}>{lateTasks.length}</span>
           </div>
-          <p className="text-xs text-muted-foreground">KPI deduction triggers at 2+ late tasks in a month.</p>
+          <p className="text-xs text-muted-foreground">KPI deduction triggers at {kpiThreshold}+ late tasks in a month.</p>
           <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${kpiTriggered ? "bg-red-500/12 text-red-300 border-red-500/25" : "bg-green-500/8 text-green-300 border-green-500/20"}`}>
             {kpiTriggered ? "⚠ KPI deduction triggered" : "✓ No KPI deduction this month"}
           </div>
@@ -156,7 +189,7 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
             <h3 className="text-sm font-semibold text-foreground">Absences</h3>
             <span className={`ml-auto text-3xl font-bold ${depTriggered ? "text-orange-400" : "text-foreground"}`}>{absences}</span>
           </div>
-          <p className="text-xs text-muted-foreground">Dependability deduction triggers at 2+ absences.</p>
+          <p className="text-xs text-muted-foreground">Dependability deduction triggers at {dependabilityThreshold}+ absences.</p>
           <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${depTriggered ? "bg-orange-500/12 text-orange-300 border-orange-500/25" : "bg-green-500/8 text-green-300 border-green-500/20"}`}>
             {depTriggered ? "⚠ Dependability deduction triggered" : "✓ No deduction this month"}
           </div>
@@ -207,6 +240,9 @@ export default function KPIs() {
   const [editOvertime, setEditOvertime] = useState("");
   const [editDep, setEditDep] = useState("");
   const [editKpi, setEditKpi] = useState("");
+  const [editWorkingDays, setEditWorkingDays] = useState("");
+  const [editKpiThreshold, setEditKpiThreshold] = useState("");
+  const [editDepThreshold, setEditDepThreshold] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchSalaries = useCallback(async () => {
@@ -228,6 +264,9 @@ export default function KPIs() {
     setEditOvertime(String(row.salary?.overtimePayment ?? ""));
     setEditDep(String(row.salary?.dependabilityDeductionAmount ?? ""));
     setEditKpi(String(row.salary?.kpiDeductionAmount ?? ""));
+    setEditWorkingDays(row.salary?.workingDaysOverride != null ? String(row.salary.workingDaysOverride) : "");
+    setEditKpiThreshold(String(row.kpiThreshold));
+    setEditDepThreshold(String(row.dependabilityThreshold));
   };
 
   const saveEdit = async (userId: string) => {
@@ -242,6 +281,9 @@ export default function KPIs() {
           overtimePayment: parseInt(editOvertime) || 0,
           dependabilityDeductionAmount: parseInt(editDep) || 0,
           kpiDeductionAmount: parseInt(editKpi) || 0,
+          workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
+          kpiThreshold: parseInt(editKpiThreshold) || 2,
+          dependabilityThreshold: parseInt(editDepThreshold) || 2,
         }),
       });
       setEditingUserId(null);
@@ -356,11 +398,11 @@ export default function KPIs() {
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
-              Dependability deducted if 2+ absences in month
+              Dependability deducted if absences ≥ threshold
             </span>
             <span className="flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              KPI deducted if 2+ late deliveries in month
+              KPI deducted if late deliveries ≥ threshold
             </span>
           </div>
 
@@ -490,6 +532,69 @@ export default function KPIs() {
                       </div>
                     </div>
 
+                    {/* Threshold & working days config */}
+                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Thresholds & Schedule</p>
+
+                        {/* Working Days */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <CalendarDays className="w-3.5 h-3.5 text-sky-400" /> Working Days
+                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <Input type="number" value={editWorkingDays} onChange={e => setEditWorkingDays(e.target.value)}
+                                className="h-7 w-20 text-xs bg-black/30 border-white/15 text-right" placeholder="auto" />
+                              <span className="text-[10px] text-muted-foreground">days/mo</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-foreground">
+                              {row.salary?.workingDaysOverride != null ? (
+                                <span className="text-sky-400 font-semibold">{row.salary.workingDaysOverride} <span className="text-muted-foreground font-normal">(custom)</span></span>
+                              ) : (
+                                <span className="text-muted-foreground">{row.workingDays} (auto)</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Dep Threshold */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-orange-400" /> Dep. triggers at
+                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <Input type="number" value={editDepThreshold} onChange={e => setEditDepThreshold(e.target.value)}
+                                className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right" placeholder="2" />
+                              <span className="text-[10px] text-muted-foreground">absences</span>
+                            </div>
+                          ) : (
+                            <span className={`text-xs font-semibold ${row.dependabilityThreshold !== 2 ? "text-orange-400" : "text-muted-foreground"}`}>
+                              {row.dependabilityThreshold}+ absences
+                            </span>
+                          )}
+                        </div>
+
+                        {/* KPI Threshold */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> KPI triggers at
+                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <Input type="number" value={editKpiThreshold} onChange={e => setEditKpiThreshold(e.target.value)}
+                                className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right" placeholder="2" />
+                              <span className="text-[10px] text-muted-foreground">late tasks</span>
+                            </div>
+                          ) : (
+                            <span className={`text-xs font-semibold ${row.kpiThreshold !== 2 ? "text-red-400" : "text-muted-foreground"}`}>
+                              {row.kpiThreshold}+ late tasks
+                            </span>
+                          )}
+                        </div>
+                    </div>
+
                     {/* Net total */}
                     <div className={`flex items-center justify-between pt-3 border-t ${row.dependabilityTriggered || row.kpiTriggered ? "border-red-500/20" : "border-white/10"}`}>
                       <span className="text-sm font-bold text-foreground">Net Salary</span>
@@ -523,11 +628,11 @@ export default function KPIs() {
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
-              Dependability triggered at 2+ absences
+              Dependability — per-employee absence threshold
             </span>
             <span className="flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              KPI triggered at 2+ late deliveries
+              KPI — per-employee late delivery threshold
             </span>
           </div>
 
@@ -590,7 +695,7 @@ export default function KPIs() {
                       {/* Late deliveries count */}
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg text-xs font-bold ${
-                          row.lateTasks >= 2
+                          row.lateTasks >= row.kpiThreshold
                             ? "bg-red-500/15 border border-red-500/25 text-red-300"
                             : "bg-white/5 border border-white/10 text-muted-foreground"
                         }`}>
@@ -638,6 +743,7 @@ export default function KPIs() {
                     month={month}
                     year={year}
                     asAdmin
+                    salaryConfig={row.salary}
                   />
                 </div>
               ))}

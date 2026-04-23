@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { salariesTable, tasksTable, attendanceTable } from "@workspace/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { getCachedUsers, getUserMap } from "../lib/cache";
+import { getCachedUsers } from "../lib/cache";
 import { requireAdminOrHR } from "../middleware/roles";
 
 const router: IRouter = Router();
@@ -39,17 +39,22 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
 
     const salaryByUser = Object.fromEntries(salaries.map(s => [s.userId, s]));
 
-    // Compute working days for the month (Mon–Fri)
-    let workingDays = 0;
+    // Compute global working days for the month (Mon–Fri), used as fallback
+    let globalWorkingDays = 0;
     const d = new Date(startDate);
     while (d <= endDate) {
       const dow = d.getDay();
-      if (dow !== 0 && dow !== 6) workingDays++;
+      if (dow !== 0 && dow !== 6) globalWorkingDays++;
       d.setDate(d.getDate() + 1);
     }
 
     const result = users.map(user => {
       const salary = salaryByUser[user.id] ?? null;
+
+      // Per-employee working days: use override if set, otherwise auto Mon–Fri
+      const workingDays = salary?.workingDaysOverride ?? globalWorkingDays;
+      const kpiThreshold = salary?.kpiThreshold ?? 2;
+      const dependabilityThreshold = salary?.dependabilityThreshold ?? 2;
 
       // Count absences: working days where the user has no attendance record
       const presentDates = new Set(
@@ -67,13 +72,17 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         }
         c.setDate(c.getDate() + 1);
       }
+      // Cap absences at workingDays if override is set (can't be absent more than working days)
+      if (salary?.workingDaysOverride != null) {
+        absences = Math.min(absences, workingDays);
+      }
 
       // Count late tasks: Done tasks where completedAt > dueDate
       const userTasks = tasks.filter(t => t.assigneeId === user.id && t.status === "Done" && t.completedAt && t.dueDate);
       const lateTasks = userTasks.filter(t => t.completedAt! > t.dueDate!).length;
 
-      const dependabilityTriggered = absences >= 2;
-      const kpiTriggered = lateTasks >= 2;
+      const dependabilityTriggered = absences >= dependabilityThreshold;
+      const kpiTriggered = lateTasks >= kpiThreshold;
 
       const basicSalary = salary?.basicSalary ?? 0;
       const overtimePayment = salary?.overtimePayment ?? 0;
@@ -86,6 +95,8 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         salary,
         absences,
         workingDays,
+        kpiThreshold,
+        dependabilityThreshold,
         lateTasks,
         dependabilityTriggered,
         kpiTriggered,
@@ -105,41 +116,72 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
 });
 
 /**
+ * GET /api/salaries/me
+ * Returns the logged-in user's own salary config (thresholds + working days override only, no amounts).
+ */
+router.get("/salaries/me", async (req, res) => {
+  try {
+    const session = (req as { session?: { userId?: string } }).session;
+    const userId = session?.userId;
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const [row] = await db.select().from(salariesTable).where(eq(salariesTable.userId, userId));
+    res.json({
+      workingDaysOverride: row?.workingDaysOverride ?? null,
+      kpiThreshold: row?.kpiThreshold ?? 2,
+      dependabilityThreshold: row?.dependabilityThreshold ?? 2,
+    });
+  } catch (err) {
+    console.error("Salary me error:", err);
+    res.status(500).json({ error: "Failed to fetch salary config" });
+  }
+});
+
+/**
  * PUT /api/salaries/:userId
  * Upsert salary config for a user. Admin/HR only.
  */
 router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { basicSalary, overtimePayment, dependabilityDeductionAmount, kpiDeductionAmount } = req.body as {
+    const {
+      basicSalary,
+      overtimePayment,
+      dependabilityDeductionAmount,
+      kpiDeductionAmount,
+      workingDaysOverride,
+      kpiThreshold,
+      dependabilityThreshold,
+    } = req.body as {
       basicSalary?: number;
       overtimePayment?: number;
       dependabilityDeductionAmount?: number;
       kpiDeductionAmount?: number;
+      workingDaysOverride?: number | null;
+      kpiThreshold?: number;
+      dependabilityThreshold?: number;
     };
 
     const [existing] = await db.select().from(salariesTable).where(eq(salariesTable.userId, userId));
 
+    const updates = {
+      basicSalary: basicSalary ?? existing?.basicSalary ?? 0,
+      overtimePayment: overtimePayment ?? existing?.overtimePayment ?? 0,
+      dependabilityDeductionAmount: dependabilityDeductionAmount ?? existing?.dependabilityDeductionAmount ?? 0,
+      kpiDeductionAmount: kpiDeductionAmount ?? existing?.kpiDeductionAmount ?? 0,
+      workingDaysOverride: workingDaysOverride !== undefined ? workingDaysOverride : (existing?.workingDaysOverride ?? null),
+      kpiThreshold: kpiThreshold ?? existing?.kpiThreshold ?? 2,
+      dependabilityThreshold: dependabilityThreshold ?? existing?.dependabilityThreshold ?? 2,
+      updatedAt: new Date(),
+    };
+
     if (existing) {
       const [updated] = await db.update(salariesTable)
-        .set({
-          basicSalary: basicSalary ?? existing.basicSalary,
-          overtimePayment: overtimePayment ?? existing.overtimePayment,
-          dependabilityDeductionAmount: dependabilityDeductionAmount ?? existing.dependabilityDeductionAmount,
-          kpiDeductionAmount: kpiDeductionAmount ?? existing.kpiDeductionAmount,
-          updatedAt: new Date(),
-        })
+        .set(updates)
         .where(eq(salariesTable.userId, userId))
         .returning();
       res.json(updated);
     } else {
-      const [created] = await db.insert(salariesTable).values({
-        userId,
-        basicSalary: basicSalary ?? 0,
-        overtimePayment: overtimePayment ?? 0,
-        dependabilityDeductionAmount: dependabilityDeductionAmount ?? 0,
-        kpiDeductionAmount: kpiDeductionAmount ?? 0,
-      }).returning();
+      const [created] = await db.insert(salariesTable).values({ userId, ...updates }).returning();
       res.status(201).json(created);
     }
   } catch (err) {
