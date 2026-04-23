@@ -1,20 +1,5 @@
 import type { CSSProperties } from "react";
 
-const PALETTE = [
-  { bg: "rgba(59,130,246,0.18)",  border: "rgba(59,130,246,0.30)",  text: "#93c5fd" },  // blue
-  { bg: "rgba(16,185,129,0.18)",  border: "rgba(16,185,129,0.30)",  text: "#6ee7b7" },  // emerald
-  { bg: "rgba(139,92,246,0.18)",  border: "rgba(139,92,246,0.30)",  text: "#c4b5fd" },  // violet
-  { bg: "rgba(245,158,11,0.18)",  border: "rgba(245,158,11,0.30)",  text: "#fcd34d" },  // amber
-  { bg: "rgba(239,68,68,0.18)",   border: "rgba(239,68,68,0.30)",   text: "#fca5a5" },  // rose
-  { bg: "rgba(6,182,212,0.18)",   border: "rgba(6,182,212,0.30)",   text: "#67e8f9" },  // cyan
-  { bg: "rgba(217,70,239,0.18)",  border: "rgba(217,70,239,0.30)",  text: "#f0abfc" },  // fuchsia
-  { bg: "rgba(132,204,22,0.18)",  border: "rgba(132,204,22,0.30)",  text: "#bef264" },  // lime
-  { bg: "rgba(249,115,22,0.18)",  border: "rgba(249,115,22,0.30)",  text: "#fdba74" },  // orange
-  { bg: "rgba(20,184,166,0.18)",  border: "rgba(20,184,166,0.30)",  text: "#5eead4" },  // teal
-  { bg: "rgba(236,72,153,0.18)",  border: "rgba(236,72,153,0.30)",  text: "#f9a8d4" },  // pink
-  { bg: "rgba(14,165,233,0.18)",  border: "rgba(14,165,233,0.30)",  text: "#7dd3fc" },  // sky
-];
-
 function hashId(id: string): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -24,18 +9,32 @@ function hashId(id: string): number {
   return Math.abs(hash);
 }
 
-/** Inline style for avatar circles — works regardless of Tailwind purging */
+/**
+ * Derive a unique hue (0–359) from any user ID string.
+ * Using the full 360-degree hue space means two users almost never
+ * share the same colour regardless of how many employees exist.
+ */
+function getUserHue(userId: string): number {
+  return hashId(userId) % 360;
+}
+
+/** Inline style for avatar circles */
 export function getUserAvatarStyle(userId: string): CSSProperties {
-  const c = PALETTE[hashId(userId) % PALETTE.length];
-  return { backgroundColor: c.bg, borderColor: c.border, color: c.text };
+  const hue = getUserHue(userId);
+  return {
+    backgroundColor: `hsla(${hue}, 65%, 35%, 0.25)`,
+    borderColor:     `hsla(${hue}, 65%, 55%, 0.35)`,
+    color:           `hsl(${hue}, 75%, 75%)`,
+  };
 }
 
-/** CSS color string for sender name labels */
+/** CSS colour for sender name labels */
 export function getUserNameColor(userId: string): string {
-  return PALETTE[hashId(userId) % PALETTE.length].text;
+  const hue = getUserHue(userId);
+  return `hsl(${hue}, 75%, 72%)`;
 }
 
-// Legacy Tailwind-class exports kept for any remaining usages
+// Legacy stubs — kept so any remaining import doesn't break
 export function getUserTextColor(_userId: string): string { return ""; }
 export function getUserBgColor(_userId: string): string { return ""; }
 export function getUserAvatarClasses(_userId: string): string { return ""; }
