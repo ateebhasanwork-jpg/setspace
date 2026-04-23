@@ -30,7 +30,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
-import { getUserTextColor } from "@/lib/user-colors";
+import { getUserTextColor, getUserAvatarClasses } from "@/lib/user-colors";
 
 type ReactionGroup = { emoji: string; count: number; userIds: string[] };
 type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[] };
@@ -201,23 +201,26 @@ function DateSeparator({ label }: { label: string }) {
 function Avatar({
   name,
   profileImage,
+  userId,
   size = "sm",
   visible = true,
 }: {
   name?: string | null;
   profileImage?: string | null;
+  userId?: string;
   size?: "sm" | "md";
   visible?: boolean;
 }) {
   const photo = resolveProfileImage(profileImage);
   const cls = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm";
+  const colorCls = userId ? getUserAvatarClasses(userId) : "bg-indigo-600/30 border-indigo-500/20 text-indigo-200";
   if (!visible) return <div className={`${cls} rounded-full shrink-0 opacity-0`} />;
   if (photo)
     return (
       <img src={photo} alt="" className={`${cls} rounded-full object-cover border border-white/10 shrink-0`} />
     );
   return (
-    <div className={`${cls} rounded-full flex items-center justify-center font-bold text-white shrink-0 bg-indigo-600/40 border border-indigo-500/20`}>
+    <div className={`${cls} rounded-full flex items-center justify-center font-bold shrink-0 border ${colorCls}`}>
       {name?.[0]?.toUpperCase()}
     </div>
   );
@@ -340,7 +343,7 @@ function MessageBubble({
       onMouseLeave={() => { setHovered(false); }}
     >
       {!isMe && showAvatar && (
-        <span className={`text-xs font-semibold mb-1 ml-11 ${getUserTextColor(msg.senderId)}`}>
+        <span className={`text-xs font-semibold mb-1 ml-11 ${getUserTextColor(msg.authorId)}`}>
           {author?.firstName} {author?.lastName}
         </span>
       )}
@@ -349,6 +352,7 @@ function MessageBubble({
           <Avatar
             name={author?.firstName}
             profileImage={author?.profileImage}
+            userId={msg.authorId}
             visible={showAvatar}
           />
         )}
@@ -505,7 +509,7 @@ function DMBubble({
       onMouseLeave={() => setHovered(false)}
     >
       <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
-        {!isMe && <Avatar name={sender?.firstName} profileImage={sender?.profileImage} />}
+        {!isMe && <Avatar name={sender?.firstName} profileImage={sender?.profileImage} userId={msg.senderId} />}
         <div className="flex flex-col gap-1">
           <div
             className={`p-4 rounded-2xl ${
@@ -1424,7 +1428,7 @@ export default function TeamChat() {
                   </span>
                 )}
               </div>
-              <span className="truncate flex-1 text-left">Team Channel</span>
+              <span className={`truncate flex-1 text-left ${groupUnread > 0 && view !== "group" ? "font-bold" : ""}`}>Team Channel</span>
               {groupUnread > 0 && view !== "group" && (
                 <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0 animate-pulse" />
               )}
@@ -1434,6 +1438,7 @@ export default function TeamChat() {
             {otherUsers.map((u) => {
               const unread = unreadByUser[u.id] ?? 0;
               const isActive = view === u.id;
+              const avatarCls = getUserAvatarClasses(u.id);
               return (
                 <button
                   key={u.id}
@@ -1443,21 +1448,23 @@ export default function TeamChat() {
                   }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? "bg-teal-600/25 text-teal-200 border border-teal-500/25"
-                      : "text-muted-foreground hover:text-teal-300 hover:bg-teal-500/10"
+                      ? "bg-white/8 text-foreground border border-white/10"
+                      : unread > 0
+                      ? "text-white bg-white/5 border border-white/8"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <div className="w-6 h-6 rounded-full bg-teal-600/30 border border-teal-500/20 flex items-center justify-center text-[10px] font-bold text-teal-200">
+                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold ${avatarCls}`}>
                       {u.firstName?.[0]}
                     </div>
                     {unread > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
                         {unread > 9 ? "9+" : unread}
                       </span>
                     )}
                   </div>
-                  <span className="truncate flex-1 text-left">{u.firstName}</span>
+                  <span className={`truncate flex-1 text-left ${unread > 0 ? "font-bold" : ""}`}>{u.firstName}</span>
                 </button>
               );
             })}
