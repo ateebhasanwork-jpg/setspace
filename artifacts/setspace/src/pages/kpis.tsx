@@ -19,6 +19,7 @@ import {
   UserCheck,
   XCircle,
   CalendarDays,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -230,7 +231,7 @@ export default function KPIs() {
   const canSeePayroll = PAYROLL_USERNAMES.includes(username);
 
   const now = new Date();
-  const [activeTab, setActiveTab] = useState<"payroll" | "deductions" | "employees">(canSeePayroll ? "payroll" : "deductions");
+  const [activeTab, setActiveTab] = useState<"payroll" | "deductions" | "employees" | "settings">(canSeePayroll ? "payroll" : "deductions");
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [salaryData, setSalaryData] = useState<SalaryRow[]>([]);
@@ -381,6 +382,16 @@ export default function KPIs() {
           }`}
         >
           <span className="flex items-center gap-1.5"><UserCheck className="w-3.5 h-3.5" /> Employee View</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === "settings"
+              ? "bg-indigo-600 text-white shadow"
+              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+          }`}
+        >
+          <span className="flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5" /> KPI Settings</span>
         </button>
       </div>
 
@@ -747,6 +758,162 @@ export default function KPIs() {
                   />
                 </div>
               ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── KPI Settings Tab ── */}
+      {!loading && activeTab === "settings" && (
+        <>
+          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="w-3.5 h-3.5 text-sky-400" />
+              Working days: leave blank to auto-count Mon–Fri for the month
+            </span>
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+              Thresholds control when deductions are triggered (default: 2)
+            </span>
+          </div>
+
+          {salaryData.length === 0 ? (
+            <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
+              <SlidersHorizontal className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
+              <p className="text-muted-foreground text-sm">No employee data yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {salaryData.map((row) => {
+                const isEditing = editingUserId === row.user.id;
+                return (
+                  <Card key={row.user.id} className="glass-panel p-5 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-sm font-bold text-indigo-200 shrink-0">
+                          {row.user.firstName?.[0]}{row.user.lastName?.[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground text-sm">{row.user.firstName} {row.user.lastName}</p>
+                          {row.user.title && <p className="text-xs text-muted-foreground">{row.user.title}</p>}
+                        </div>
+                      </div>
+                      {!isEditing ? (
+                        <button
+                          onClick={() => openEdit(row)}
+                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
+                          title="Edit thresholds"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => saveEdit(row.user.id)}
+                            disabled={saving}
+                            className="p-1.5 text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-colors"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingUserId(null)}
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Working Days */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <CalendarDays className="w-3.5 h-3.5 text-sky-400" /> Working Days / Month
+                        </span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              value={editWorkingDays}
+                              onChange={e => setEditWorkingDays(e.target.value)}
+                              className="h-7 w-20 text-xs bg-black/30 border-white/15 text-right"
+                              placeholder="auto"
+                            />
+                            <span className="text-[10px] text-muted-foreground">days</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-semibold">
+                            {row.salary?.workingDaysOverride != null
+                              ? <span className="text-sky-400">{row.salary.workingDaysOverride} <span className="text-xs font-normal text-muted-foreground">(custom)</span></span>
+                              : <span className="text-muted-foreground">{row.workingDays} (auto)</span>
+                            }
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dependability Threshold */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-orange-400" /> Dependability Trigger
+                        </span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              value={editDepThreshold}
+                              onChange={e => setEditDepThreshold(e.target.value)}
+                              className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right"
+                              placeholder="2"
+                            />
+                            <span className="text-[10px] text-muted-foreground">absences</span>
+                          </div>
+                        ) : (
+                          <span className={`text-sm font-semibold ${row.dependabilityThreshold !== 2 ? "text-orange-400" : "text-foreground"}`}>
+                            {row.dependabilityThreshold}+ absences
+                          </span>
+                        )}
+                      </div>
+
+                      {/* KPI Threshold */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> KPI Trigger
+                        </span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              value={editKpiThreshold}
+                              onChange={e => setEditKpiThreshold(e.target.value)}
+                              className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right"
+                              placeholder="2"
+                            />
+                            <span className="text-[10px] text-muted-foreground">late tasks</span>
+                          </div>
+                        ) : (
+                          <span className={`text-sm font-semibold ${row.kpiThreshold !== 2 ? "text-red-400" : "text-foreground"}`}>
+                            {row.kpiThreshold}+ late tasks
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Current month status */}
+                    <div className={`text-xs px-3 py-2 rounded-xl border text-center font-medium ${
+                      row.dependabilityTriggered || row.kpiTriggered
+                        ? "bg-red-500/8 border-red-500/20 text-red-300"
+                        : "bg-green-500/8 border-green-500/20 text-green-300"
+                    }`}>
+                      {row.dependabilityTriggered || row.kpiTriggered
+                        ? <span className="flex items-center justify-center gap-1.5"><AlertTriangle className="w-3 h-3" /> Deduction active this month</span>
+                        : <span className="flex items-center justify-center gap-1.5"><Check className="w-3 h-3" /> No deductions this month</span>
+                      }
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </>
