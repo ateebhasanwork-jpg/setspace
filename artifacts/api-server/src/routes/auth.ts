@@ -29,13 +29,26 @@ function setSessionCookie(res: Response, sid: string) {
   });
 }
 
-// Current authenticated user
-router.get("/auth/user", (req: Request, res: Response) => {
+// Current authenticated user — always do a fresh DB read so fields like
+// profileSetup are up-to-date rather than stale session data.
+router.get("/auth/user", async (req: Request, res: Response) => {
   if (!req.isAuthenticated() || !req.user) {
     res.json({ isAuthenticated: false });
     return;
   }
-  res.json({ ...req.user, isAuthenticated: true });
+  try {
+    const [fresh] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+    if (!fresh) { res.json({ isAuthenticated: false }); return; }
+    res.json({
+      ...fresh,
+      createdAt: fresh.createdAt.toISOString(),
+      updatedAt: fresh.updatedAt.toISOString(),
+      isAuthenticated: true,
+    });
+  } catch {
+    // Fall back to session data on DB error
+    res.json({ ...req.user, isAuthenticated: true });
+  }
 });
 
 // Check if first-time setup is needed (no users in DB yet)
