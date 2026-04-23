@@ -51,6 +51,7 @@ router.post("/users", async (req, res) => {
       department: department || null,
       title: title || null,
       passwordHash,
+      profileSetup: true, // Admin already filled in name — skip onboarding for these accounts
     }).returning();
     invalidateUsers();
     res.status(201).json({ ...user, createdAt: user.createdAt.toISOString(), updatedAt: user.updatedAt.toISOString() });
