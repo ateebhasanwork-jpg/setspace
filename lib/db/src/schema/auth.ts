@@ -13,6 +13,7 @@ export const usersTable = pgTable("users", {
   department: text("department"),
   title: text("title"),
   profileSetup: boolean("profile_setup").notNull().default(false),
+  passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

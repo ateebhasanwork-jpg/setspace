@@ -27,8 +27,10 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
   const isPublic =
     path === "/healthz" ||
     path === "/login" ||
-    path === "/callback" ||
     path === "/logout" ||
+    path === "/setup" ||
+    path === "/setup/needed" ||
+    path === "/setup/init-password" ||
     path.startsWith("/auth/") ||
     path.startsWith("/mobile-auth/") ||
     /^\/review\/[^/]+/.test(path) ||

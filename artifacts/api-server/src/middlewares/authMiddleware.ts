@@ -1,14 +1,11 @@
-import * as oidc from "openid-client";
 import { type Request, type Response, type NextFunction } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import {
   clearSession,
-  getOidcConfig,
   getSessionId,
   getSession,
   updateSession,
-  type SessionData,
   type SessionUser,
 } from "../lib/auth";
 
@@ -16,6 +13,7 @@ declare global {
   namespace Express {
     interface User extends SessionUser {
       role: string;
+      username: string;
       department?: string | null;
       title?: string | null;
       profileSetup?: boolean | null;
@@ -23,7 +21,6 @@ declare global {
 
     interface Request {
       isAuthenticated(): this is AuthedRequest;
-
       user?: User | undefined;
     }
 
@@ -31,31 +28,6 @@ declare global {
       user: User;
     }
   }
-}
-
-async function refreshIfExpired(
-  sid: string,
-  session: SessionData,
-): Promise<SessionData> {
-  const now = Math.floor(Date.now() / 1000);
-  if (!session.expires_at || now <= session.expires_at) return session;
-  if (!session.refresh_token) return session;
-
-  try {
-    const config = await getOidcConfig();
-    const tokens = await oidc.refreshTokenGrant(config, session.refresh_token);
-    session.access_token = tokens.access_token;
-    session.refresh_token = tokens.refresh_token ?? session.refresh_token;
-    session.expires_at = tokens.expiresIn()
-      ? now + tokens.expiresIn()!
-      : session.expires_at;
-    await updateSession(sid, session);
-  } catch {
-    // Token refresh failed — keep the session alive anyway.
-    // The session row has its own 7-day TTL so we don't log the user out
-    // just because the short-lived access token can't be renewed.
-  }
-  return session;
 }
 
 export async function authMiddleware(
@@ -80,21 +52,18 @@ export async function authMiddleware(
     return;
   }
 
-  const refreshed = await refreshIfExpired(sid, session);
-
-  // Rolling session: extend expiry on every request so active users never get logged out
-  // Update only once per 10 minutes to avoid excessive DB writes
-  const now = Date.now();
-  const sessionExp = refreshed.expires_at ? refreshed.expires_at * 1000 : 0;
+  // Rolling session: extend expiry on every request.
+  // Only write once per 10 minutes to avoid excessive DB writes.
   const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-  if (sessionExp - now < SESSION_TTL_MS - 10 * 60 * 1000) {
-    // More than 10 minutes has elapsed since last extension — roll it
-    refreshed.expires_at = Math.floor((now + SESSION_TTL_MS) / 1000);
-    updateSession(sid, refreshed).catch(() => {});
-  }
+  const now = Date.now();
+  updateSession(sid, session).catch(() => {});
 
-  // Always fetch fresh user from DB so role/profile changes take effect immediately
-  const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, refreshed.user.id));
+  // Always fetch fresh user from DB so role/profile changes take effect immediately.
+  const [dbUser] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, session.user.id));
+
   if (!dbUser) {
     await clearSession(res, sid);
     next();
@@ -102,12 +71,13 @@ export async function authMiddleware(
   }
 
   req.user = {
-    ...refreshed.user,
-    role: dbUser.role,
+    id: dbUser.id,
+    username: dbUser.username,
+    email: dbUser.email,
     firstName: dbUser.firstName,
     lastName: dbUser.lastName,
-    email: dbUser.email,
     profileImage: dbUser.profileImage,
+    role: dbUser.role,
     department: dbUser.department,
     title: dbUser.title,
     profileSetup: dbUser.profileSetup,

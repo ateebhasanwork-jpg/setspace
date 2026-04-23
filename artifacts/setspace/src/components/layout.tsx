@@ -30,7 +30,6 @@ import {
   Star, 
   Trophy, 
   MessageSquare, 
-  Calendar, 
   Bell, 
   LogOut,
   UserCircle,
@@ -54,7 +53,6 @@ const NAV_ITEMS = [
   { title: "Quality Check",href: "/quality",       icon: Star,            badge: null,                                   managerOnly: false },
   { title: "Leaderboard",  href: "/leaderboard",   icon: Trophy,          badge: null,                                   managerOnly: false },
   { title: "Team Chat",    href: "/chat",          icon: MessageSquare,   badge: "dm"    as const,                       managerOnly: false },
-  { title: "Meetings",     href: "/meetings",      icon: Calendar,        badge: null,                                   managerOnly: false },
   { title: "Notifications",href: "/notifications", icon: Bell,            badge: "notif" as const,                       managerOnly: false },
   { title: "Team",         href: "/team",          icon: Users,           badge: null,                                   managerOnly: true  },
 ];

@@ -3,6 +3,7 @@ import { useGetLeaderboard, getGetLeaderboardQueryKey } from "@workspace/api-cli
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Trophy, RefreshCw, Star, CalendarCheck, Clock, LayoutList } from "lucide-react";
+import { getUserTextColor } from "@/lib/user-colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const MONTHS = [
@@ -25,6 +26,8 @@ type LeaderEntry = {
   onTimeTasks?: number;
   presentDays?: number;
   workingDays?: number;
+  workedHours?: number;
+  expectedHours?: number;
   rank: number;
 };
 
@@ -146,7 +149,7 @@ export default function Leaderboard() {
                 <div className="mt-3 mb-3">
                   <Avatar entry={leaderboard[1] as LeaderEntry} size="md" />
                 </div>
-                <h3 className="font-bold text-base text-center">{fullName(leaderboard[1] as LeaderEntry)}</h3>
+                <h3 className={`font-bold text-base text-center ${getUserTextColor(leaderboard[1].userId)}`}>{fullName(leaderboard[1] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[1].score.toFixed(0)} pts</p>
                 <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/10 w-full justify-center">
                   <ScorePill label="On-Time" value={(leaderboard[1] as LeaderEntry).onTimeScore} color="text-amber-400" />
@@ -179,7 +182,7 @@ export default function Leaderboard() {
                 {(leaderboard[0] as LeaderEntry).completedTasks !== undefined && (
                   <p className="text-xs text-muted-foreground mt-3">
                     {(leaderboard[0] as LeaderEntry).onTimeTasks}/{(leaderboard[0] as LeaderEntry).completedTasks} tasks on time
-                    · {(leaderboard[0] as LeaderEntry).presentDays}/{(leaderboard[0] as LeaderEntry).workingDays} days present
+                    · {(leaderboard[0] as LeaderEntry).workedHours ?? (leaderboard[0] as LeaderEntry).presentDays}h worked
                   </p>
                 )}
               </Card>
@@ -192,7 +195,7 @@ export default function Leaderboard() {
                 <div className="mt-3 mb-3">
                   <Avatar entry={leaderboard[2] as LeaderEntry} size="md" />
                 </div>
-                <h3 className="font-bold text-base text-center">{fullName(leaderboard[2] as LeaderEntry)}</h3>
+                <h3 className={`font-bold text-base text-center ${getUserTextColor(leaderboard[2].userId)}`}>{fullName(leaderboard[2] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[2].score.toFixed(0)} pts</p>
                 <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/10 w-full justify-center">
                   <ScorePill label="On-Time" value={(leaderboard[2] as LeaderEntry).onTimeScore} color="text-amber-400" />
@@ -251,7 +254,7 @@ export default function Leaderboard() {
                         {(entry.user?.firstName?.[0] ?? "") + (entry.user?.lastName?.[0] ?? "")}
                       </div>
                       <div>
-                        <span className="font-medium text-sm text-foreground">{fullName(entry as LeaderEntry)}</span>
+                        <span className={`font-medium text-sm ${getUserTextColor(entry.userId)}`}>{fullName(entry as LeaderEntry)}</span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[10px] text-amber-400">{(entry as LeaderEntry).onTimeScore.toFixed(0)} OT</span>
                           <span className="text-[10px] text-violet-300">{(entry as LeaderEntry).qualityScore.toFixed(0)} Q</span>

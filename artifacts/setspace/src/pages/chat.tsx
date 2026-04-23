@@ -27,6 +27,7 @@ import {
   Video,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
+import { getUserTextColor } from "@/lib/user-colors";
 
 type ReactionGroup = { emoji: string; count: number; userIds: string[] };
 type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[] };
@@ -268,7 +269,7 @@ function MessageBubble({
       onMouseLeave={() => { setHovered(false); }}
     >
       {!isMe && showAvatar && (
-        <span className="text-xs font-semibold text-muted-foreground mb-1 ml-11">
+        <span className={`text-xs font-semibold mb-1 ml-11 ${getUserTextColor(msg.senderId)}`}>
           {author?.firstName} {author?.lastName}
         </span>
       )}

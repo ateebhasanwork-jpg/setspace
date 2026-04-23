@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { attendanceTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, lt } from "drizzle-orm";
 import { requireAdminOrHR } from "../middleware/roles";
 import { getCachedUsers, getUserMap, getCachedScheduleSlots, invalidateByPrefix, getCached } from "../lib/cache";
 
@@ -146,6 +146,39 @@ router.post("/attendance/clock-in", async (req, res) => {
     const slot = allSlots.find(s => s.userId === req.user.id && s.dayOfWeek === dow);
 
     if (!existing) {
+      // Auto-close any stuck open records from previous days before creating today's record
+      const stuckRecords = await db.select().from(attendanceTable)
+        .where(and(
+          eq(attendanceTable.userId, req.user.id),
+          isNull(attendanceTable.clockOut),
+          lt(attendanceTable.date, today),
+        ));
+
+      for (const prev of stuckRecords) {
+        const prevDow = pktDow(prev.clockIn);
+        const prevSlot = allSlots.find(s => s.userId === req.user.id && s.dayOfWeek === prevDow);
+        const sessionStart = prev.lastClockIn ?? prev.clockIn;
+        let autoClockOut: Date;
+        if (prevSlot) {
+          // Clock out at scheduled shift end
+          const startPKT = new Date(sessionStart.getTime() + PKT_OFFSET_MS);
+          const endPKT = new Date(startPKT);
+          endPKT.setUTCHours(prevSlot.loginHour + prevSlot.shiftHours, prevSlot.loginMinute, 0, 0);
+          autoClockOut = new Date(endPKT.getTime() - PKT_OFFSET_MS);
+          // Sanity check: don't go before session start
+          if (autoClockOut.getTime() <= sessionStart.getTime()) {
+            autoClockOut = new Date(sessionStart.getTime() + prevSlot.shiftHours * 3600 * 1000);
+          }
+        } else {
+          // No schedule: assume 4-hour shift
+          autoClockOut = new Date(sessionStart.getTime() + 4 * 3600 * 1000);
+        }
+        const sessionSeconds = Math.max(0, Math.floor((autoClockOut.getTime() - sessionStart.getTime()) / 1000));
+        await db.update(attendanceTable)
+          .set({ clockOut: autoClockOut, accumulatedSeconds: (prev.accumulatedSeconds ?? 0) + sessionSeconds })
+          .where(eq(attendanceTable.id, prev.id));
+      }
+
       const [record] = await db.insert(attendanceTable).values({
         userId: req.user.id,
         clockIn: now,

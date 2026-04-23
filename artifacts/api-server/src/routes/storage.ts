@@ -11,6 +11,17 @@ import { db, videoShareTokensTable, videoVersionsTable } from "@workspace/db";
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
+// Graceful degradation: if object storage is not configured (self-hosted without Replit sidecar),
+// return 503 instead of crashing or returning a confusing 500 error.
+const STORAGE_CONFIGURED = !!process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+router.use((_req: Request, res: Response, next) => {
+  if (!STORAGE_CONFIGURED) {
+    res.status(503).json({ error: "File storage is not configured on this server." });
+    return;
+  }
+  next();
+});
+
 /**
  * POST /storage/upload
  *

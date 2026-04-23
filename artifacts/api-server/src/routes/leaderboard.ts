@@ -93,26 +93,36 @@ router.get("/leaderboard", async (req, res) => {
           ? Math.round((qualityChecks.reduce((sum, q) => sum + (q.revisionCount ?? 0), 0) / qualityChecks.length) * 10) / 10
           : 0;
 
-        // ── Attendance (20%) ──
+        // ── Attendance (20%) — hours worked vs expected hours (fair across different shift lengths) ──
         const attendanceRecords = attendanceByUser[user.id] ?? [];
 
-        // Use scheduled working days for this user (or fall back to Mon-Fri)
-        const userScheduledDows = new Set(
-          allSlots.filter(s => s.userId === user.id).map(s => s.dayOfWeek)
-        );
-        let userWorkingDays = workingDays; // default Mon-Fri count
-        if (userScheduledDows.size > 0) {
-          // Recount using user's specific schedule days
-          userWorkingDays = 0;
-          const c = new Date(startDate);
-          while (c <= endDate) {
-            if (userScheduledDows.has(c.getDay())) userWorkingDays++;
-            c.setDate(c.getDate() + 1);
+        // Expected hours = sum of each scheduled day's shiftHours in the month
+        let expectedHours = 0;
+        let userWorkingDays = 0;
+        const userSlots = allSlots.filter(s => s.userId === user.id);
+        const userScheduledDows = new Set(userSlots.map(s => s.dayOfWeek));
+        const c2 = new Date(startDate);
+        while (c2 <= endDate) {
+          const dow = c2.getDay();
+          const slot = userSlots.find(s => s.dayOfWeek === dow);
+          if (slot) {
+            expectedHours += slot.shiftHours;
+            userWorkingDays++;
+          } else if (userScheduledDows.size === 0 && dow !== 0 && dow !== 6) {
+            // No schedule → default Mon-Fri 8h
+            expectedHours += 8;
+            userWorkingDays++;
           }
+          c2.setDate(c2.getDate() + 1);
         }
-        const attendanceScore = userWorkingDays > 0
-          ? Math.min((attendanceRecords.length / userWorkingDays) * 100, 100)
-          : 0;
+
+        // Hours actually worked (accumulatedSeconds covers full session for closed records)
+        const workedSeconds = attendanceRecords.reduce((sum, r) => sum + (r.accumulatedSeconds ?? 0), 0);
+        const workedHours = workedSeconds / 3600;
+
+        const attendanceScore = expectedHours > 0
+          ? Math.min((workedHours / expectedHours) * 100, 100)
+          : attendanceRecords.length > 0 ? 75 : 0;
 
         // ── Punctuality (15%) — on-time clock-ins ──
         let onTimeLogins = 0;
@@ -153,6 +163,8 @@ router.get("/leaderboard", async (req, res) => {
           onTimeTasks: onTimeTasks.length,
           presentDays: attendanceRecords.length,
           workingDays: userWorkingDays,
+          workedHours: Math.round(workedHours * 10) / 10,
+          expectedHours: Math.round(expectedHours * 10) / 10,
           month, year, rank: 0,
         };
       });

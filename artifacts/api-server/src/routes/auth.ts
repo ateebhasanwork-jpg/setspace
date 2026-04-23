@@ -1,107 +1,35 @@
-import * as oidc from "openid-client";
+import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import {
   clearSession,
-  getOidcConfig,
   getSessionId,
   createSession,
   deleteSession,
   SESSION_COOKIE,
   SESSION_TTL,
-  ISSUER_URL,
   type SessionData,
 } from "../lib/auth";
-
-const OIDC_COOKIE_TTL = 10 * 60 * 1000;
+import { invalidateUsers } from "../lib/cache";
 
 const router: IRouter = Router();
 
-function getOrigin(req: Request): string {
-  const proto = req.headers["x-forwarded-proto"] || "https";
-  const host =
-    req.headers["x-forwarded-host"] || req.headers["host"] || "localhost";
-  return `${proto}://${host}`;
-}
+const ADMIN_USERNAMES = ["ateebhasanwork"];
+const HR_USERNAMES = ["laiba"];
 
 function setSessionCookie(res: Response, sid: string) {
   res.cookie(SESSION_COOKIE, sid, {
     httpOnly: true,
-    secure: true,
+    secure: false,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL,
   });
 }
 
-function setOidcCookie(res: Response, name: string, value: string) {
-  res.cookie(name, value, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: OIDC_COOKIE_TTL,
-  });
-}
-
-function getSafeReturnTo(value: unknown): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
-    return "/";
-  }
-  return value;
-}
-
-// Replit usernames auto-assigned roles on first login (never overwritten on re-login).
-const ADMIN_USERNAMES = ["ateebhasanwork"];
-const HR_USERNAMES = ["laiba"];
-
-async function upsertUser(claims: Record<string, unknown>) {
-  const sub = claims.sub as string;
-  const firstName = (claims.first_name as string) || "";
-  const lastName = (claims.last_name as string) || "";
-  const username = (claims.preferred_username || claims.username || `${firstName.toLowerCase()}_${sub.slice(-6)}`) as string;
-  const profileImage = (claims.profile_image_url || claims.picture) as string | null;
-  const email = (claims.email as string) || null;
-
-  // Values used when INSERTING a brand-new user (safe fallbacks)
-  const insertData = {
-    id: sub,
-    username,
-    email,
-    firstName: firstName || "User",
-    lastName: lastName || sub.slice(-6),
-    profileImage,
-  };
-
-  // Values used when the user already EXISTS — never overwrite a manually set
-  // name with a fallback; only update name fields when Replit sends real values.
-  // IMPORTANT: do NOT include profileImage here — the user may have uploaded a
-  // custom avatar that we must never overwrite with the Replit OAuth avatar.
-  const updateData: Record<string, unknown> = {
-    username,
-    email,
-    updatedAt: new Date(),
-  };
-  if (firstName) updateData.firstName = firstName;
-  if (lastName) updateData.lastName = lastName;
-
-  const autoRole = ADMIN_USERNAMES.includes(username.toLowerCase()) ? "admin" as const
-    : HR_USERNAMES.includes(username.toLowerCase()) ? "hr" as const
-    : undefined;
-
-  if (autoRole) updateData.role = autoRole;
-
-  const [user] = await db
-    .insert(usersTable)
-    .values({ ...insertData, ...(autoRole ? { role: autoRole } : {}) })
-    .onConflictDoUpdate({
-      target: usersTable.id,
-      set: updateData,
-    })
-    .returning();
-  return user;
-}
-
+// Current authenticated user
 router.get("/auth/user", (req: Request, res: Response) => {
   if (!req.isAuthenticated() || !req.user) {
     res.json({ isAuthenticated: false });
@@ -110,178 +38,180 @@ router.get("/auth/user", (req: Request, res: Response) => {
   res.json({ ...req.user, isAuthenticated: true });
 });
 
-router.get("/login", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
-  const callbackUrl = `${getOrigin(req)}/api/callback`;
-
-  const returnTo = getSafeReturnTo(req.query.returnTo);
-
-  const state = oidc.randomState();
-  const nonce = oidc.randomNonce();
-  const codeVerifier = oidc.randomPKCECodeVerifier();
-  const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
-
-  const redirectTo = oidc.buildAuthorizationUrl(config, {
-    redirect_uri: callbackUrl,
-    scope: "openid email profile offline_access",
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    prompt: "login consent",
-    state,
-    nonce,
-  });
-
-  setOidcCookie(res, "code_verifier", codeVerifier);
-  setOidcCookie(res, "nonce", nonce);
-  setOidcCookie(res, "state", state);
-  setOidcCookie(res, "return_to", returnTo);
-
-  res.redirect(redirectTo.href);
-});
-
-router.get("/callback", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
-  const callbackUrl = `${getOrigin(req)}/api/callback`;
-
-  const codeVerifier = req.cookies?.code_verifier;
-  const nonce = req.cookies?.nonce;
-  const expectedState = req.cookies?.state;
-
-  if (!codeVerifier || !expectedState) {
-    res.redirect("/api/login");
-    return;
-  }
-
-  const currentUrl = new URL(
-    `${callbackUrl}?${new URL(req.url, `http://${req.headers.host}`).searchParams}`,
-  );
-
-  let tokens: oidc.TokenEndpointResponse & oidc.TokenEndpointResponseHelpers;
+// Check if first-time setup is needed (no users in DB yet)
+router.get("/setup/needed", async (_req: Request, res: Response) => {
   try {
-    tokens = await oidc.authorizationCodeGrant(config, currentUrl, {
-      pkceCodeVerifier: codeVerifier,
-      expectedNonce: nonce,
-      expectedState,
-      idTokenExpected: true,
-    });
+    const users = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
+    res.json({ needed: users.length === 0 });
   } catch {
-    res.redirect("/api/login");
-    return;
+    res.status(500).json({ error: "Failed to check setup status" });
   }
-
-  const returnTo = getSafeReturnTo(req.cookies?.return_to);
-
-  res.clearCookie("code_verifier", { path: "/" });
-  res.clearCookie("nonce", { path: "/" });
-  res.clearCookie("state", { path: "/" });
-  res.clearCookie("return_to", { path: "/" });
-
-  const claims = tokens.claims();
-  if (!claims) {
-    res.redirect("/api/login");
-    return;
-  }
-
-  const dbUser = await upsertUser(
-    claims as unknown as Record<string, unknown>,
-  );
-
-  const now = Math.floor(Date.now() / 1000);
-  const sessionData: SessionData = {
-    user: {
-      id: dbUser.id,
-      email: dbUser.email,
-      firstName: dbUser.firstName,
-      lastName: dbUser.lastName,
-      profileImage: dbUser.profileImage,
-    },
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
-  };
-
-  const sid = await createSession(sessionData);
-  setSessionCookie(res, sid);
-  res.redirect(returnTo);
 });
 
-router.get("/logout", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
-  const origin = getOrigin(req);
-
-  const sid = getSessionId(req);
-  await clearSession(res, sid);
-
-  const endSessionUrl = oidc.buildEndSessionUrl(config, {
-    client_id: process.env.REPL_ID!,
-    post_logout_redirect_uri: origin,
-  });
-
-  res.redirect(endSessionUrl.href);
-});
-
-router.post(
-  "/mobile-auth/token-exchange",
-  async (req: Request, res: Response) => {
-    const { code, code_verifier, redirect_uri, state, nonce } = req.body;
-    if (!code || !code_verifier || !redirect_uri || !state) {
-      res.status(400).json({ error: "Missing or invalid required parameters" });
+// Create first admin account (only works when DB has no users)
+router.post("/setup", async (req: Request, res: Response) => {
+  try {
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
+    if (existing.length > 0) {
+      res.status(400).json({ error: "Setup already complete. Please log in." });
       return;
     }
-
-    try {
-      const config = await getOidcConfig();
-
-      const callbackUrl = new URL(redirect_uri);
-      callbackUrl.searchParams.set("code", code);
-      callbackUrl.searchParams.set("state", state);
-      callbackUrl.searchParams.set("iss", ISSUER_URL);
-
-      const tokens = await oidc.authorizationCodeGrant(config, callbackUrl, {
-        pkceCodeVerifier: code_verifier,
-        expectedNonce: nonce ?? undefined,
-        expectedState: state,
-        idTokenExpected: true,
-      });
-
-      const claims = tokens.claims();
-      if (!claims) {
-        res.status(401).json({ error: "No claims in ID token" });
-        return;
-      }
-
-      const dbUser = await upsertUser(
-        claims as unknown as Record<string, unknown>,
-      );
-
-      const now = Math.floor(Date.now() / 1000);
-      const sessionData: SessionData = {
-        user: {
-          id: dbUser.id,
-          email: dbUser.email,
-          firstName: dbUser.firstName,
-          lastName: dbUser.lastName,
-          profileImage: dbUser.profileImage,
-        },
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
-      };
-
-      const sid = await createSession(sessionData);
-      res.json({ token: sid });
-    } catch (err) {
-      console.error("Mobile token exchange error:", err);
-      res.status(500).json({ error: "Token exchange failed" });
+    const { username, password, firstName, lastName } = req.body as Record<string, string>;
+    if (!username || !password || !firstName || !lastName) {
+      res.status(400).json({ error: "All fields are required." });
+      return;
     }
-  },
-);
+    if (password.length < 6) {
+      res.status(400).json({ error: "Password must be at least 6 characters." });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [user] = await db.insert(usersTable).values({
+      id: randomUUID(),
+      username: username.toLowerCase().trim(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      role: "admin",
+      passwordHash,
+    }).returning();
+
+    invalidateUsers();
+
+    const sessionData: SessionData = {
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImage: user.profileImage },
+      access_token: "",
+    };
+    const sid = await createSession(sessionData);
+    setSessionCookie(res, sid);
+    res.json({ ...user, isAuthenticated: true });
+  } catch (err) {
+    console.error("Setup error:", err);
+    res.status(500).json({ error: "Setup failed. Please try again." });
+  }
+});
+
+// One-time password initialization: users migrated from Replit OIDC have no passwordHash yet.
+// This endpoint lets them set their first password. Only works when the account has NO existing password.
+router.post("/setup/init-password", async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body as Record<string, string>;
+    if (!username || !password) {
+      res.status(400).json({ error: "Username and password are required." });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: "Password must be at least 6 characters." });
+      return;
+    }
+    const [user] = await db.select().from(usersTable)
+      .where(eq(usersTable.username, username.toLowerCase().trim()));
+    if (!user) {
+      res.status(404).json({ error: "Account not found." });
+      return;
+    }
+    if (user.passwordHash) {
+      res.status(400).json({ error: "This account already has a password. Use the login form." });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+    const sessionData: SessionData = {
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImage: user.profileImage },
+      access_token: "",
+    };
+    const sid = await createSession(sessionData);
+    setSessionCookie(res, sid);
+    res.json({ ...user, isAuthenticated: true });
+  } catch {
+    res.status(500).json({ error: "Failed to initialize password." });
+  }
+});
+
+// Login with username + password
+router.post("/login", async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body as Record<string, string>;
+    if (!username || !password) {
+      res.status(400).json({ error: "Username and password are required." });
+      return;
+    }
+    const [user] = await db.select().from(usersTable)
+      .where(eq(usersTable.username, username.toLowerCase().trim()));
+
+    if (!user) {
+      res.status(401).json({ error: "Invalid username or password." });
+      return;
+    }
+    // User exists but has no password — migrated from Replit OIDC
+    if (!user.passwordHash) {
+      res.status(401).json({ error: "This account has no password set yet. Please initialize your password.", code: "NO_PASSWORD" });
+      return;
+    }
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid username or password." });
+      return;
+    }
+    const sessionData: SessionData = {
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImage: user.profileImage },
+      access_token: "",
+    };
+    const sid = await createSession(sessionData);
+    setSessionCookie(res, sid);
+    res.json({ ...user, isAuthenticated: true });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Login failed. Please try again." });
+  }
+});
+
+// Logout
+router.get("/logout", async (req: Request, res: Response) => {
+  const sid = getSessionId(req);
+  await clearSession(res, sid);
+  res.redirect("/");
+});
+
+router.post("/logout", async (req: Request, res: Response) => {
+  const sid = getSessionId(req);
+  await clearSession(res, sid);
+  res.json({ success: true });
+});
+
+// Mobile: bearer-token based login
+router.post("/mobile-auth/token-exchange", async (req: Request, res: Response) => {
+  const { username, password } = req.body as Record<string, string>;
+  if (!username || !password) {
+    res.status(400).json({ error: "Username and password are required." });
+    return;
+  }
+  try {
+    const [user] = await db.select().from(usersTable)
+      .where(eq(usersTable.username, username.toLowerCase().trim()));
+    if (!user || !user.passwordHash) {
+      res.status(401).json({ error: "Invalid username or password." });
+      return;
+    }
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid username or password." });
+      return;
+    }
+    const sessionData: SessionData = {
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImage: user.profileImage },
+      access_token: "",
+    };
+    const sid = await createSession(sessionData);
+    res.json({ token: sid });
+  } catch (err) {
+    console.error("Mobile token exchange error:", err);
+    res.status(500).json({ error: "Token exchange failed" });
+  }
+});
 
 router.post("/mobile-auth/logout", async (req: Request, res: Response) => {
   const sid = getSessionId(req);
-  if (sid) {
-    await deleteSession(sid);
-  }
+  if (sid) await deleteSession(sid);
   res.json({ success: true });
 });
 
