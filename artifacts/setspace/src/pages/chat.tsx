@@ -25,6 +25,8 @@ import {
   FileText,
   ImageIcon,
   Video,
+  Mic,
+  Square,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 import { getUserTextColor } from "@/lib/user-colors";
@@ -79,10 +81,12 @@ async function uploadFile(file: File): Promise<{ objectPath: string; name: strin
 }
 
 const IMAGE_EXTS = /\.(jpe?g|png|gif|webp|svg|bmp)$/i;
+const AUDIO_EXTS = /\.(webm|ogg|mp4|m4a|wav|opus)$/i;
 
 function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isMe: boolean }) {
   const src = resolveAttachmentUrl(url);
   const isImage = IMAGE_EXTS.test(name);
+  const isAudio = AUDIO_EXTS.test(name) || name.startsWith("voice-note");
   if (isImage) {
     return (
       <img
@@ -90,6 +94,13 @@ function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isM
         className="max-w-[240px] max-h-[200px] rounded-xl object-cover mt-2 cursor-pointer border border-white/10"
         onClick={() => window.open(src, "_blank")}
       />
+    );
+  }
+  if (isAudio) {
+    return (
+      <div className={`mt-2 rounded-xl overflow-hidden border ${isMe ? "border-white/20" : "border-white/10"}`}>
+        <audio controls src={src} className="w-full max-w-[260px] h-10" style={{ colorScheme: "dark" }} />
+      </div>
     );
   }
   return (
@@ -105,6 +116,55 @@ function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isM
       <span className="truncate max-w-[200px]">{name}</span>
     </a>
   );
+}
+
+/** Voice recorder hook */
+function useVoiceRecorder(onRecorded: (file: File) => void) {
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+      const mr = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const ext = mimeType.includes("webm") ? "webm" : "ogg";
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const file = new File([blob], `voice-note.${ext}`, { type: mimeType });
+        onRecorded(file);
+        setSeconds(0);
+      };
+      mr.start(200);
+      mediaRef.current = mr;
+      setRecording(true);
+      setSeconds(0);
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } catch {
+      alert("Microphone access denied.");
+    }
+  }, [onRecorded]);
+
+  const stop = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    mediaRef.current?.stop();
+    mediaRef.current = null;
+    setRecording(false);
+  }, []);
+
+  return { recording, seconds, start, stop };
+}
+
+function formatRecordTime(s: number) {
+  const m = Math.floor(s / 60).toString().padStart(2, "0");
+  const sec = (s % 60).toString().padStart(2, "0");
+  return `${m}:${sec}`;
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -575,6 +635,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
+  const voice = useVoiceRecorder((file) => setPendingFile(file));
 
   const isNearBottom = () => {
     const el = scrollRef.current;
@@ -833,13 +894,25 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
               onSelect={selectMention}
             />
           )}
+          {/* Recording indicator */}
+          {voice.recording && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <span className="text-red-400 text-xs font-medium">Recording {formatRecordTime(voice.seconds)}</span>
+              <button onClick={voice.stop} className="ml-auto text-red-400 hover:text-red-300 flex items-center gap-1 text-xs">
+                <Square className="w-3.5 h-3.5" /> Stop
+              </button>
+            </div>
+          )}
           {/* Pending attachment preview */}
           {pendingFile && (
             <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm">
               {IMAGE_EXTS.test(pendingFile.name)
                 ? <ImageIcon className="w-4 h-4 text-indigo-400 shrink-0" />
+                : pendingFile.name.startsWith("voice-note")
+                ? <Mic className="w-4 h-4 text-green-400 shrink-0" />
                 : <FileText className="w-4 h-4 text-indigo-400 shrink-0" />}
-              <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name}</span>
+              <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name.startsWith("voice-note") ? "Voice note ready" : pendingFile.name}</span>
               <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
@@ -861,10 +934,24 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0"
+              disabled={voice.recording}
+              className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40"
               title="Attach file"
             >
               <Paperclip className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={voice.recording ? voice.stop : voice.start}
+              disabled={uploading}
+              className={`h-12 w-10 flex items-center justify-center rounded-xl border transition-colors shrink-0 ${
+                voice.recording
+                  ? "border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20"
+                  : "border-white/10 text-muted-foreground hover:text-green-400 hover:bg-white/8"
+              }`}
+              title={voice.recording ? "Stop recording" : "Record voice note"}
+            >
+              {voice.recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
             <textarea
               ref={inputRef}
@@ -892,7 +979,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
             />
             <Button
               type="submit"
-              disabled={(!content.trim() && !pendingFile) || uploading}
+              disabled={(!content.trim() && !pendingFile) || uploading || voice.recording}
               className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
             >
               {uploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
@@ -915,6 +1002,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
+  const voice = useVoiceRecorder((file) => setPendingFile(file));
 
   const isNearBottom = () => {
     const el = scrollRef.current;
@@ -1086,13 +1174,25 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         <div ref={bottomRef} />
       </div>
       <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
+        {/* Recording indicator */}
+        {voice.recording && (
+          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+            <span className="text-red-400 text-xs font-medium">Recording {formatRecordTime(voice.seconds)}</span>
+            <button onClick={voice.stop} className="ml-auto text-red-400 hover:text-red-300 flex items-center gap-1 text-xs">
+              <Square className="w-3.5 h-3.5" /> Stop
+            </button>
+          </div>
+        )}
         {/* Pending attachment preview */}
         {pendingFile && (
           <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm">
             {IMAGE_EXTS.test(pendingFile.name)
               ? <ImageIcon className="w-4 h-4 text-indigo-400 shrink-0" />
+              : pendingFile.name.startsWith("voice-note")
+              ? <Mic className="w-4 h-4 text-green-400 shrink-0" />
               : <FileText className="w-4 h-4 text-indigo-400 shrink-0" />}
-            <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name}</span>
+            <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name.startsWith("voice-note") ? "Voice note ready" : pendingFile.name}</span>
             <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
               <X className="w-4 h-4" />
             </button>
@@ -1111,10 +1211,23 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0"
+            disabled={voice.recording}
+            className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40"
             title="Attach file"
           >
             <Paperclip className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={voice.recording ? voice.stop : voice.start}
+            className={`h-12 w-10 flex items-center justify-center rounded-xl border transition-colors shrink-0 ${
+              voice.recording
+                ? "border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20"
+                : "border-white/10 text-muted-foreground hover:text-green-400 hover:bg-white/8"
+            }`}
+            title={voice.recording ? "Stop recording" : "Record voice note"}
+          >
+            {voice.recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
           <textarea
             ref={inputRef}
@@ -1135,7 +1248,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           />
           <Button
             type="submit"
-            disabled={(!content.trim() && !pendingFile) || sending}
+            disabled={(!content.trim() && !pendingFile) || sending || voice.recording}
             className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
           >
             {sending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
