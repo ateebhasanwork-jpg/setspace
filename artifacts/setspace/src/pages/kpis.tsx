@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
-const PAYROLL_USERNAMES = ["ateebhasanwork", "laiba"];
+const PAYROLL_USERNAMES = ["ateebhasanwork", "laibamalik"];
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
