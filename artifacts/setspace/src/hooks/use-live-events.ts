@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListMessagesQueryKey, getListTasksQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react";
+import { toast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -12,6 +13,7 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
  *   we read the last known message id from the cache and only fetch
  *   GET /api/messages?since=<lastId> — returning only new rows.
  *   The result is merged into the existing cache without a full refetch.
+ *   If the action is "deleted", we remove the message from cache immediately.
  *
  * DM events:
  *   Dispatched as a custom window event so DMConversation can do its own
@@ -19,6 +21,7 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
  *
  * All other events (tasks, notifications):
  *   Standard query invalidation — those datasets are small and infrequent.
+ *   New notifications also trigger a toast popup.
  */
 export function useLiveEvents() {
   const queryClient = useQueryClient();
@@ -35,7 +38,20 @@ export function useLiveEvents() {
         retryDelay = 1000;
       });
 
-      es.addEventListener("messages", async () => {
+      es.addEventListener("messages", async (e) => {
+        // Handle delete action — remove from cache without fetching
+        try {
+          const data = JSON.parse(e.data);
+          if (data?.action === "deleted" && data?.messageId) {
+            queryClient.setQueryData(
+              getListMessagesQueryKey(),
+              (old: Array<{ id: number }> | undefined) =>
+                old?.filter((m) => m.id !== data.messageId) ?? []
+            );
+            return;
+          }
+        } catch {}
+
         // Read the current cached group messages to find the last id
         const cached = queryClient.getQueryData<Array<{ id: number }>>(getListMessagesQueryKey());
         const lastId = cached && cached.length > 0 ? cached[cached.length - 1].id : null;
@@ -79,8 +95,28 @@ export function useLiveEvents() {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       });
 
-      es.addEventListener("notifications", () => {
-        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      es.addEventListener("notifications", async () => {
+        // Remember old IDs before invalidation
+        const oldNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null }>>(
+          getListNotificationsQueryKey()
+        ) ?? [];
+        const oldIds = new Set(oldNotifs.map(n => n.id));
+
+        await queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+
+        // After refetch, show toasts for genuinely new notifications
+        setTimeout(() => {
+          const newNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null }>>(
+            getListNotificationsQueryKey()
+          ) ?? [];
+          const fresh = newNotifs.filter(n => !oldIds.has(n.id));
+          for (const n of fresh.slice(0, 3)) {
+            toast({
+              title: n.title,
+              description: n.body ?? undefined,
+            });
+          }
+        }, 500);
       });
 
       es.onerror = () => {

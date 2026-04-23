@@ -331,6 +331,46 @@ router.post("/dm/:userId", async (req, res) => {
   }
 });
 
+/** DELETE /api/messages/:id — delete a group message (own or admin) */
+router.delete("/messages/:id", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const msgId = parseInt(req.params.id);
+    if (isNaN(msgId)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, msgId)).limit(1);
+    if (!msg) { res.status(404).json({ error: "Not found" }); return; }
+    if (msg.authorId !== req.user.id && req.user.role !== "admin") {
+      res.status(403).json({ error: "Forbidden" }); return;
+    }
+    await db.delete(messagesTable).where(eq(messagesTable.id, msgId));
+    broadcastSse("messages", { action: "deleted", messageId: msgId });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[messages] DELETE /messages/:id error:", err);
+    res.status(500).json({ error: "Failed to delete message" });
+  }
+});
+
+/** DELETE /api/dm/message/:id — delete a DM (own or admin) */
+router.delete("/dm/message/:id", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const dmId = parseInt(req.params.id);
+    if (isNaN(dmId)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [dm] = await db.select().from(directMessagesTable).where(eq(directMessagesTable.id, dmId)).limit(1);
+    if (!dm) { res.status(404).json({ error: "Not found" }); return; }
+    if (dm.senderId !== req.user.id && req.user.role !== "admin") {
+      res.status(403).json({ error: "Forbidden" }); return;
+    }
+    await db.delete(directMessagesTable).where(eq(directMessagesTable.id, dmId));
+    broadcastSse("dm", { senderId: dm.senderId, receiverId: dm.receiverId, action: "deleted", dmId });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[messages] DELETE /dm/message/:id error:", err);
+    res.status(500).json({ error: "Failed to delete DM" });
+  }
+});
+
 /**
  * GET /api/dm-unread — unread DM counts for current user.
  * Returns aggregate counts only (no message content transferred).

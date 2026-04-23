@@ -27,6 +27,7 @@ import {
   Video,
   Mic,
   Square,
+  Trash2,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 import { getUserTextColor } from "@/lib/user-colors";
@@ -290,6 +291,7 @@ function MessageBubble({
   showAvatar,
   onReply,
   onReact,
+  onDelete,
   parentMsg,
   users,
   currentUserId,
@@ -299,6 +301,7 @@ function MessageBubble({
   showAvatar: boolean;
   onReply: (m: LocalMessage) => void;
   onReact: (msgId: number, emoji: string) => void;
+  onDelete: (msgId: number) => void;
   parentMsg?: LocalMessage | null;
   users?: User[];
   currentUserId?: string;
@@ -392,7 +395,7 @@ function MessageBubble({
             </div>
           )}
 
-          {/* Action bar: reply + react */}
+          {/* Action bar: reply + react + delete */}
           {!msg._optimistic && (
             <div className={`flex items-center gap-2 ${isMe ? "self-end" : "self-start ml-1"}`}>
               <button
@@ -436,6 +439,19 @@ function MessageBubble({
                   </div>
                 )}
               </div>
+
+              {/* Delete — own messages only */}
+              {isMe && (
+                <button
+                  onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
+                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all ${
+                    hovered ? "opacity-100" : "opacity-0"
+                  }`}
+                  title="Delete message"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -448,11 +464,13 @@ function DMBubble({
   msg,
   isMe,
   onReact,
+  onDelete,
   currentUserId,
 }: {
   msg: DM;
   isMe: boolean;
   onReact: (dmId: number, emoji: string) => void;
+  onDelete: (dmId: number) => void;
   currentUserId: string;
 }) {
   const sender = msg.sender as (typeof msg.sender & { profileImage?: string | null }) | undefined;
@@ -525,7 +543,7 @@ function DMBubble({
             </div>
           )}
 
-          {/* Action bar: react */}
+          {/* Action bar: react + delete */}
           {!msg._optimistic && (
             <div className={`flex items-center gap-2 ${isMe ? "self-end" : "self-start ml-1"}`}>
               <div className="relative" ref={pickerRef}>
@@ -559,6 +577,19 @@ function DMBubble({
                   </div>
                 )}
               </div>
+
+              {/* Delete — own messages only */}
+              {isMe && (
+                <button
+                  onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
+                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all ${
+                    hovered ? "opacity-100" : "opacity-0"
+                  }`}
+                  title="Delete message"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -726,7 +757,6 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   }
 
   const send = async (fileArg?: File) => {
-    sendRef.current = send;
     const trimmed = content.trim();
     const fileToSend = fileArg ?? pendingFile;
     if ((!trimmed && !fileToSend) || mut.isPending || uploading) return;
@@ -777,6 +807,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     [content]
   );
 
+  sendRef.current = send;
+
   const handleReact = useCallback(async (msgId: number, emoji: string) => {
     await fetch(`${BASE}/api/messages/${msgId}/reactions`, {
       method: "POST",
@@ -786,6 +818,14 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     });
     queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
   }, [queryClient]);
+
+  const handleDeleteMessage = async (msgId: number) => {
+    queryClient.setQueryData(
+      getListMessagesQueryKey(),
+      (old: LocalMessage[] | undefined) => old?.filter((m) => m.id !== msgId) ?? []
+    );
+    await fetch(`${BASE}/api/messages/${msgId}`, { method: "DELETE", credentials: "include" });
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -807,6 +847,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
                 showAvatar={showAvatar}
                 onReply={setReplyTo}
                 onReact={handleReact}
+                onDelete={handleDeleteMessage}
                 users={users}
                 currentUserId={user.id}
               />
@@ -1065,7 +1106,14 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     setDms([]);
     fetchDMs();
     // SSE "dm" event triggers fetchDMs instantly — no polling needed
-    const sseHandler = () => fetchDMs();
+    const sseHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ action?: string; dmId?: number }>).detail;
+      if (detail?.action === "deleted" && detail?.dmId) {
+        setDms((prev) => prev.filter((m) => m.id !== detail.dmId));
+        return;
+      }
+      fetchDMs();
+    };
     window.addEventListener("sse:dm", sseHandler);
     return () => { window.removeEventListener("sse:dm", sseHandler); };
   }, [otherUser.id]);
@@ -1073,7 +1121,6 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
 
   const dmSendRef = useRef<(f?: File) => void>(() => {});
   const send = async (fileArg?: File) => {
-    dmSendRef.current = send;
     const trimmed = content.trim();
     const fileToSend = fileArg ?? pendingFile;
     if ((!trimmed && !fileToSend) || sending) return;
@@ -1128,6 +1175,13 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
     }
   };
 
+  dmSendRef.current = send;
+
+  const handleDeleteDM = async (dmId: number) => {
+    setDms((prev) => prev.filter((m) => m.id !== dmId));
+    await fetch(`${BASE}/api/dm/message/${dmId}`, { method: "DELETE", credentials: "include" });
+  };
+
   const handleReact = async (dmId: number, emoji: string) => {
     // Optimistic update
     setDms(prev => prev.map(m => {
@@ -1174,7 +1228,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           return (
             <React.Fragment key={msg.id}>
               {showDate && <DateSeparator label={msgDate} />}
-              <DMBubble msg={msg} isMe={msg.senderId === me.id} onReact={handleReact} currentUserId={me.id} />
+              <DMBubble msg={msg} isMe={msg.senderId === me.id} onReact={handleReact} onDelete={handleDeleteDM} currentUserId={me.id} />
             </React.Fragment>
           );
         })}
