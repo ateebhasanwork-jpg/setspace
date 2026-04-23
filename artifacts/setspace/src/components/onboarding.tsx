@@ -68,9 +68,11 @@ function OnboardingModal() {
           },
           body: pendingFile,
         });
-        if (!res.ok) throw new Error("Upload failed");
-        const data = await res.json();
-        objectPath = data.objectPath;
+        // Gracefully skip photo if storage isn't configured on this server
+        if (res.ok) {
+          const data = await res.json();
+          objectPath = data.objectPath;
+        }
       }
       await updateUser.mutateAsync({
         userId: user.id,
@@ -158,7 +160,7 @@ function OnboardingModal() {
 
           {/* Username read-only */}
           <div className="text-left">
-            <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Replit Username</label>
+            <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Username</label>
             <Input value={`@${user?.username}`} disabled className="bg-black/10 border-white/5 text-muted-foreground" />
           </div>
 
