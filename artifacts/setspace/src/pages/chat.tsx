@@ -30,7 +30,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
-import { getUserTextColor, getUserAvatarClasses } from "@/lib/user-colors";
+import { getUserAvatarStyle, getUserNameColor } from "@/lib/user-colors";
 
 type ReactionGroup = { emoji: string; count: number; userIds: string[] };
 type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[] };
@@ -213,14 +213,19 @@ function Avatar({
 }) {
   const photo = resolveProfileImage(profileImage);
   const cls = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm";
-  const colorCls = userId ? getUserAvatarClasses(userId) : "bg-indigo-600/30 border-indigo-500/20 text-indigo-200";
+  const avatarStyle = userId
+    ? getUserAvatarStyle(userId)
+    : { backgroundColor: "rgba(99,102,241,0.18)", borderColor: "rgba(99,102,241,0.30)", color: "#a5b4fc" };
   if (!visible) return <div className={`${cls} rounded-full shrink-0 opacity-0`} />;
   if (photo)
     return (
       <img src={photo} alt="" className={`${cls} rounded-full object-cover border border-white/10 shrink-0`} />
     );
   return (
-    <div className={`${cls} rounded-full flex items-center justify-center font-bold shrink-0 border ${colorCls}`}>
+    <div
+      className={`${cls} rounded-full flex items-center justify-center font-bold shrink-0 border`}
+      style={avatarStyle}
+    >
       {name?.[0]?.toUpperCase()}
     </div>
   );
@@ -343,7 +348,10 @@ function MessageBubble({
       onMouseLeave={() => { setHovered(false); }}
     >
       {!isMe && showAvatar && (
-        <span className={`text-xs font-semibold mb-1 ml-11 ${getUserTextColor(msg.authorId)}`}>
+        <span
+          className="text-xs font-semibold mb-1 ml-11"
+          style={{ color: getUserNameColor(msg.authorId) }}
+        >
           {author?.firstName} {author?.lastName}
         </span>
       )}
@@ -1438,7 +1446,7 @@ export default function TeamChat() {
             {otherUsers.map((u) => {
               const unread = unreadByUser[u.id] ?? 0;
               const isActive = view === u.id;
-              const avatarCls = getUserAvatarClasses(u.id);
+              const avatarStyle = getUserAvatarStyle(u.id);
               return (
                 <button
                   key={u.id}
@@ -1455,7 +1463,10 @@ export default function TeamChat() {
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold ${avatarCls}`}>
+                    <div
+                      className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold"
+                      style={avatarStyle}
+                    >
                       {u.firstName?.[0]}
                     </div>
                     {unread > 0 && (

@@ -1,47 +1,18 @@
-const TEXT_COLORS = [
-  "text-blue-400",
-  "text-emerald-400",
-  "text-violet-400",
-  "text-amber-400",
-  "text-rose-400",
-  "text-cyan-400",
-  "text-fuchsia-400",
-  "text-lime-400",
-  "text-orange-400",
-  "text-teal-400",
-  "text-pink-400",
-  "text-sky-400",
-];
+import type { CSSProperties } from "react";
 
-const BG_COLORS = [
-  "bg-blue-500",
-  "bg-emerald-500",
-  "bg-violet-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-cyan-500",
-  "bg-fuchsia-500",
-  "bg-lime-500",
-  "bg-orange-500",
-  "bg-teal-500",
-  "bg-pink-500",
-  "bg-sky-500",
-];
-
-// Soft avatar combos: bg/30, border/20, initials colour — all explicit for Tailwind JIT
-const AVATAR_CLASSES = [
-  "bg-blue-500/30 border-blue-500/20 text-blue-200",
-  "bg-emerald-500/30 border-emerald-500/20 text-emerald-200",
-  "bg-violet-500/30 border-violet-500/20 text-violet-200",
-  "bg-amber-500/30 border-amber-500/20 text-amber-200",
-  "bg-rose-500/30 border-rose-500/20 text-rose-200",
-  "bg-cyan-500/30 border-cyan-500/20 text-cyan-200",
-  "bg-fuchsia-500/30 border-fuchsia-500/20 text-fuchsia-200",
-  "bg-lime-500/30 border-lime-500/20 text-lime-200",
-  "bg-orange-500/30 border-orange-500/20 text-orange-200",
-  "bg-teal-500/30 border-teal-500/20 text-teal-200",
-  "bg-pink-500/30 border-pink-500/20 text-pink-200",
-  "bg-sky-500/30 border-sky-500/20 text-sky-200",
+const PALETTE = [
+  { bg: "rgba(59,130,246,0.18)",  border: "rgba(59,130,246,0.30)",  text: "#93c5fd" },  // blue
+  { bg: "rgba(16,185,129,0.18)",  border: "rgba(16,185,129,0.30)",  text: "#6ee7b7" },  // emerald
+  { bg: "rgba(139,92,246,0.18)",  border: "rgba(139,92,246,0.30)",  text: "#c4b5fd" },  // violet
+  { bg: "rgba(245,158,11,0.18)",  border: "rgba(245,158,11,0.30)",  text: "#fcd34d" },  // amber
+  { bg: "rgba(239,68,68,0.18)",   border: "rgba(239,68,68,0.30)",   text: "#fca5a5" },  // rose
+  { bg: "rgba(6,182,212,0.18)",   border: "rgba(6,182,212,0.30)",   text: "#67e8f9" },  // cyan
+  { bg: "rgba(217,70,239,0.18)",  border: "rgba(217,70,239,0.30)",  text: "#f0abfc" },  // fuchsia
+  { bg: "rgba(132,204,22,0.18)",  border: "rgba(132,204,22,0.30)",  text: "#bef264" },  // lime
+  { bg: "rgba(249,115,22,0.18)",  border: "rgba(249,115,22,0.30)",  text: "#fdba74" },  // orange
+  { bg: "rgba(20,184,166,0.18)",  border: "rgba(20,184,166,0.30)",  text: "#5eead4" },  // teal
+  { bg: "rgba(236,72,153,0.18)",  border: "rgba(236,72,153,0.30)",  text: "#f9a8d4" },  // pink
+  { bg: "rgba(14,165,233,0.18)",  border: "rgba(14,165,233,0.30)",  text: "#7dd3fc" },  // sky
 ];
 
 function hashId(id: string): number {
@@ -53,15 +24,18 @@ function hashId(id: string): number {
   return Math.abs(hash);
 }
 
-export function getUserTextColor(userId: string): string {
-  return TEXT_COLORS[hashId(userId) % TEXT_COLORS.length];
+/** Inline style for avatar circles — works regardless of Tailwind purging */
+export function getUserAvatarStyle(userId: string): CSSProperties {
+  const c = PALETTE[hashId(userId) % PALETTE.length];
+  return { backgroundColor: c.bg, borderColor: c.border, color: c.text };
 }
 
-export function getUserBgColor(userId: string): string {
-  return BG_COLORS[hashId(userId) % BG_COLORS.length];
+/** CSS color string for sender name labels */
+export function getUserNameColor(userId: string): string {
+  return PALETTE[hashId(userId) % PALETTE.length].text;
 }
 
-/** Returns combined bg/border/text classes for avatar backgrounds */
-export function getUserAvatarClasses(userId: string): string {
-  return AVATAR_CLASSES[hashId(userId) % AVATAR_CLASSES.length];
-}
+// Legacy Tailwind-class exports kept for any remaining usages
+export function getUserTextColor(_userId: string): string { return ""; }
+export function getUserBgColor(_userId: string): string { return ""; }
+export function getUserAvatarClasses(_userId: string): string { return ""; }
