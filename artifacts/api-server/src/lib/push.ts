@@ -3,11 +3,13 @@ import { db } from "@workspace/db";
 import { pushSubscriptionsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
-webPush.setVapidDetails(
-  process.env.VAPID_SUBJECT || "mailto:admin@setspace.app",
-  process.env.VAPID_PUBLIC_KEY || "",
-  process.env.VAPID_PRIVATE_KEY || "",
-);
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webPush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:admin@setspace.app",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY,
+  );
+}
 
 export async function sendPushToUser(
   userId: string,
