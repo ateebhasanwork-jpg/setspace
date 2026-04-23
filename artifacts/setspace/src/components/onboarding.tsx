@@ -20,9 +20,10 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {children}
+      {/* Blur overlay behind modal — blocks interaction with app content */}
+      <div className="fixed inset-0 bg-background/90 backdrop-blur-xl z-40" />
       <OnboardingModal />
-      {/* Blur the app behind the modal */}
-      <div className="fixed inset-0 bg-background/90 backdrop-blur-xl z-40 pointer-events-none" />
     </>
   );
 }
