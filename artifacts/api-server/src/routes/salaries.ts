@@ -190,4 +190,19 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
   }
 });
 
+/**
+ * DELETE /api/salaries/:userId
+ * Removes the salary config for a user (resets to defaults). Admin/HR only.
+ */
+router.delete("/salaries/:userId", requireAdminOrHR, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await db.delete(salariesTable).where(eq(salariesTable.userId, userId));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Salary delete error:", err);
+    res.status(500).json({ error: "Failed to delete salary config" });
+  }
+});
+
 export default router;

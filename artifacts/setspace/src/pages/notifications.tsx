@@ -13,6 +13,7 @@ import {
   Bell,
   Check,
   CheckCheck,
+  Trash2,
   ClipboardList,
   ArrowRightLeft,
   CheckCircle2,
@@ -125,7 +126,7 @@ export default function Notifications() {
           disabled={markAllMut.isPending || count === 0}
           className="bg-black/20 border-white/10 text-muted-foreground hover:text-white gap-2 shrink-0"
         >
-          <CheckCheck className="w-4 h-4" /> Dismiss all
+          <Trash2 className="w-4 h-4" /> Delete all
         </Button>
       </div>
 
@@ -175,10 +176,10 @@ export default function Notifications() {
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); dismissOne(notif.id); }}
-                    title="Dismiss"
-                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-green-400 hover:bg-green-500/10 transition-colors mt-0.5"
+                    title="Delete notification"
+                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors mt-0.5"
                   >
-                    <Check className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               );

@@ -20,6 +20,7 @@ import {
   XCircle,
   CalendarDays,
   SlidersHorizontal,
+  Trash2,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -245,6 +246,24 @@ export default function KPIs() {
   const [editKpiThreshold, setEditKpiThreshold] = useState("");
   const [editDepThreshold, setEditDepThreshold] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteSalaryId, setConfirmDeleteSalaryId] = useState<string | null>(null);
+  const [deletingSalaryId, setDeletingSalaryId] = useState<string | null>(null);
+
+  const deleteSalaryConfig = async (userId: string) => {
+    setDeletingSalaryId(userId);
+    try {
+      await fetch(`${BASE}/api/salaries/${userId}`, { method: "DELETE", credentials: "include" });
+      setSalaryData(prev => prev.filter(r => r.user.id !== userId || true).map(r =>
+        r.user.id === userId
+          ? { ...r, salary: null as unknown as typeof r.salary, basicSalary: 0, netSalary: 0, dependabilityDeduction: 0, kpiDeduction: 0, kpiThreshold: 2, dependabilityThreshold: 2 }
+          : r
+      ));
+      setConfirmDeleteSalaryId(null);
+      await fetchSalaries();
+    } finally {
+      setDeletingSalaryId(null);
+    }
+  };
 
   const fetchSalaries = useCallback(async () => {
     if (!isAdminOrHR) return;
@@ -444,13 +463,31 @@ export default function KPIs() {
                         </div>
                       </div>
                       {!isEditing ? (
-                        <button
-                          onClick={() => openEdit(row)}
-                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
-                          title="Edit salary"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {confirmDeleteSalaryId === row.user.id ? (
+                            <>
+                              <button onClick={() => deleteSalaryConfig(row.user.id)} disabled={!!deletingSalaryId}
+                                className="text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 transition-colors disabled:opacity-50">
+                                {deletingSalaryId === row.user.id ? "…" : "Confirm"}
+                              </button>
+                              <button onClick={() => setConfirmDeleteSalaryId(null)}
+                                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-white/10 transition-colors">
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => openEdit(row)}
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors" title="Edit salary">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => setConfirmDeleteSalaryId(row.user.id)}
+                                className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Reset salary config">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       ) : (
                         <div className="flex gap-1">
                           <button
@@ -800,13 +837,31 @@ export default function KPIs() {
                         </div>
                       </div>
                       {!isEditing ? (
-                        <button
-                          onClick={() => openEdit(row)}
-                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
-                          title="Edit thresholds"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {confirmDeleteSalaryId === row.user.id ? (
+                            <>
+                              <button onClick={() => deleteSalaryConfig(row.user.id)} disabled={!!deletingSalaryId}
+                                className="text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 transition-colors disabled:opacity-50">
+                                {deletingSalaryId === row.user.id ? "…" : "Confirm"}
+                              </button>
+                              <button onClick={() => setConfirmDeleteSalaryId(null)}
+                                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-white/10 transition-colors">
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => openEdit(row)}
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors" title="Edit thresholds">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => setConfirmDeleteSalaryId(row.user.id)}
+                                className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Reset salary config">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       ) : (
                         <div className="flex gap-1">
                           <button
