@@ -635,7 +635,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
-  const voice = useVoiceRecorder((file) => setPendingFile(file));
+  const sendRef = useRef<(f?: File) => void>(() => {});
+  const voice = useVoiceRecorder((file) => { sendRef.current(file); });
 
   const isNearBottom = () => {
     const el = scrollRef.current;
@@ -724,15 +725,17 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     }
   }
 
-  const send = async () => {
+  const send = async (fileArg?: File) => {
+    sendRef.current = send;
     const trimmed = content.trim();
-    if ((!trimmed && !pendingFile) || mut.isPending || uploading) return;
+    const fileToSend = fileArg ?? pendingFile;
+    if ((!trimmed && !fileToSend) || mut.isPending || uploading) return;
     let attachmentUrl: string | undefined;
     let attachmentName: string | undefined;
-    if (pendingFile) {
+    if (fileToSend) {
       setUploading(true);
       try {
-        const result = await uploadFile(pendingFile);
+        const result = await uploadFile(fileToSend);
         attachmentUrl = result.objectPath;
         attachmentName = result.name;
       } catch {
@@ -740,7 +743,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
         return;
       }
       setUploading(false);
-      setPendingFile(null);
+      if (!fileArg) setPendingFile(null);
+      else setPendingFile(null);
     }
     setContent("");
     if (inputRef.current) inputRef.current.style.height = "auto";
@@ -1002,7 +1006,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
-  const voice = useVoiceRecorder((file) => setPendingFile(file));
+  const voice = useVoiceRecorder((file) => { dmSendRef.current(file); });
 
   const isNearBottom = () => {
     const el = scrollRef.current;
@@ -1067,18 +1071,21 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
   }, [otherUser.id]);
 
 
-  const send = async () => {
+  const dmSendRef = useRef<(f?: File) => void>(() => {});
+  const send = async (fileArg?: File) => {
+    dmSendRef.current = send;
     const trimmed = content.trim();
-    if ((!trimmed && !pendingFile) || sending) return;
+    const fileToSend = fileArg ?? pendingFile;
+    if ((!trimmed && !fileToSend) || sending) return;
 
     let attachmentUrl: string | undefined;
     let attachmentName: string | undefined;
-    let fileForOptimistic: File | null = pendingFile;
+    let fileForOptimistic: File | null = fileToSend;
 
-    if (pendingFile) {
+    if (fileToSend) {
       setSending(true);
       try {
-        const result = await uploadFile(pendingFile);
+        const result = await uploadFile(fileToSend);
         attachmentUrl = result.objectPath;
         attachmentName = result.name;
       } catch {
