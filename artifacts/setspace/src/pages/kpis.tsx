@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
-const PAYROLL_USERNAMES = ["ateebhasanwork", "laibamalik"];
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -225,11 +224,10 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
 export default function KPIs() {
   const { data: currentUser } = useGetCurrentUser();
 
-  const username = (currentUser as { username?: string } | undefined)?.username ?? "";
   const isAdminOrHR =
     (currentUser as { role?: string } | undefined)?.role === "admin" ||
     (currentUser as { role?: string } | undefined)?.role === "hr";
-  const canSeePayroll = PAYROLL_USERNAMES.includes(username);
+  const canSeePayroll = isAdminOrHR;
 
   const now = new Date();
   const [activeTab, setActiveTab] = useState<"payroll" | "deductions" | "employees" | "settings">(canSeePayroll ? "payroll" : "deductions");

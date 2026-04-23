@@ -16,8 +16,6 @@ import { invalidateUsers } from "../lib/cache";
 
 const router: IRouter = Router();
 
-const ADMIN_USERNAMES = ["ateebhasanwork"];
-const HR_USERNAMES = ["laibamalik"];
 
 function setSessionCookie(res: Response, sid: string) {
   res.cookie(SESSION_COOKIE, sid, {
