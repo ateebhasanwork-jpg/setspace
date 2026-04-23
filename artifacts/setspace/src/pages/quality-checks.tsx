@@ -118,8 +118,14 @@ export default function QualityChecks() {
   }, [checks]);
 
   const unevaluatedTasks = React.useMemo(
-    () => (tasks ?? []).filter(t => !evaluatedTaskIds.has(t.id)),
-    [tasks, evaluatedTaskIds]
+    () =>
+      (tasks ?? []).filter((t) => {
+        if (evaluatedTaskIds.has(t.id)) return false;
+        if ((t as { status?: string }).status !== "Done") return false;
+        if (submitterId && (t as { assigneeId?: string | null }).assigneeId !== submitterId) return false;
+        return true;
+      }),
+    [tasks, evaluatedTaskIds, submitterId]
   );
 
   return (
@@ -160,7 +166,7 @@ export default function QualityChecks() {
                   <select
                     required
                     value={submitterId}
-                    onChange={(e) => setSubmitterId(e.target.value)}
+                    onChange={(e) => { setSubmitterId(e.target.value); setTaskId(""); }}
                     className="w-full p-2 bg-black/20 border border-white/10 rounded-lg text-sm text-foreground"
                   >
                     <option value="">Select Employee...</option>
@@ -188,7 +194,9 @@ export default function QualityChecks() {
                     ))}
                     {unevaluatedTasks.length === 0 && (
                       <option disabled value="" className="bg-card text-muted-foreground">
-                        All tasks have been evaluated
+                        {submitterId
+                          ? "No completed, unevaluated tasks for this employee"
+                          : "Select an employee to see their tasks"}
                       </option>
                     )}
                   </select>
