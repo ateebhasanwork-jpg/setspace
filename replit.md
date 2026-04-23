@@ -18,7 +18,8 @@ Full-stack internal management platform for a video editing agency. Built as a p
 - **Auth**: Replit Auth (OIDC/PKCE) via `openid-client` v6
 - **File storage**: GCS-backed object storage via Replit object storage
 - **Email**: Nodemailer (meeting invites — requires EMAIL_HOST, EMAIL_USER, EMAIL_PASS env vars)
-- **Frontend**: React 18 + Vite + Tailwind CSS + shadcn/ui + framer-motion + recharts
+- **Frontend**: React 18 + Vite + Tailwind v4 + shadcn/ui + framer-motion + recharts
+- **IMPORTANT**: Tailwind v4 JIT does not reliably scan dynamic TS strings for color classes. All dynamic per-user colors MUST use inline CSS `style={}` (see `user-colors.ts`), never Tailwind class names.
 
 ## Features
 
