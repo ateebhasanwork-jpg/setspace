@@ -17,6 +17,13 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
   if (!user) return <>{children}</>;
   if (user?.profileSetup) return <>{children}</>;
+  // Admin-created accounts already have real names set — skip the gate
+  // even if profileSetup wasn't marked true in the DB yet.
+  const hasRealName =
+    user.firstName &&
+    user.firstName.trim() !== "" &&
+    user.firstName !== "User";
+  if (hasRealName) return <>{children}</>;
 
   return (
     <>

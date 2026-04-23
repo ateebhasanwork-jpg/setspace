@@ -682,7 +682,7 @@ export default function KPIs() {
                       {/* Absences count */}
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg text-xs font-bold ${
-                          row.absences >= 2
+                          row.absences >= row.dependabilityThreshold
                             ? "bg-orange-500/15 border border-orange-500/25 text-orange-300"
                             : "bg-white/5 border border-white/10 text-muted-foreground"
                         }`}>
