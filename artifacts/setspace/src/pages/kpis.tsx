@@ -360,23 +360,21 @@ export default function KPIs() {
   const saveEdit = async (userId: string) => {
     setSaving(true);
     setSaveError(null);
-    const salaryPayload = {
-      basicSalary: parseInt(editBasic) || 0,
-      overtimePayment: parseInt(editOvertime) || 0,
-      dependabilityDeductionAmount: parseInt(editDep) || 0,
-      kpiDeductionAmount: parseInt(editKpi) || 0,
-      workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
-      kpiThreshold: parseInt(editKpiThreshold) || 2,
-      dependabilityThreshold: parseInt(editDepThreshold) || 2,
-    };
-    console.log("[saveEdit] Sending for user", userId, salaryPayload);
     try {
       const [salaryRes, userRes] = await Promise.all([
         fetch(`${BASE}/api/salaries/${userId}`, {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(salaryPayload),
+          body: JSON.stringify({
+            basicSalary: parseInt(editBasic) || 0,
+            overtimePayment: parseInt(editOvertime) || 0,
+            dependabilityDeductionAmount: parseInt(editDep) || 0,
+            kpiDeductionAmount: parseInt(editKpi) || 0,
+            workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
+            kpiThreshold: parseInt(editKpiThreshold) || 2,
+            dependabilityThreshold: parseInt(editDepThreshold) || 2,
+          }),
         }),
         fetch(`${BASE}/api/users/${userId}`, {
           method: "PATCH",
@@ -389,19 +387,13 @@ export default function KPIs() {
         }),
       ]);
 
-      console.log("[saveEdit] salary response:", salaryRes.status, salaryRes.ok);
       if (!salaryRes.ok) {
         const body = await salaryRes.json().catch(() => ({}));
-        console.error("[saveEdit] salary error body:", body);
         setSaveError(body?.error ?? `Save failed (${salaryRes.status})`);
         return;
       }
-      const savedSalary = await salaryRes.json().catch(() => null);
-      console.log("[saveEdit] saved salary:", savedSalary);
-
       if (!userRes.ok) {
         const body = await userRes.json().catch(() => ({}));
-        console.error("[saveEdit] user patch error:", body);
         setSaveError(body?.error ?? `Profile update failed (${userRes.status})`);
         return;
       }
@@ -409,7 +401,6 @@ export default function KPIs() {
       setEditingUserId(null);
       await fetchSalaries();
     } catch (err) {
-      console.error("[saveEdit] exception:", err);
       setSaveError(err instanceof Error ? err.message : "Network error");
     } finally {
       setSaving(false);
