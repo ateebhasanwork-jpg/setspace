@@ -115,11 +115,26 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       const dependabilityTriggered = dependabilityThreshold > 0 && absences >= dependabilityThreshold;
       const kpiTriggered = kpiThreshold > 0 && lateTasks >= kpiThreshold;
 
+      // Overtime: sum accumulated seconds beyond 8 h/day across all attendance records in period
+      const userAttendance = attendance.filter(a => a.userId === user.id);
+      const STANDARD_SECONDS = 8 * 3600;
+      const overtimeSeconds = userAttendance.reduce((sum, a) => {
+        const extra = Math.max(0, (a.accumulatedSeconds ?? 0) - STANDARD_SECONDS);
+        return sum + extra;
+      }, 0);
+      const overtimeHours = Math.round((overtimeSeconds / 3600) * 100) / 100;
+      const overtimeRate = salary?.overtimeRate ?? 0;
+      const overtimePay = Math.round(overtimeHours * overtimeRate);
+
+      // Salary breakdown: Basic + Dep Component + KPI Component = Total Package
       const basicSalary = salary?.basicSalary ?? 0;
-      const overtimePayment = salary?.overtimePayment ?? 0;
-      const dependabilityDeduction = dependabilityTriggered ? (salary?.dependabilityDeductionAmount ?? 0) : 0;
-      const kpiDeduction = kpiTriggered ? (salary?.kpiDeductionAmount ?? 0) : 0;
-      const netSalary = basicSalary + overtimePayment - dependabilityDeduction - kpiDeduction;
+      const depComponent = salary?.dependabilityDeductionAmount ?? 0;
+      const kpiComponent = salary?.kpiDeductionAmount ?? 0;
+      const totalPackage = basicSalary + depComponent + kpiComponent;
+
+      const dependabilityDeduction = dependabilityTriggered ? depComponent : 0;
+      const kpiDeduction = kpiTriggered ? kpiComponent : 0;
+      const netSalary = totalPackage - dependabilityDeduction - kpiDeduction + overtimePay;
 
       return {
         user,
@@ -132,7 +147,12 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         dependabilityTriggered,
         kpiTriggered,
         basicSalary,
-        overtimePayment,
+        depComponent,
+        kpiComponent,
+        totalPackage,
+        overtimeRate,
+        overtimeHours,
+        overtimePay,
         dependabilityDeduction,
         kpiDeduction,
         netSalary,
@@ -180,7 +200,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
     const { userId } = req.params;
     const {
       basicSalary,
-      overtimePayment,
+      overtimeRate,
       dependabilityDeductionAmount,
       kpiDeductionAmount,
       workingDaysOverride,
@@ -188,7 +208,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       dependabilityThreshold,
     } = req.body as {
       basicSalary?: number;
-      overtimePayment?: number;
+      overtimeRate?: number;
       dependabilityDeductionAmount?: number;
       kpiDeductionAmount?: number;
       workingDaysOverride?: number | null;
@@ -200,7 +220,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
 
     const updates = {
       basicSalary: basicSalary ?? existing?.basicSalary ?? 0,
-      overtimePayment: overtimePayment ?? existing?.overtimePayment ?? 0,
+      overtimeRate: overtimeRate ?? existing?.overtimeRate ?? 0,
       dependabilityDeductionAmount: dependabilityDeductionAmount ?? existing?.dependabilityDeductionAmount ?? 0,
       kpiDeductionAmount: kpiDeductionAmount ?? existing?.kpiDeductionAmount ?? 0,
       workingDaysOverride: workingDaysOverride !== undefined ? workingDaysOverride : (existing?.workingDaysOverride ?? null),

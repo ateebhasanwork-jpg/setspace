@@ -37,7 +37,7 @@ const MONTHS = [
 
 type SalaryConfig = {
   basicSalary: number;
-  overtimePayment: number;
+  overtimeRate: number;
   dependabilityDeductionAmount: number;
   kpiDeductionAmount: number;
   workingDaysOverride: number | null;
@@ -56,7 +56,12 @@ type SalaryRow = {
   dependabilityTriggered: boolean;
   kpiTriggered: boolean;
   basicSalary: number;
-  overtimePayment: number;
+  depComponent: number;
+  kpiComponent: number;
+  totalPackage: number;
+  overtimeRate: number;
+  overtimeHours: number;
+  overtimePay: number;
   dependabilityDeduction: number;
   kpiDeduction: number;
   netSalary: number;
@@ -309,9 +314,9 @@ export default function KPIs() {
     setDeletingSalaryId(userId);
     try {
       await fetch(`${BASE}/api/salaries/${userId}`, { method: "DELETE", credentials: "include" });
-      setSalaryData(prev => prev.filter(r => r.user.id !== userId || true).map(r =>
+      setSalaryData(prev => prev.map(r =>
         r.user.id === userId
-          ? { ...r, salary: null as unknown as typeof r.salary, basicSalary: 0, netSalary: 0, dependabilityDeduction: 0, kpiDeduction: 0, kpiThreshold: 2, dependabilityThreshold: 2 }
+          ? { ...r, salary: null as unknown as typeof r.salary, basicSalary: 0, depComponent: 0, kpiComponent: 0, totalPackage: 0, overtimeRate: 0, overtimeHours: 0, overtimePay: 0, netSalary: 0, dependabilityDeduction: 0, kpiDeduction: 0, kpiThreshold: 2, dependabilityThreshold: 2 }
           : r
       ));
       setConfirmDeleteSalaryId(null);
@@ -464,7 +469,7 @@ export default function KPIs() {
     setSaveError(null);
     setEditingUserId(row.user.id);
     setEditBasic(String(row.salary?.basicSalary ?? ""));
-    setEditOvertime(String(row.salary?.overtimePayment ?? ""));
+    setEditOvertime(String(row.salary?.overtimeRate ?? ""));
     setEditDep(String(row.salary?.dependabilityDeductionAmount ?? ""));
     setEditKpi(String(row.salary?.kpiDeductionAmount ?? ""));
     setEditWorkingDays(row.salary?.workingDaysOverride != null ? String(row.salary.workingDaysOverride) : "");
@@ -485,7 +490,7 @@ export default function KPIs() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             basicSalary: parseInt(editBasic) || 0,
-            overtimePayment: parseInt(editOvertime) || 0,
+            overtimeRate: parseInt(editOvertime) || 0,
             dependabilityDeductionAmount: parseInt(editDep) || 0,
             kpiDeductionAmount: parseInt(editKpi) || 0,
             workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
@@ -840,10 +845,12 @@ export default function KPIs() {
 
                     {/* Salary rows */}
                     <div className="space-y-2.5">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Package Breakdown</p>
+
                       {/* Basic Salary */}
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Wallet className="w-3.5 h-3.5 text-indigo-400" /> Basic Salary
+                          <Wallet className="w-3.5 h-3.5 text-indigo-400" /> Basic
                         </span>
                         {isEditing ? (
                           <Input type="number" value={editBasic} onChange={e => setEditBasic(e.target.value)}
@@ -853,29 +860,14 @@ export default function KPIs() {
                         )}
                       </div>
 
-                      {/* Overtime */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Clock3 className="w-3.5 h-3.5 text-teal-400" /> Overtime
-                        </span>
-                        {isEditing ? (
-                          <Input type="number" value={editOvertime} onChange={e => setEditOvertime(e.target.value)}
-                            className="h-7 w-28 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
-                        ) : (
-                          <span className={`text-sm font-semibold ${row.overtimePayment > 0 ? "text-teal-400" : "text-muted-foreground"}`}>
-                            {row.overtimePayment > 0 ? `+ ${formatPKR(row.overtimePayment)}` : "—"}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Dependability Deduction */}
+                      {/* Dependability Component */}
                       <div className="flex items-center justify-between">
                         <span className={`text-xs flex items-center gap-1.5 ${row.dependabilityTriggered ? "text-orange-400" : "text-muted-foreground"}`}>
                           <AlertTriangle className="w-3.5 h-3.5" />
                           Dependability
                           {row.dependabilityTriggered && (
                             <span className="ml-1 text-[10px] bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded-full">
-                              {row.absences} absent
+                              {row.absences} absent — withheld
                             </span>
                           )}
                         </span>
@@ -883,20 +875,20 @@ export default function KPIs() {
                           <Input type="number" value={editDep} onChange={e => setEditDep(e.target.value)}
                             className="h-7 w-28 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
                         ) : (
-                          <span className={`text-sm font-semibold ${row.dependabilityTriggered ? "text-orange-400" : "text-muted-foreground"}`}>
-                            {row.dependabilityTriggered ? `− ${formatPKR(row.dependabilityDeduction)}` : "— not triggered"}
+                          <span className={`text-sm font-semibold ${row.dependabilityTriggered ? "text-orange-400 line-through" : "text-foreground"}`}>
+                            {formatPKR(row.depComponent)}
                           </span>
                         )}
                       </div>
 
-                      {/* KPI Deduction */}
+                      {/* KPI Component */}
                       <div className="flex items-center justify-between">
                         <span className={`text-xs flex items-center gap-1.5 ${row.kpiTriggered ? "text-red-400" : "text-muted-foreground"}`}>
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          KPI Payment
+                          <TrendingDown className="w-3.5 h-3.5" />
+                          KPI
                           {row.kpiTriggered && (
                             <span className="ml-1 text-[10px] bg-red-500/15 border border-red-500/25 px-1.5 py-0.5 rounded-full">
-                              {row.lateTasks} late
+                              {row.lateTasks} late — withheld
                             </span>
                           )}
                         </span>
@@ -904,8 +896,36 @@ export default function KPIs() {
                           <Input type="number" value={editKpi} onChange={e => setEditKpi(e.target.value)}
                             className="h-7 w-28 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
                         ) : (
-                          <span className={`text-sm font-semibold ${row.kpiTriggered ? "text-red-400" : "text-muted-foreground"}`}>
-                            {row.kpiTriggered ? `− ${formatPKR(row.kpiDeduction)}` : "— not triggered"}
+                          <span className={`text-sm font-semibold ${row.kpiTriggered ? "text-red-400 line-through" : "text-foreground"}`}>
+                            {formatPKR(row.kpiComponent)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Total Package subtotal */}
+                      <div className="flex items-center justify-between pt-2 border-t border-white/8">
+                        <span className="text-xs font-medium text-muted-foreground">Total Package</span>
+                        <span className="text-sm font-bold text-foreground">{formatPKR(row.totalPackage)}</span>
+                      </div>
+
+                      {/* Overtime */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Clock3 className="w-3.5 h-3.5 text-teal-400" /> Overtime rate
+                        </span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <Input type="number" value={editOvertime} onChange={e => setEditOvertime(e.target.value)}
+                              className="h-7 w-24 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
+                            <span className="text-[10px] text-muted-foreground">/hr</span>
+                          </div>
+                        ) : (
+                          <span className={`text-sm font-semibold ${row.overtimePay > 0 ? "text-teal-400" : "text-muted-foreground"}`}>
+                            {row.overtimeRate > 0
+                              ? row.overtimePay > 0
+                                ? `+ ${formatPKR(row.overtimePay)} (${row.overtimeHours}h)`
+                                : `${formatPKR(row.overtimeRate)}/hr — 0h`
+                              : "—"}
                           </span>
                         )}
                       </div>

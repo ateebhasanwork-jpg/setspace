@@ -39,7 +39,8 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS overtime_payment INTEGER NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS working_days_override INTEGER,
       ADD COLUMN IF NOT EXISTS kpi_threshold INTEGER NOT NULL DEFAULT 2,
-      ADD COLUMN IF NOT EXISTS dependability_threshold INTEGER NOT NULL DEFAULT 2
+      ADD COLUMN IF NOT EXISTS dependability_threshold INTEGER NOT NULL DEFAULT 2,
+      ADD COLUMN IF NOT EXISTS overtime_rate INTEGER NOT NULL DEFAULT 0
   `);
 
   await db.execute(sql`

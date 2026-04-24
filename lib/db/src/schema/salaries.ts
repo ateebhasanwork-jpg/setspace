@@ -5,7 +5,7 @@ export const salariesTable = pgTable("salaries", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().unique().references(() => usersTable.id, { onDelete: "cascade" }),
   basicSalary: integer("basic_salary").notNull().default(0),
-  overtimePayment: integer("overtime_payment").notNull().default(0),
+  overtimeRate: integer("overtime_rate").notNull().default(0),
   dependabilityDeductionAmount: integer("dependability_deduction_amount").notNull().default(0),
   kpiDeductionAmount: integer("kpi_deduction_amount").notNull().default(0),
   /** Override total working days for this employee (null = auto Mon–Fri count) */
