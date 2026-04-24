@@ -7,13 +7,13 @@ cd "$DEPLOY_DIR"
 echo "==> Pulling latest code..."
 git pull
 
-echo "==> Installing root dependencies..."
+echo "==> Installing dependencies..."
 pnpm install
 
 echo "==> Building API server..."
 cd "$DEPLOY_DIR/artifacts/api-server"
 pnpm install
-./node_modules/.bin/tsx build.ts
+node build.mjs
 
 echo "==> Building frontend..."
 cd "$DEPLOY_DIR/artifacts/setspace"
