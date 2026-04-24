@@ -43,13 +43,17 @@ type SalaryConfig = {
   workingDaysOverride: number | null;
   kpiThreshold: number;
   dependabilityThreshold: number;
+  effectiveStartDate?: string | null;
 } | null;
+
+type ApprovedLeave = { id: number; userId: string; date: string; note: string | null };
 
 type SalaryRow = {
   user: User;
   salary: SalaryConfig;
   absences: number;
   workingDays: number;
+  effectiveStartDate: string | null;
   kpiThreshold: number;
   dependabilityThreshold: number;
   lateTasks: number;
@@ -65,6 +69,7 @@ type SalaryRow = {
   dependabilityDeduction: number;
   kpiDeduction: number;
   netSalary: number;
+  approvedLeaves: ApprovedLeave[];
 };
 
 type PayrollPeriod = {
@@ -286,8 +291,13 @@ export default function KPIs() {
   const [editWorkingDays, setEditWorkingDays] = useState("");
   const [editKpiThreshold, setEditKpiThreshold] = useState("");
   const [editDepThreshold, setEditDepThreshold] = useState("");
+  const [editEffectiveStart, setEditEffectiveStart] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
+  const [addLeaveUserId, setAddLeaveUserId] = useState<string | null>(null);
+  const [addLeaveDate, setAddLeaveDate] = useState("");
+  const [addLeaveNote, setAddLeaveNote] = useState("");
+  const [leaveSaving, setLeaveSaving] = useState(false);
   const [trackingStartDate, setTrackingStartDate] = useState<string | null>(null);
   const [editTrackingDate, setEditTrackingDate] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
@@ -475,8 +485,12 @@ export default function KPIs() {
     setEditWorkingDays(row.salary?.workingDaysOverride != null ? String(row.salary.workingDaysOverride) : "");
     setEditKpiThreshold(String(row.kpiThreshold));
     setEditDepThreshold(String(row.dependabilityThreshold));
+    setEditEffectiveStart(row.effectiveStartDate ?? "");
     setEditTitle(row.user.title ?? "");
     setEditDepartment(row.user.department ?? "");
+    setAddLeaveUserId(null);
+    setAddLeaveDate("");
+    setAddLeaveNote("");
   };
 
   const saveEdit = async (userId: string) => {
@@ -496,6 +510,7 @@ export default function KPIs() {
             workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
             kpiThreshold: isNaN(parseInt(editKpiThreshold)) ? 2 : parseInt(editKpiThreshold),
             dependabilityThreshold: isNaN(parseInt(editDepThreshold)) ? 2 : parseInt(editDepThreshold),
+            effectiveStartDate: editEffectiveStart.trim() || null,
           }),
         }),
         fetch(`${BASE}/api/users/${userId}`, {
@@ -957,6 +972,23 @@ export default function KPIs() {
                           )}
                         </div>
 
+                        {/* Effective Start Date */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <CalendarDays className="w-3.5 h-3.5 text-emerald-400" /> Tracking from
+                          </span>
+                          {isEditing ? (
+                            <Input type="date" value={editEffectiveStart} onChange={e => setEditEffectiveStart(e.target.value)}
+                              className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" />
+                          ) : (
+                            <span className="text-xs font-semibold text-foreground">
+                              {row.effectiveStartDate
+                                ? <span className="text-emerald-400">{formatShortDate(row.effectiveStartDate)}</span>
+                                : <span className="text-muted-foreground">period start</span>}
+                            </span>
+                          )}
+                        </div>
+
                         {/* Dep Threshold */}
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -992,6 +1024,72 @@ export default function KPIs() {
                             </span>
                           )}
                         </div>
+                    </div>
+
+                    {/* Approved Days Off */}
+                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Approved Days Off</p>
+                        {addLeaveUserId === row.user.id ? null : (
+                          <button
+                            onClick={() => { setAddLeaveUserId(row.user.id); setAddLeaveDate(""); setAddLeaveNote(""); }}
+                            className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                          >
+                            + Add
+                          </button>
+                        )}
+                      </div>
+
+                      {addLeaveUserId === row.user.id && (
+                        <div className="flex items-center gap-1.5">
+                          <Input type="date" value={addLeaveDate} onChange={e => setAddLeaveDate(e.target.value)}
+                            className="h-7 flex-1 text-xs bg-black/30 border-white/15" />
+                          <Input value={addLeaveNote} onChange={e => setAddLeaveNote(e.target.value)}
+                            className="h-7 flex-1 text-xs bg-black/30 border-white/15" placeholder="note (optional)" />
+                          <button
+                            disabled={!addLeaveDate || leaveSaving}
+                            onClick={async () => {
+                              if (!addLeaveDate) return;
+                              setLeaveSaving(true);
+                              try {
+                                await fetch(`${BASE}/api/approved-leaves`, {
+                                  method: "POST",
+                                  credentials: "include",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ userId: row.user.id, date: addLeaveDate, note: addLeaveNote.trim() || null }),
+                                });
+                                setAddLeaveUserId(null);
+                                await fetchSalaries();
+                              } finally { setLeaveSaving(false); }
+                            }}
+                            className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded disabled:opacity-50"
+                          >Save</button>
+                          <button onClick={() => setAddLeaveUserId(null)}
+                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground">✕</button>
+                        </div>
+                      )}
+
+                      {row.approvedLeaves.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground">None recorded</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {row.approvedLeaves.map(l => (
+                            <div key={l.id} className="flex items-center justify-between group">
+                              <span className="text-xs text-emerald-400 font-medium">{formatShortDate(l.date)}</span>
+                              <div className="flex items-center gap-2">
+                                {l.note && <span className="text-[10px] text-muted-foreground">{l.note}</span>}
+                                <button
+                                  onClick={async () => {
+                                    await fetch(`${BASE}/api/approved-leaves/${l.id}`, { method: "DELETE", credentials: "include" });
+                                    await fetchSalaries();
+                                  }}
+                                  className="text-[10px] text-red-400/60 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >remove</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Employee Profile */}

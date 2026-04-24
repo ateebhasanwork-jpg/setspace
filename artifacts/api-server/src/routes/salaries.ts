@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { salariesTable, tasksTable, attendanceTable, appSettingsTable, payrollPeriodsTable } from "@workspace/db/schema";
+import { salariesTable, tasksTable, attendanceTable, appSettingsTable, payrollPeriodsTable, approvedLeavesTable } from "@workspace/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { getCachedUsers } from "../lib/cache";
 import { requireAdminOrHR } from "../middleware/roles";
@@ -41,7 +41,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       ({ startDate, endDate } = monthBounds(year, month));
     }
 
-    const [users, salaries, tasks, attendance, trackingRows] = await Promise.all([
+    const [users, salaries, tasks, attendance, trackingRows, approvedLeaves] = await Promise.all([
       getCachedUsers(),
       db.select().from(salariesTable),
       db.select().from(tasksTable).where(
@@ -51,11 +51,12 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         and(gte(attendanceTable.clockIn, startDate), lte(attendanceTable.clockIn, endDate))
       ),
       db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "kpiTrackingStartDate")).limit(1),
+      db.select().from(approvedLeavesTable),
     ]);
 
     // Effective start: for period mode use period start directly; otherwise use tracking start date setting
     const rawTracking = trackingRows[0]?.value ?? null;
-    const effectiveStart: Date = (() => {
+    const globalEffectiveStart: Date = (() => {
       if (activePeriod) return startDate;
       const trackingDate = rawTracking ? new Date(rawTracking) : null;
       if (trackingDate && !isNaN(trackingDate.getTime()) && trackingDate > startDate) {
@@ -66,9 +67,9 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
 
     const salaryByUser = Object.fromEntries(salaries.map(s => [s.userId, s]));
 
-    // Compute global working days for the month starting from effectiveStart (Mon–Fri)
+    // Compute global working days for the month starting from globalEffectiveStart (Mon–Fri)
     let globalWorkingDays = 0;
-    const d = new Date(effectiveStart);
+    const d = new Date(globalEffectiveStart);
     while (d <= endDate) {
       const dow = d.getDay();
       if (dow !== 0 && dow !== 6) globalWorkingDays++;
@@ -78,12 +79,35 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
     const result = users.map(user => {
       const salary = salaryByUser[user.id] ?? null;
 
+      // Per-employee effective start: use employee-level override if set (and later than global start)
+      const empStartStr = salary?.effectiveStartDate ?? null;
+      const empStartDate = empStartStr ? new Date(empStartStr + "T00:00:00") : null;
+      const effectiveStart = empStartDate && empStartDate > globalEffectiveStart
+        ? empStartDate
+        : globalEffectiveStart;
+
       // Per-employee working days: use override if set, otherwise auto Mon–Fri from effectiveStart
-      const workingDays = salary?.workingDaysOverride ?? globalWorkingDays;
+      const effectiveWorkingDays = (() => {
+        if (salary?.workingDaysOverride != null) return salary.workingDaysOverride;
+        let count = 0;
+        const c = new Date(effectiveStart);
+        while (c <= endDate) {
+          const dow = c.getDay();
+          if (dow !== 0 && dow !== 6) count++;
+          c.setDate(c.getDate() + 1);
+        }
+        return count;
+      })();
+
       const kpiThreshold = salary?.kpiThreshold ?? 2;
       const dependabilityThreshold = salary?.dependabilityThreshold ?? 2;
 
-      // Count absences: working days in [effectiveStart, today] where no attendance record
+      // Approved leave dates for this employee (set by admin)
+      const approvedDates = new Set(
+        approvedLeaves.filter(l => l.userId === user.id).map(l => l.date)
+      );
+
+      // Count absences: working days in [effectiveStart, today] where no attendance and no approved leave
       const todayCap = new Date();
       todayCap.setHours(23, 59, 59, 999);
       const effectiveEnd = endDate < todayCap ? endDate : todayCap;
@@ -99,13 +123,13 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         const dow = c.getDay();
         if (dow !== 0 && dow !== 6) {
           const dateStr = c.toISOString().split("T")[0];
-          if (!presentDates.has(dateStr)) absences++;
+          if (!presentDates.has(dateStr) && !approvedDates.has(dateStr)) absences++;
         }
         c.setDate(c.getDate() + 1);
       }
-      // Cap absences at workingDays if override is set (can't be absent more than working days)
+      // Cap absences at workingDays if override is set
       if (salary?.workingDaysOverride != null) {
-        absences = Math.min(absences, workingDays);
+        absences = Math.min(absences, effectiveWorkingDays);
       }
 
       // Count late tasks: Done tasks where completedAt > dueDate
@@ -136,11 +160,17 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       const kpiDeduction = kpiTriggered ? kpiComponent : 0;
       const netSalary = totalPackage - dependabilityDeduction - kpiDeduction + overtimePay;
 
+      // Approved leaves list for this employee (full objects for display)
+      const employeeLeaves = approvedLeaves
+        .filter(l => l.userId === user.id)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
       return {
         user,
         salary,
         absences,
-        workingDays,
+        workingDays: effectiveWorkingDays,
+        effectiveStartDate: empStartStr ?? null,
         kpiThreshold,
         dependabilityThreshold,
         lateTasks,
@@ -156,6 +186,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         dependabilityDeduction,
         kpiDeduction,
         netSalary,
+        approvedLeaves: employeeLeaves,
       };
     });
 
@@ -206,6 +237,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       workingDaysOverride,
       kpiThreshold,
       dependabilityThreshold,
+      effectiveStartDate,
     } = req.body as {
       basicSalary?: number;
       overtimeRate?: number;
@@ -214,6 +246,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       workingDaysOverride?: number | null;
       kpiThreshold?: number;
       dependabilityThreshold?: number;
+      effectiveStartDate?: string | null;
     };
 
     const [existing] = await db.select().from(salariesTable).where(eq(salariesTable.userId, userId));
@@ -226,6 +259,7 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       workingDaysOverride: workingDaysOverride !== undefined ? workingDaysOverride : (existing?.workingDaysOverride ?? null),
       kpiThreshold: kpiThreshold ?? existing?.kpiThreshold ?? 2,
       dependabilityThreshold: dependabilityThreshold ?? existing?.dependabilityThreshold ?? 2,
+      effectiveStartDate: effectiveStartDate !== undefined ? (effectiveStartDate || null) : (existing?.effectiveStartDate ?? null),
       updatedAt: new Date(),
     };
 

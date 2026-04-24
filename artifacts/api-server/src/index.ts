@@ -40,7 +40,18 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS working_days_override INTEGER,
       ADD COLUMN IF NOT EXISTS kpi_threshold INTEGER NOT NULL DEFAULT 2,
       ADD COLUMN IF NOT EXISTS dependability_threshold INTEGER NOT NULL DEFAULT 2,
-      ADD COLUMN IF NOT EXISTS overtime_rate INTEGER NOT NULL DEFAULT 0
+      ADD COLUMN IF NOT EXISTS overtime_rate INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS effective_start_date TEXT
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS approved_leaves (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      note TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
   `);
 
   await db.execute(sql`
