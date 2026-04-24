@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { salariesTable, tasksTable, attendanceTable, appSettingsTable } from "@workspace/db/schema";
+import { salariesTable, tasksTable, attendanceTable, appSettingsTable, payrollPeriodsTable } from "@workspace/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { getCachedUsers } from "../lib/cache";
 import { requireAdminOrHR } from "../middleware/roles";
@@ -23,9 +23,23 @@ function monthBounds(year: number, month: number) {
 router.get("/salaries", requireAdminOrHR, async (req, res) => {
   try {
     const now = new Date();
-    const month = parseInt(req.query.month as string) || now.getMonth() + 1;
-    const year = parseInt(req.query.year as string) || now.getFullYear();
-    const { startDate, endDate } = monthBounds(year, month);
+    const periodId = req.query.periodId ? parseInt(req.query.periodId as string) : null;
+
+    let startDate: Date;
+    let endDate: Date;
+    let activePeriod: { id: number; name: string; startDate: string; endDate: string } | null = null;
+
+    if (periodId) {
+      const [period] = await db.select().from(payrollPeriodsTable).where(eq(payrollPeriodsTable.id, periodId)).limit(1);
+      if (!period) return res.status(404).json({ error: "Payroll period not found" });
+      activePeriod = period;
+      startDate = new Date(period.startDate + "T00:00:00");
+      endDate = new Date(period.endDate + "T23:59:59");
+    } else {
+      const month = parseInt(req.query.month as string) || now.getMonth() + 1;
+      const year = parseInt(req.query.year as string) || now.getFullYear();
+      ({ startDate, endDate } = monthBounds(year, month));
+    }
 
     const [users, salaries, tasks, attendance, trackingRows] = await Promise.all([
       getCachedUsers(),
@@ -39,11 +53,11 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "kpiTrackingStartDate")).limit(1),
     ]);
 
-    // Effective start: max(first of month, kpiTrackingStartDate setting)
+    // Effective start: for period mode use period start directly; otherwise use tracking start date setting
     const rawTracking = trackingRows[0]?.value ?? null;
-    const trackingDate = rawTracking ? new Date(rawTracking) : null;
-    // Strip time so comparison is date-only
     const effectiveStart: Date = (() => {
+      if (activePeriod) return startDate;
+      const trackingDate = rawTracking ? new Date(rawTracking) : null;
       if (trackingDate && !isNaN(trackingDate.getTime()) && trackingDate > startDate) {
         return new Date(trackingDate.getFullYear(), trackingDate.getMonth(), trackingDate.getDate());
       }
@@ -128,6 +142,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
     res.json({
       rows: result,
       trackingStartDate: rawTracking ?? null,
+      period: activePeriod ?? null,
     });
   } catch (err) {
     console.error("Salaries error:", err);

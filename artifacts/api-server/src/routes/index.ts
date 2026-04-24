@@ -17,6 +17,7 @@ import eventsRouter from "./events";
 import pushRouter from "./push";
 import salariesRouter from "./salaries";
 import settingsRouter from "./settings";
+import payrollPeriodsRouter from "./payroll-periods";
 import schedulesRouter from "./schedules";
 
 const router: IRouter = Router();
@@ -36,6 +37,7 @@ router.use(notificationsRouter);
 router.use(leaderboardRouter);
 router.use(salariesRouter);
 router.use(settingsRouter);
+router.use(payrollPeriodsRouter);
 router.use(schedulesRouter);
 router.use(storageRouter);
 router.use(videosRouter);

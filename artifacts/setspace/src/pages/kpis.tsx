@@ -23,6 +23,7 @@ import {
   Trash2,
   Building2,
   Briefcase,
+  Plus,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -60,6 +61,19 @@ type SalaryRow = {
   kpiDeduction: number;
   netSalary: number;
 };
+
+type PayrollPeriod = {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+};
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 function formatPKR(n: number): string {
   return `PKR ${n.toLocaleString()}`;
@@ -279,6 +293,18 @@ export default function KPIs() {
   const [deletingSalaryId, setDeletingSalaryId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Payroll periods
+  const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
+  const [activePeriodId, setActivePeriodId] = useState<number | null>(null);
+  const [showPeriodModal, setShowPeriodModal] = useState(false);
+  const [editingPeriod, setEditingPeriod] = useState<PayrollPeriod | null>(null);
+  const [periodName, setPeriodName] = useState("");
+  const [periodStart, setPeriodStart] = useState("");
+  const [periodEnd, setPeriodEnd] = useState("");
+  const [savingPeriod, setSavingPeriod] = useState(false);
+  const [periodError, setPeriodError] = useState<string | null>(null);
+  const [confirmDeletePeriodId, setConfirmDeletePeriodId] = useState<number | null>(null);
+
   const deleteSalaryConfig = async (userId: string) => {
     setDeletingSalaryId(userId);
     try {
@@ -295,12 +321,30 @@ export default function KPIs() {
     }
   };
 
+  const fetchPeriods = useCallback(async () => {
+    if (!isAdminOrHR) return;
+    try {
+      const res = await fetch(`${BASE}/api/payroll-periods`, { credentials: "include" });
+      if (res.ok) {
+        const data: PayrollPeriod[] = await res.json();
+        setPeriods(data);
+        // Auto-select the latest period if none selected
+        if (data.length > 0) {
+          setActivePeriodId(prev => prev ?? data[data.length - 1].id);
+        }
+      }
+    } catch {}
+  }, [isAdminOrHR]);
+
   const fetchSalaries = useCallback(async () => {
     if (!isAdminOrHR) return;
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`${BASE}/api/salaries?month=${month}&year=${year}`, { credentials: "include" });
+      const url = activePeriodId
+        ? `${BASE}/api/salaries?periodId=${activePeriodId}`
+        : `${BASE}/api/salaries?month=${month}&year=${year}`;
+      const res = await fetch(url, { credentials: "include" });
       if (res.ok) {
         const payload = await res.json();
         setSalaryData(payload.rows ?? payload);
@@ -314,8 +358,9 @@ export default function KPIs() {
     } finally {
       setLoading(false);
     }
-  }, [month, year, isAdminOrHR]);
+  }, [month, year, isAdminOrHR, activePeriodId]);
 
+  useEffect(() => { fetchPeriods(); }, [fetchPeriods]);
   useEffect(() => { fetchSalaries(); }, [fetchSalaries]);
   useEffect(() => { setEditTrackingDate(trackingStartDate ?? ""); }, [trackingStartDate]);
 
@@ -341,6 +386,78 @@ export default function KPIs() {
     } finally {
       setSavingTracking(false);
     }
+  };
+
+  const openNewPeriod = () => {
+    const next = new Date();
+    next.setMonth(next.getMonth() + (periods.length === 0 ? 0 : 1));
+    const y = next.getFullYear();
+    const m = String(next.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(y, next.getMonth() + 1, 0).getDate();
+    setPeriodName(`${MONTHS[next.getMonth()]} ${y}`);
+    setPeriodStart(`${y}-${m}-01`);
+    setPeriodEnd(`${y}-${m}-${String(lastDay).padStart(2, "0")}`);
+    setPeriodError(null);
+    setEditingPeriod(null);
+    setShowPeriodModal(true);
+  };
+
+  const openEditPeriod = (p: PayrollPeriod) => {
+    setPeriodName(p.name);
+    setPeriodStart(p.startDate);
+    setPeriodEnd(p.endDate);
+    setPeriodError(null);
+    setEditingPeriod(p);
+    setShowPeriodModal(true);
+  };
+
+  const savePeriod = async () => {
+    if (!periodName.trim() || !periodStart || !periodEnd) {
+      setPeriodError("All fields are required");
+      return;
+    }
+    setSavingPeriod(true);
+    setPeriodError(null);
+    try {
+      const url = editingPeriod
+        ? `${BASE}/api/payroll-periods/${editingPeriod.id}`
+        : `${BASE}/api/payroll-periods`;
+      const res = await fetch(url, {
+        method: editingPeriod ? "PATCH" : "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: periodName.trim(), startDate: periodStart, endDate: periodEnd }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setPeriodError(body?.error ?? `Failed (${res.status})`);
+        return;
+      }
+      const saved: PayrollPeriod = await res.json();
+      if (editingPeriod) {
+        setPeriods(prev => prev.map(p => p.id === saved.id ? saved : p));
+      } else {
+        setPeriods(prev => [...prev, saved]);
+        setActivePeriodId(saved.id);
+      }
+      setShowPeriodModal(false);
+    } catch (err) {
+      setPeriodError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setSavingPeriod(false);
+    }
+  };
+
+  const deletePeriod = async (id: number) => {
+    try {
+      await fetch(`${BASE}/api/payroll-periods/${id}`, { method: "DELETE", credentials: "include" });
+      setPeriods(prev => prev.filter(p => p.id !== id));
+      if (activePeriodId === id) {
+        const remaining = periods.filter(p => p.id !== id);
+        setActivePeriodId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+      }
+      setConfirmDeletePeriodId(null);
+    } catch {}
   };
 
   const openEdit = (row: SalaryRow) => {
@@ -432,38 +549,136 @@ export default function KPIs() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Period modal */}
+      {showPeriodModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <h2 className="text-lg font-semibold text-foreground">
+              {editingPeriod ? "Edit Period" : "New Payroll Period"}
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground font-medium mb-1 block">Period Name</label>
+                <Input
+                  value={periodName}
+                  onChange={e => setPeriodName(e.target.value)}
+                  placeholder="e.g. May 2026"
+                  className="bg-black/20 border-white/10"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium mb-1 block">Start Date</label>
+                  <input
+                    type="date"
+                    value={periodStart}
+                    onChange={e => setPeriodStart(e.target.value)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium mb-1 block">End Date</label>
+                  <input
+                    type="date"
+                    value={periodEnd}
+                    onChange={e => setPeriodEnd(e.target.value)}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+                  />
+                </div>
+              </div>
+              {periodError && <p className="text-xs text-red-400">{periodError}</p>}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowPeriodModal(false)}
+                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePeriod}
+                disabled={savingPeriod}
+                className="px-4 py-2 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors disabled:opacity-50"
+              >
+                {savingPeriod ? "Saving…" : editingPeriod ? "Save Changes" : "Create Period"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete period */}
+      {confirmDeletePeriodId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+            <h2 className="text-base font-semibold text-foreground">Delete this period?</h2>
+            <p className="text-sm text-muted-foreground">This removes the period tab permanently. Salary configs and attendance data are not affected.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDeletePeriodId(null)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5">Cancel</button>
+              <button onClick={() => deletePeriod(confirmDeletePeriodId)} className="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-700 text-white font-medium">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">KPI & Payroll</h1>
           <p className="text-muted-foreground mt-1">Salary breakdown and deduction tracking.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={month}
-            onChange={e => setMonth(Number(e.target.value))}
-            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+        <button
+          onClick={fetchSalaries}
+          disabled={loading}
+          className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {/* Period tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {periods.map(p => (
+          <div
+            key={p.id}
+            className={`group flex items-center gap-2 shrink-0 rounded-xl border px-4 py-2.5 cursor-pointer transition-all ${
+              activePeriodId === p.id
+                ? "bg-indigo-600/20 border-indigo-500/40 text-foreground"
+                : "bg-black/20 border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground"
+            }`}
+            onClick={() => setActivePeriodId(p.id)}
           >
-            {MONTHS.map((m, i) => (
-              <option key={i + 1} value={i + 1} className="bg-card">{m}</option>
-            ))}
-          </select>
-          <select
-            value={year}
-            onChange={e => setYear(Number(e.target.value))}
-            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
-          >
-            {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <button
-            onClick={fetchSalaries}
-            disabled={loading}
-            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
+            <div>
+              <p className="text-sm font-medium leading-tight">{p.name}</p>
+              <p className="text-xs opacity-60 leading-tight">{formatShortDate(p.startDate)} – {formatShortDate(p.endDate)}</p>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+              <button
+                onClick={e => { e.stopPropagation(); openEditPeriod(p); }}
+                className="p-1 rounded hover:bg-white/10 transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); setConfirmDeletePeriodId(p.id); }}
+                className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          onClick={openNewPeriod}
+          className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-xl border border-dashed border-white/20 text-muted-foreground hover:text-foreground hover:border-white/30 transition-all text-sm"
+        >
+          <Plus className="w-4 h-4" />
+          New Period
+        </button>
+        {activePeriodId === null && periods.length === 0 && (
+          <p className="text-xs text-muted-foreground ml-2">Create your first payroll period to get started.</p>
+        )}
       </div>
 
       {/* Tabs */}

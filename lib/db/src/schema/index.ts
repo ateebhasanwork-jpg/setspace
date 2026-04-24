@@ -7,3 +7,4 @@ export * from "./videos";
 export * from "./settings";
 export * from "./salaries";
 export * from "./schedules";
+export * from "./payroll-periods";
