@@ -95,6 +95,10 @@ export function useLiveEvents() {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       });
 
+      es.addEventListener("salary-config", () => {
+        queryClient.invalidateQueries({ queryKey: ["salary-me"] });
+      });
+
       es.addEventListener("notifications", async () => {
         // Remember old IDs before invalidation
         const oldNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null }>>(

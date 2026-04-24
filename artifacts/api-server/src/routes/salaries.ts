@@ -4,6 +4,7 @@ import { salariesTable, tasksTable, attendanceTable, appSettingsTable } from "@w
 import { eq, and, gte, lte } from "drizzle-orm";
 import { getCachedUsers } from "../lib/cache";
 import { requireAdminOrHR } from "../middleware/roles";
+import { broadcastSseToUser } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -193,16 +194,22 @@ router.put("/salaries/:userId", requireAdminOrHR, async (req, res) => {
       updatedAt: new Date(),
     };
 
+    let saved;
     if (existing) {
       const [updated] = await db.update(salariesTable)
         .set(updates)
         .where(eq(salariesTable.userId, userId))
         .returning();
+      saved = updated;
       res.json(updated);
     } else {
       const [created] = await db.insert(salariesTable).values({ userId, ...updates }).returning();
+      saved = created;
       res.status(201).json(created);
     }
+
+    // Notify the employee in real time so their view refreshes immediately
+    if (saved) broadcastSseToUser(userId, "salary-config", {});
   } catch (err) {
     console.error("Salary upsert error:", err);
     res.status(500).json({ error: "Failed to save salary" });

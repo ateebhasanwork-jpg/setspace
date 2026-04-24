@@ -158,8 +158,8 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
   // If working days is overridden, cap absences to that value
   const absences = resolvedConfig?.workingDaysOverride != null ? Math.min(rawAbsences, workingDays) : rawAbsences;
 
-  const kpiTriggered = lateTasks.length >= kpiThreshold;
-  const depTriggered = absences >= dependabilityThreshold;
+  const kpiTriggered = kpiThreshold > 0 && lateTasks.length >= kpiThreshold;
+  const depTriggered = dependabilityThreshold > 0 && absences >= dependabilityThreshold;
 
   return (
     <div className="space-y-6">
