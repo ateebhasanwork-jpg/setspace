@@ -42,6 +42,16 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS dependability_threshold INTEGER NOT NULL DEFAULT 2
   `);
 
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS payroll_periods (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
   console.log("[migrations] Tables ready");
 }
 
