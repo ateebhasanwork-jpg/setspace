@@ -222,7 +222,7 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
 }
 
 export default function KPIs() {
-  const { data: currentUser } = useGetCurrentUser();
+  const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
 
   const isAdminOrHR =
     (currentUser as { role?: string } | undefined)?.role === "admin" ||
@@ -230,7 +230,13 @@ export default function KPIs() {
   const canSeePayroll = isAdminOrHR;
 
   const now = new Date();
-  const [activeTab, setActiveTab] = useState<"payroll" | "deductions" | "employees" | "settings">(canSeePayroll ? "payroll" : "deductions");
+  const [activeTab, setActiveTab] = useState<"payroll" | "deductions" | "employees" | "settings">("deductions");
+
+  useEffect(() => {
+    if (!userLoading && canSeePayroll) {
+      setActiveTab("payroll");
+    }
+  }, [userLoading, canSeePayroll]);
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [salaryData, setSalaryData] = useState<SalaryRow[]>([]);
@@ -310,6 +316,10 @@ export default function KPIs() {
       setSaving(false);
     }
   };
+
+  if (userLoading) {
+    return <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading...</div>;
+  }
 
   if (!isAdminOrHR) {
     const myId = (currentUser as { id?: string } | undefined)?.id ?? "";
