@@ -1410,7 +1410,7 @@ export default function TeamChat() {
         <p className="text-muted-foreground text-sm mt-0.5">Group channel and direct messages</p>
       </div>
 
-      <div className="flex gap-4 h-[640px]">
+      <div className="flex gap-4" style={{ height: "calc(100vh - 11rem)" }}>
         {/* Sidebar */}
         <div className="w-52 shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden">
           <div className="p-4 border-b border-white/8 shrink-0">
@@ -1463,12 +1463,20 @@ export default function TeamChat() {
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <div
-                      className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold"
-                      style={avatarStyle}
-                    >
-                      {u.firstName?.[0]}
-                    </div>
+                    {resolveProfileImage((u as any).profileImage) ? (
+                      <img
+                        src={resolveProfileImage((u as any).profileImage)!}
+                        alt={u.firstName ?? ""}
+                        className="w-6 h-6 rounded-full object-cover border border-white/15"
+                      />
+                    ) : (
+                      <div
+                        className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold"
+                        style={avatarStyle}
+                      >
+                        {u.firstName?.[0]}
+                      </div>
+                    )}
                     {unread > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
                         {unread > 9 ? "9+" : unread}

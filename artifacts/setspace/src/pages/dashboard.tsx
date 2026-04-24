@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Task, User, AttendanceRecord } from "@workspace/api-client-react";
 import { useAuth } from "@workspace/replit-auth-web";
+import { getUserAvatarStyle } from "@/lib/user-colors";
 import { Card } from "@/components/ui/card";
 import {
   CheckSquare,
@@ -61,6 +62,70 @@ function fmtDate(dateStr: string) {
 function fmtHrs(seconds: number) {
   const h = seconds / 3600;
   return h.toFixed(1) + "h";
+}
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+function resolveProfileImage(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  return `${BASE}/api/storage/objects/${url.replace(/^\/objects\//, "")}`;
+}
+
+/* ── Employee of the Month Banner ────────────────────────────── */
+function EmployeeOfMonthBanner() {
+  const now = new Date();
+  const { data: leaderboard } = useGetLeaderboard({ month: now.getMonth() + 1, year: now.getFullYear() });
+
+  const winner = leaderboard?.[0];
+  if (!winner) return null;
+
+  const monthName = now.toLocaleString("default", { month: "long" });
+  const year = now.getFullYear();
+  const photo = resolveProfileImage((winner.user as any)?.profileImage);
+  const avatarStyle = getUserAvatarStyle(winner.userId);
+  const name = `${winner.user?.firstName ?? ""} ${winner.user?.lastName ?? ""}`.trim();
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-yellow-400/25 p-5 sm:p-6"
+      style={{ background: "linear-gradient(135deg, hsla(45,80%,8%,0.7) 0%, hsla(30,60%,6%,0.5) 50%, transparent 100%)" }}>
+      <div className="absolute inset-0 pointer-events-none">
+        <div style={{ position: "absolute", top: "-40%", right: "-5%", width: "50%", height: "200%", background: "radial-gradient(ellipse, hsla(45,90%,55%,0.06) 0%, transparent 70%)" }} />
+        <div style={{ position: "absolute", bottom: "-30%", left: "10%", width: "30%", height: "150%", background: "radial-gradient(ellipse, hsla(38,80%,50%,0.05) 0%, transparent 70%)" }} />
+      </div>
+      <div className="relative flex items-center gap-5 flex-wrap sm:flex-nowrap">
+        <div className="relative shrink-0">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg select-none">👑</span>
+          {photo ? (
+            <img src={photo} alt={name} className="w-14 h-14 rounded-full object-cover border-2 shadow-lg"
+              style={{ borderColor: "hsla(45,80%,55%,0.5)", boxShadow: "0 0 20px hsla(45,80%,40%,0.25)" }} />
+          ) : (
+            <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold border-2 shadow-lg"
+              style={{ ...avatarStyle, borderColor: "hsla(45,80%,55%,0.5)", boxShadow: "0 0 20px hsla(45,80%,40%,0.25)" }}>
+              {winner.user?.firstName?.[0]}{winner.user?.lastName?.[0]}
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Trophy className="w-3.5 h-3.5 shrink-0" style={{ color: "hsl(45,80%,55%)" }} />
+            <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "hsl(45,70%,60%)" }}>
+              {monthName} {year} · Employee of the Month
+            </span>
+          </div>
+          <p className="text-xl font-display font-bold text-foreground leading-tight">{name}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {winner.score} pts · {(winner as any).totalTasks ?? 0} tasks completed
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-0.5 shrink-0">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StarRating({ value, size = "sm" }: { value: number | null; size?: "sm" | "md" }) {
@@ -310,6 +375,8 @@ function AdminDashboard() {
         <MonthPicker year={selYear} month={selMonth} onChange={(y, m) => { setSelYear(y); setSelMonth(m); setExpandedUserId(null); }} />
       </div>
 
+      <EmployeeOfMonthBanner />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="glass-panel p-5 space-y-1 hover:border-white/20 transition-colors">
@@ -548,6 +615,8 @@ function EmployeeDashboard({ userId }: { userId: string }) {
         </div>
         <MonthPicker year={selYear} month={selMonth} onChange={(y, m) => { setSelYear(y); setSelMonth(m); }} />
       </div>
+
+      <EmployeeOfMonthBanner />
 
       {/* Personal KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
