@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useListUsers, useGetCurrentUser } from "@workspace/api-client-react";
 import {
   Users,
@@ -12,10 +12,14 @@ import {
   Info,
   AlertTriangle,
   UserPlus,
+  Clock,
+  X,
+  Pencil,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getUserTextColor } from "@/lib/user-colors";
+import { getUserTextColor, getUserAvatarStyle } from "@/lib/user-colors";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -250,6 +254,261 @@ interface UserRow {
   createdAt: string;
 }
 
+/* ── Work Schedules ──────────────────────────────────────────── */
+
+type ScheduleSlot = {
+  id: number;
+  userId: string;
+  dayOfWeek: number;
+  loginHour: number;
+  loginMinute: number;
+  shiftHours: number;
+  user?: { id: string; firstName?: string | null; lastName?: string | null } | null;
+};
+
+const DAYS = [
+  { dow: 1, label: "Mon" },
+  { dow: 2, label: "Tue" },
+  { dow: 3, label: "Wed" },
+  { dow: 4, label: "Thu" },
+  { dow: 5, label: "Fri" },
+  { dow: 6, label: "Sat" },
+  { dow: 0, label: "Sun" },
+];
+
+function fmt12(h: number, m: number) {
+  const period = h >= 12 ? "PM" : "AM";
+  const hh = h % 12 || 12;
+  return `${hh}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+function WorkSchedules({ users }: { users: UserRow[] }) {
+  const [slots, setSlots] = useState<ScheduleSlot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ userId: string; dow: number } | null>(null);
+  const [editTime, setEditTime] = useState("20:00");
+  const [editShift, setEditShift] = useState(4);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const loadSlots = async () => {
+    try {
+      const r = await fetch(`${BASE}/api/schedules`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed");
+      setSlots(await r.json());
+    } catch {
+      setError("Failed to load schedules");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadSlots(); }, []);
+
+  const slotMap: Record<string, ScheduleSlot> = {};
+  for (const s of slots) slotMap[`${s.userId}:${s.dayOfWeek}`] = s;
+
+  const startEdit = (userId: string, dow: number) => {
+    const existing = slotMap[`${userId}:${dow}`];
+    const h = existing?.loginHour ?? 20;
+    const m = existing?.loginMinute ?? 0;
+    setEditTime(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
+    setEditShift(existing?.shiftHours ?? 4);
+    setEditing({ userId, dow });
+  };
+
+  const saveSlot = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      const [hStr, mStr] = editTime.split(":");
+      const loginHour = parseInt(hStr);
+      const loginMinute = parseInt(mStr);
+      await fetch(`${BASE}/api/schedules/${editing.userId}/${editing.dow}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ loginHour, loginMinute, shiftHours: editShift }),
+      });
+      await loadSlots();
+      setEditing(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteSlot = async (userId: string, dow: number) => {
+    const key = `${userId}:${dow}`;
+    setDeleting(key);
+    try {
+      await fetch(`${BASE}/api/schedules/${userId}/${dow}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      await loadSlots();
+      if (editing?.userId === userId && editing.dow === dow) setEditing(null);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const employees = users;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Clock className="w-5 h-5 text-sky-400" />
+        <h2 className="text-xl font-display font-bold">Work Schedules</h2>
+        <span className="text-xs text-muted-foreground hidden sm:inline">Set each employee's start time and shift length per day — late logins affect the leaderboard.</span>
+      </div>
+
+      <div className="rounded-xl border border-white/8 bg-white/2 p-4 flex items-start gap-3">
+        <AlertCircle className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Schedules determine punctuality on the leaderboard (15% of total score). Employees clocking in more than 10 minutes late count as late.
+          Clicking a day cell lets you set start time and shift length. Hover a filled cell to remove it (marks that day as off).
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <div className="text-sm text-red-400 text-center py-6">{error}</div>
+      ) : (
+        <div className="rounded-xl border border-border overflow-x-auto">
+          <table className="w-full text-sm min-w-[660px]">
+            <thead>
+              <tr className="border-b border-border/60 bg-white/2">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground w-44 text-xs uppercase tracking-wide">Employee</th>
+                {DAYS.map(d => (
+                  <th key={d.dow} className="text-center px-2 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                    {d.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {employees.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10 text-muted-foreground text-sm">No team members found.</td>
+                </tr>
+              ) : (
+                employees.map((u, idx) => (
+                  <tr key={u.id} className={`${idx < employees.length - 1 ? "border-b border-border/30" : ""} hover:bg-white/2 transition-colors`}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {resolveProfileImage(u.profileImage) ? (
+                          <img src={resolveProfileImage(u.profileImage)!} alt="" className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border"
+                            style={getUserAvatarStyle(u.id)}>
+                            {u.firstName?.[0]}{u.lastName?.[0]}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold truncate">{u.firstName} {u.lastName}</div>
+                          <div className="text-[10px] text-muted-foreground capitalize">{u.role}</div>
+                        </div>
+                      </div>
+                    </td>
+                    {DAYS.map(d => {
+                      const slot = slotMap[`${u.id}:${d.dow}`];
+                      const isEditing = editing?.userId === u.id && editing.dow === d.dow;
+                      const delKey = `${u.id}:${d.dow}`;
+                      const isDeleting = deleting === delKey;
+
+                      if (isEditing) {
+                        return (
+                          <td key={d.dow} className="px-1 py-1 align-top">
+                            <div className="bg-sky-950/40 border border-sky-500/30 rounded-xl p-2 space-y-2 min-w-[90px]">
+                              <div>
+                                <label className="text-[9px] text-sky-400/70 uppercase tracking-wider block mb-0.5">Start</label>
+                                <input
+                                  type="time"
+                                  value={editTime}
+                                  onChange={e => setEditTime(e.target.value)}
+                                  className="w-full h-7 rounded-lg bg-black/30 border border-white/15 text-[11px] text-foreground px-2 focus:outline-none focus:border-sky-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-sky-400/70 uppercase tracking-wider block mb-0.5">Shift</label>
+                                <select
+                                  value={editShift}
+                                  onChange={e => setEditShift(parseInt(e.target.value))}
+                                  className="w-full h-7 rounded-lg bg-black/30 border border-white/15 text-[11px] text-foreground px-1 focus:outline-none focus:border-sky-500"
+                                >
+                                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(h => (
+                                    <option key={h} value={h} className="bg-card">{h}h</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex gap-1 pt-0.5">
+                                <button
+                                  onClick={saveSlot}
+                                  disabled={saving}
+                                  className="flex-1 h-6 bg-sky-600 hover:bg-sky-500 rounded-lg text-[10px] font-semibold text-white flex items-center justify-center disabled:opacity-50 transition-colors"
+                                >
+                                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                </button>
+                                <button
+                                  onClick={() => setEditing(null)}
+                                  className="flex-1 h-6 bg-white/8 hover:bg-white/15 rounded-lg text-[10px] flex items-center justify-center transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      return (
+                        <td key={d.dow} className="px-1 py-2 text-center">
+                          {slot ? (
+                            <div className="group relative inline-block">
+                              <button
+                                onClick={() => startEdit(u.id, d.dow)}
+                                className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg hover:bg-sky-900/30 transition-colors"
+                                title="Click to edit"
+                              >
+                                <span className="text-[11px] font-semibold text-sky-300">{fmt12(slot.loginHour, slot.loginMinute)}</span>
+                                <span className="text-[10px] text-muted-foreground">{slot.shiftHours}h</span>
+                              </button>
+                              <button
+                                onClick={() => deleteSlot(u.id, d.dow)}
+                                disabled={isDeleting}
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-900/80 border border-red-700/50 text-red-300 hidden group-hover:flex items-center justify-center transition-all"
+                                title="Remove"
+                              >
+                                {isDeleting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <X className="w-2.5 h-2.5" />}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEdit(u.id, d.dow)}
+                              className="w-full h-12 rounded-lg text-muted-foreground/30 hover:text-sky-400/60 hover:bg-sky-900/10 transition-colors text-xs flex items-center justify-center gap-1"
+                              title="Add schedule"
+                            >
+                              <Pencil className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TeamManagement() {
   const { data: currentUser } = useGetCurrentUser();
   const { data: rawUsers, refetch } = useListUsers();
@@ -450,6 +709,13 @@ export default function TeamManagement() {
           </tbody>
         </table>
       </div>
+
+      {/* Work Schedules */}
+      {isAdmin && (
+        <div className="pt-4 border-t border-border/30">
+          <WorkSchedules users={displayUsers} />
+        </div>
+      )}
 
       {/* Dialogs */}
       {showCreate && <CreateUserDialog onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
