@@ -97,8 +97,8 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       const userTasks = tasks.filter(t => t.assigneeId === user.id && t.status === "Done" && t.completedAt && t.dueDate);
       const lateTasks = userTasks.filter(t => t.completedAt! > t.dueDate!).length;
 
-      const dependabilityTriggered = absences >= dependabilityThreshold;
-      const kpiTriggered = lateTasks >= kpiThreshold;
+      const dependabilityTriggered = dependabilityThreshold > 0 && absences >= dependabilityThreshold;
+      const kpiTriggered = kpiThreshold > 0 && lateTasks >= kpiThreshold;
 
       const basicSalary = salary?.basicSalary ?? 0;
       const overtimePayment = salary?.overtimePayment ?? 0;
