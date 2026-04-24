@@ -259,6 +259,7 @@ export default function KPIs() {
   const [editTitle, setEditTitle] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDeleteSalaryId, setConfirmDeleteSalaryId] = useState<string | null>(null);
   const [deletingSalaryId, setDeletingSalaryId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -301,6 +302,7 @@ export default function KPIs() {
   useEffect(() => { fetchSalaries(); }, [fetchSalaries]);
 
   const openEdit = (row: SalaryRow) => {
+    setSaveError(null);
     setEditingUserId(row.user.id);
     setEditBasic(String(row.salary?.basicSalary ?? ""));
     setEditOvertime(String(row.salary?.overtimePayment ?? ""));
@@ -315,8 +317,9 @@ export default function KPIs() {
 
   const saveEdit = async (userId: string) => {
     setSaving(true);
+    setSaveError(null);
     try {
-      await Promise.all([
+      const [salaryRes, userRes] = await Promise.all([
         fetch(`${BASE}/api/salaries/${userId}`, {
           method: "PUT",
           credentials: "include",
@@ -341,8 +344,22 @@ export default function KPIs() {
           }),
         }),
       ]);
+
+      if (!salaryRes.ok) {
+        const body = await salaryRes.json().catch(() => ({}));
+        setSaveError(body?.error ?? `Save failed (${salaryRes.status})`);
+        return;
+      }
+      if (!userRes.ok) {
+        const body = await userRes.json().catch(() => ({}));
+        setSaveError(body?.error ?? `Profile update failed (${userRes.status})`);
+        return;
+      }
+
       setEditingUserId(null);
-      fetchSalaries();
+      await fetchSalaries();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Network error");
     } finally {
       setSaving(false);
     }
@@ -466,6 +483,15 @@ export default function KPIs() {
           <XCircle className="w-4 h-4 shrink-0" />
           <span>Failed to load salary data: {fetchError}</span>
           <button onClick={fetchSalaries} className="ml-auto text-xs underline underline-offset-2 hover:text-red-300">Retry</button>
+        </div>
+      )}
+
+      {/* Save error */}
+      {saveError && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
+          <XCircle className="w-4 h-4 shrink-0" />
+          <span>Could not save changes: {saveError}</span>
+          <button onClick={() => setSaveError(null)} className="ml-auto text-xs underline underline-offset-2 hover:text-red-300">Dismiss</button>
         </div>
       )}
 
