@@ -372,8 +372,8 @@ export default function KPIs() {
             dependabilityDeductionAmount: parseInt(editDep) || 0,
             kpiDeductionAmount: parseInt(editKpi) || 0,
             workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
-            kpiThreshold: parseInt(editKpiThreshold) || 2,
-            dependabilityThreshold: parseInt(editDepThreshold) || 2,
+            kpiThreshold: isNaN(parseInt(editKpiThreshold)) ? 2 : parseInt(editKpiThreshold),
+            dependabilityThreshold: isNaN(parseInt(editDepThreshold)) ? 2 : parseInt(editDepThreshold),
           }),
         }),
         fetch(`${BASE}/api/users/${userId}`, {
