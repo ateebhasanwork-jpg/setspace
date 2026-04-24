@@ -33,6 +33,15 @@ async function runMigrations() {
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);
+
+  await db.execute(sql`
+    ALTER TABLE salaries
+      ADD COLUMN IF NOT EXISTS overtime_payment INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS working_days_override INTEGER,
+      ADD COLUMN IF NOT EXISTS kpi_threshold INTEGER NOT NULL DEFAULT 2,
+      ADD COLUMN IF NOT EXISTS dependability_threshold INTEGER NOT NULL DEFAULT 2
+  `);
+
   console.log("[migrations] Tables ready");
 }
 
