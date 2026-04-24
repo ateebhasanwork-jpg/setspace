@@ -1,20 +1,27 @@
 #!/bin/bash
 set -e
 
+DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DEPLOY_DIR"
+
 echo "==> Pulling latest code..."
 git pull
 
-echo "==> Installing dependencies..."
+echo "==> Installing root dependencies..."
 pnpm install
 
 echo "==> Building API server..."
-pnpm --filter @workspace/api-server run build
+cd "$DEPLOY_DIR/artifacts/api-server"
+pnpm install
+./node_modules/.bin/tsx build.ts
 
 echo "==> Building frontend..."
-pnpm --filter @workspace/setspace run build
+cd "$DEPLOY_DIR/artifacts/setspace"
+pnpm install
+./node_modules/.bin/vite build --config vite.config.ts
 
-echo "==> Restarting API server..."
+echo "==> Restarting API..."
 pm2 restart setspace-api
 
 echo ""
-echo "Deploy complete. Hard refresh your browser (Ctrl+Shift+R)."
+echo "Done. Hard refresh your browser with Ctrl+Shift+R."
