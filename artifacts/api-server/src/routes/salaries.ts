@@ -8,6 +8,19 @@ import { broadcastSseToUser } from "../lib/sse";
 
 const router: IRouter = Router();
 
+/**
+ * Pakistani income tax slabs (FY 2024-25).
+ * Input: annualized income in PKR. Returns annual tax in PKR.
+ */
+function computeAnnualTax(annual: number): number {
+  if (annual <= 600_000) return 0;
+  if (annual <= 1_200_000) return (annual - 600_000) * 0.01;
+  if (annual <= 2_200_000) return 6_000 + (annual - 1_200_000) * 0.11;
+  if (annual <= 3_200_000) return 116_000 + (annual - 2_200_000) * 0.23;
+  if (annual <= 4_100_000) return 346_000 + (annual - 3_200_000) * 0.30;
+  return 616_000 + (annual - 4_100_000) * 0.35;
+}
+
 function monthBounds(year: number, month: number) {
   return {
     startDate: new Date(year, month - 1, 1),
@@ -160,6 +173,12 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       const kpiDeduction = kpiTriggered ? kpiComponent : 0;
       const netSalary = totalPackage - dependabilityDeduction - kpiDeduction + overtimePay;
 
+      // Tax: annualize net salary, apply slabs, take 1/12 for monthly deduction
+      const annualizedIncome = netSalary * 12;
+      const annualTax = computeAnnualTax(annualizedIncome);
+      const monthlyTax = Math.round(annualTax / 12);
+      const takeHome = netSalary - monthlyTax;
+
       // Approved leaves list for this employee (full objects for display)
       const employeeLeaves = approvedLeaves
         .filter(l => l.userId === user.id)
@@ -186,6 +205,8 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
         dependabilityDeduction,
         kpiDeduction,
         netSalary,
+        monthlyTax,
+        takeHome,
         approvedLeaves: employeeLeaves,
       };
     });

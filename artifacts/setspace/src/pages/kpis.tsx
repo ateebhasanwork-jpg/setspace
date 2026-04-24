@@ -24,6 +24,7 @@ import {
   Building2,
   Briefcase,
   Plus,
+  Receipt,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -69,6 +70,8 @@ type SalaryRow = {
   dependabilityDeduction: number;
   kpiDeduction: number;
   netSalary: number;
+  monthlyTax: number;
+  takeHome: number;
   approvedLeaves: ApprovedLeave[];
 };
 
@@ -1119,12 +1122,32 @@ export default function KPIs() {
                       </div>
                     </div>
 
-                    {/* Net total */}
-                    <div className={`flex items-center justify-between pt-3 border-t ${row.dependabilityTriggered || row.kpiTriggered ? "border-red-500/20" : "border-white/10"}`}>
-                      <span className="text-sm font-bold text-foreground">Net Salary</span>
-                      <span className={`text-lg font-display font-bold ${row.dependabilityTriggered || row.kpiTriggered ? "text-red-400" : "text-green-400"}`}>
-                        {formatPKR(row.netSalary)}
-                      </span>
+                    {/* Net / Tax / Take-Home */}
+                    <div className={`pt-3 border-t space-y-1.5 ${row.dependabilityTriggered || row.kpiTriggered ? "border-red-500/20" : "border-white/10"}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Net (before tax)</span>
+                        <span className="text-sm font-semibold text-foreground">{formatPKR(row.netSalary)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Receipt className="w-3.5 h-3.5 text-yellow-400" />
+                          Income Tax
+                          {row.monthlyTax > 0 && (
+                            <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">
+                              PKR {(row.netSalary * 12).toLocaleString()}/yr annualized
+                            </span>
+                          )}
+                        </span>
+                        <span className={`text-sm font-semibold ${row.monthlyTax > 0 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                          {row.monthlyTax > 0 ? `− ${formatPKR(row.monthlyTax)}` : "— tax-free"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1.5 border-t border-white/8">
+                        <span className="text-sm font-bold text-foreground">Take-Home</span>
+                        <span className={`text-lg font-display font-bold ${row.dependabilityTriggered || row.kpiTriggered ? "text-red-400" : "text-green-400"}`}>
+                          {formatPKR(row.takeHome)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Status badge */}
