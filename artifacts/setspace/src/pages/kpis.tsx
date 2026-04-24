@@ -68,9 +68,10 @@ function formatPKR(n: number): string {
 type AttendanceRec = { date: string };
 type TaskItem = { id: number; title: string; assigneeId: string | null; status: string; completedAt: string | null; dueDate: string | null };
 
-function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, fullName, salaryConfig: salaryConfigProp }: {
+function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, fullName, salaryConfig: salaryConfigProp, trackingStartDate }: {
   userId: string; firstName: string; month: number; year: number; asAdmin?: boolean; fullName?: string;
   salaryConfig?: { workingDaysOverride?: number | null; kpiThreshold?: number; dependabilityThreshold?: number } | null;
+  trackingStartDate?: string | null;
 }) {
   const { data: allTasks } = useListTasks();
   const { data: attendance = [] } = useQuery<AttendanceRec[]>({
@@ -100,6 +101,16 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59);
 
+  // Effective start: max(first of month, kpiTrackingStartDate)
+  const trackingDate = trackingStartDate ? new Date(trackingStartDate) : null;
+  const effectiveStart: Date = (() => {
+    if (trackingDate && !isNaN(trackingDate.getTime())) {
+      const tStripped = new Date(trackingDate.getFullYear(), trackingDate.getMonth(), trackingDate.getDate());
+      if (tStripped > startDate) return tStripped;
+    }
+    return new Date(startDate);
+  })();
+
   const doneTasks = ((allTasks as TaskItem[] | undefined) ?? []).filter(t =>
     t.assigneeId === userId && t.status === "Done" && t.completedAt && t.dueDate
   );
@@ -113,9 +124,9 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
     return completedDay > dueDay;
   });
 
-  // Compute working days (auto Mon–Fri, or override per employee)
+  // Compute working days from effectiveStart (auto Mon–Fri, or override per employee)
   let autoWorkingDays = 0;
-  const d = new Date(startDate);
+  const d = new Date(effectiveStart);
   while (d <= endDate) {
     const dow = d.getDay();
     if (dow !== 0 && dow !== 6) autoWorkingDays++;
@@ -130,11 +141,11 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
 
   const presentDates = new Set(
     attendance
-      .filter(a => { const dt = new Date(a.date); return dt >= startDate && dt <= effectiveEnd; })
+      .filter(a => { const dt = new Date(a.date); return dt >= effectiveStart && dt <= effectiveEnd; })
       .map(a => a.date)
   );
   const absentDates: string[] = [];
-  const c2 = new Date(startDate);
+  const c2 = new Date(effectiveStart);
   while (c2 <= effectiveEnd) {
     const dow = c2.getDay();
     if (dow !== 0 && dow !== 6) {
@@ -258,6 +269,10 @@ export default function KPIs() {
   const [editDepThreshold, setEditDepThreshold] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
+  const [trackingStartDate, setTrackingStartDate] = useState<string | null>(null);
+  const [editTrackingDate, setEditTrackingDate] = useState("");
+  const [savingTracking, setSavingTracking] = useState(false);
+  const [trackingError, setTrackingError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDeleteSalaryId, setConfirmDeleteSalaryId] = useState<string | null>(null);
@@ -287,7 +302,9 @@ export default function KPIs() {
     try {
       const res = await fetch(`${BASE}/api/salaries?month=${month}&year=${year}`, { credentials: "include" });
       if (res.ok) {
-        setSalaryData(await res.json());
+        const payload = await res.json();
+        setSalaryData(payload.rows ?? payload);
+        setTrackingStartDate(payload.trackingStartDate ?? null);
       } else {
         const body = await res.json().catch(() => ({}));
         setFetchError(body?.error ?? `Error ${res.status}`);
@@ -300,6 +317,31 @@ export default function KPIs() {
   }, [month, year, isAdminOrHR]);
 
   useEffect(() => { fetchSalaries(); }, [fetchSalaries]);
+  useEffect(() => { setEditTrackingDate(trackingStartDate ?? ""); }, [trackingStartDate]);
+
+  const saveTrackingDate = async () => {
+    setSavingTracking(true);
+    setTrackingError(null);
+    try {
+      const res = await fetch(`${BASE}/api/settings`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kpiTrackingStartDate: editTrackingDate.trim() || null }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setTrackingError(body?.error ?? `Save failed (${res.status})`);
+        return;
+      }
+      setTrackingStartDate(editTrackingDate.trim() || null);
+      await fetchSalaries();
+    } catch (err) {
+      setTrackingError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setSavingTracking(false);
+    }
+  };
 
   const openEdit = (row: SalaryRow) => {
     setSaveError(null);
@@ -384,7 +426,7 @@ export default function KPIs() {
             {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <PersonalPerformanceView userId={myId} firstName={myFirst} month={month} year={year} />
+        <PersonalPerformanceView userId={myId} firstName={myFirst} month={month} year={year} trackingStartDate={trackingStartDate} />
       </div>
     );
   }
@@ -893,6 +935,7 @@ export default function KPIs() {
                     year={year}
                     asAdmin
                     salaryConfig={row.salary}
+                    trackingStartDate={trackingStartDate}
                   />
                 </div>
               ))}
@@ -904,6 +947,49 @@ export default function KPIs() {
       {/* ── KPI Settings Tab ── */}
       {!loading && activeTab === "settings" && (
         <>
+          {/* Global: KPI Tracking Start Date */}
+          <Card className="glass-panel p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-indigo-400" />
+              <h3 className="font-semibold text-sm text-foreground">Absence Tracking Start Date</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Absences before this date are ignored in all payroll and performance calculations.
+              Leave blank to count from the first day of each month.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={editTrackingDate}
+                onChange={e => setEditTrackingDate(e.target.value)}
+                className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+              />
+              <button
+                onClick={saveTrackingDate}
+                disabled={savingTracking}
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {savingTracking ? "Saving…" : "Save"}
+              </button>
+              {editTrackingDate && (
+                <button
+                  onClick={() => { setEditTrackingDate(""); }}
+                  className="px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {trackingError && (
+              <p className="text-xs text-red-400">{trackingError}</p>
+            )}
+            {trackingStartDate && (
+              <p className="text-xs text-green-400">
+                Currently tracking from {new Date(trackingStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            )}
+          </Card>
+
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <CalendarDays className="w-3.5 h-3.5 text-sky-400" />

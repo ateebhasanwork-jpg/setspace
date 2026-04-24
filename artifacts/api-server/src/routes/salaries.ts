@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { salariesTable, tasksTable, attendanceTable } from "@workspace/db/schema";
+import { salariesTable, tasksTable, attendanceTable, appSettingsTable } from "@workspace/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { getCachedUsers } from "../lib/cache";
 import { requireAdminOrHR } from "../middleware/roles";
@@ -26,7 +26,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
     const year = parseInt(req.query.year as string) || now.getFullYear();
     const { startDate, endDate } = monthBounds(year, month);
 
-    const [users, salaries, tasks, attendance] = await Promise.all([
+    const [users, salaries, tasks, attendance, trackingRows] = await Promise.all([
       getCachedUsers(),
       db.select().from(salariesTable),
       db.select().from(tasksTable).where(
@@ -35,13 +35,25 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       db.select().from(attendanceTable).where(
         and(gte(attendanceTable.clockIn, startDate), lte(attendanceTable.clockIn, endDate))
       ),
+      db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "kpiTrackingStartDate")).limit(1),
     ]);
+
+    // Effective start: max(first of month, kpiTrackingStartDate setting)
+    const rawTracking = trackingRows[0]?.value ?? null;
+    const trackingDate = rawTracking ? new Date(rawTracking) : null;
+    // Strip time so comparison is date-only
+    const effectiveStart: Date = (() => {
+      if (trackingDate && !isNaN(trackingDate.getTime()) && trackingDate > startDate) {
+        return new Date(trackingDate.getFullYear(), trackingDate.getMonth(), trackingDate.getDate());
+      }
+      return new Date(startDate);
+    })();
 
     const salaryByUser = Object.fromEntries(salaries.map(s => [s.userId, s]));
 
-    // Compute global working days for the month (Mon–Fri), used as fallback
+    // Compute global working days for the month starting from effectiveStart (Mon–Fri)
     let globalWorkingDays = 0;
-    const d = new Date(startDate);
+    const d = new Date(effectiveStart);
     while (d <= endDate) {
       const dow = d.getDay();
       if (dow !== 0 && dow !== 6) globalWorkingDays++;
@@ -51,12 +63,12 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
     const result = users.map(user => {
       const salary = salaryByUser[user.id] ?? null;
 
-      // Per-employee working days: use override if set, otherwise auto Mon–Fri
+      // Per-employee working days: use override if set, otherwise auto Mon–Fri from effectiveStart
       const workingDays = salary?.workingDaysOverride ?? globalWorkingDays;
       const kpiThreshold = salary?.kpiThreshold ?? 2;
       const dependabilityThreshold = salary?.dependabilityThreshold ?? 2;
 
-      // Count absences: working days (up to today) where the user has no attendance record
+      // Count absences: working days in [effectiveStart, today] where no attendance record
       const todayCap = new Date();
       todayCap.setHours(23, 59, 59, 999);
       const effectiveEnd = endDate < todayCap ? endDate : todayCap;
@@ -67,7 +79,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
           .map(a => a.date)
       );
       let absences = 0;
-      const c = new Date(startDate);
+      const c = new Date(effectiveStart);
       while (c <= effectiveEnd) {
         const dow = c.getDay();
         if (dow !== 0 && dow !== 6) {
@@ -112,7 +124,10 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       };
     });
 
-    res.json(result);
+    res.json({
+      rows: result,
+      trackingStartDate: rawTracking ?? null,
+    });
   } catch (err) {
     console.error("Salaries error:", err);
     res.status(500).json({ error: "Failed to fetch salary data" });
