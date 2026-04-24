@@ -21,6 +21,8 @@ import {
   CalendarDays,
   SlidersHorizontal,
   Trash2,
+  Building2,
+  Briefcase,
 } from "lucide-react";
 import type { User } from "@workspace/api-client-react";
 
@@ -249,9 +251,12 @@ export default function KPIs() {
   const [editWorkingDays, setEditWorkingDays] = useState("");
   const [editKpiThreshold, setEditKpiThreshold] = useState("");
   const [editDepThreshold, setEditDepThreshold] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDeleteSalaryId, setConfirmDeleteSalaryId] = useState<string | null>(null);
   const [deletingSalaryId, setDeletingSalaryId] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const deleteSalaryConfig = async (userId: string) => {
     setDeletingSalaryId(userId);
@@ -272,9 +277,17 @@ export default function KPIs() {
   const fetchSalaries = useCallback(async () => {
     if (!isAdminOrHR) return;
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch(`${BASE}/api/salaries?month=${month}&year=${year}`, { credentials: "include" });
-      if (res.ok) setSalaryData(await res.json());
+      if (res.ok) {
+        setSalaryData(await res.json());
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setFetchError(body?.error ?? `Error ${res.status}`);
+      }
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Network error");
     } finally {
       setLoading(false);
     }
@@ -291,25 +304,38 @@ export default function KPIs() {
     setEditWorkingDays(row.salary?.workingDaysOverride != null ? String(row.salary.workingDaysOverride) : "");
     setEditKpiThreshold(String(row.kpiThreshold));
     setEditDepThreshold(String(row.dependabilityThreshold));
+    setEditTitle(row.user.title ?? "");
+    setEditDepartment(row.user.department ?? "");
   };
 
   const saveEdit = async (userId: string) => {
     setSaving(true);
     try {
-      await fetch(`${BASE}/api/salaries/${userId}`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          basicSalary: parseInt(editBasic) || 0,
-          overtimePayment: parseInt(editOvertime) || 0,
-          dependabilityDeductionAmount: parseInt(editDep) || 0,
-          kpiDeductionAmount: parseInt(editKpi) || 0,
-          workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
-          kpiThreshold: parseInt(editKpiThreshold) || 2,
-          dependabilityThreshold: parseInt(editDepThreshold) || 2,
+      await Promise.all([
+        fetch(`${BASE}/api/salaries/${userId}`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            basicSalary: parseInt(editBasic) || 0,
+            overtimePayment: parseInt(editOvertime) || 0,
+            dependabilityDeductionAmount: parseInt(editDep) || 0,
+            kpiDeductionAmount: parseInt(editKpi) || 0,
+            workingDaysOverride: editWorkingDays.trim() === "" ? null : parseInt(editWorkingDays) || null,
+            kpiThreshold: parseInt(editKpiThreshold) || 2,
+            dependabilityThreshold: parseInt(editDepThreshold) || 2,
+          }),
         }),
-      });
+        fetch(`${BASE}/api/users/${userId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: editTitle.trim() || null,
+            department: editDepartment.trim() || null,
+          }),
+        }),
+      ]);
       setEditingUserId(null);
       fetchSalaries();
     } finally {
@@ -426,6 +452,15 @@ export default function KPIs() {
       {loading && (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Fetch error */}
+      {!loading && fetchError && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
+          <XCircle className="w-4 h-4 shrink-0" />
+          <span>Failed to load salary data: {fetchError}</span>
+          <button onClick={fetchSalaries} className="ml-auto text-xs underline underline-offset-2 hover:text-red-300">Retry</button>
         </div>
       )}
 
@@ -649,6 +684,33 @@ export default function KPIs() {
                             </span>
                           )}
                         </div>
+                    </div>
+
+                    {/* Employee Profile */}
+                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Employee Profile</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-violet-400" /> Job Title
+                        </span>
+                        {isEditing ? (
+                          <Input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Video Editor" />
+                        ) : (
+                          <span className="text-xs font-semibold text-foreground">{row.user.title || <span className="text-muted-foreground">—</span>}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-sky-400" /> Department
+                        </span>
+                        {isEditing ? (
+                          <Input value={editDepartment} onChange={e => setEditDepartment(e.target.value)}
+                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Production" />
+                        ) : (
+                          <span className="text-xs font-semibold text-foreground">{row.user.department || <span className="text-muted-foreground">—</span>}</span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Net total */}
@@ -959,6 +1021,33 @@ export default function KPIs() {
                           <span className={`text-sm font-semibold ${row.kpiThreshold !== 2 ? "text-red-400" : "text-foreground"}`}>
                             {row.kpiThreshold}+ late tasks
                           </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Employee Profile */}
+                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Employee Profile</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-violet-400" /> Job Title
+                        </span>
+                        {isEditing ? (
+                          <Input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Video Editor" />
+                        ) : (
+                          <span className="text-sm font-semibold text-foreground">{row.user.title || <span className="text-muted-foreground">—</span>}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-sky-400" /> Department
+                        </span>
+                        {isEditing ? (
+                          <Input value={editDepartment} onChange={e => setEditDepartment(e.target.value)}
+                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Production" />
+                        ) : (
+                          <span className="text-sm font-semibold text-foreground">{row.user.department || <span className="text-muted-foreground">—</span>}</span>
                         )}
                       </div>
                     </div>
