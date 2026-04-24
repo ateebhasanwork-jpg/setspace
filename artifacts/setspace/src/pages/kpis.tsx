@@ -123,14 +123,19 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
   }
   const workingDays = resolvedConfig?.workingDaysOverride ?? autoWorkingDays;
 
+  // Only count past days — don't flag future dates in the current month as absent.
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const effectiveEnd = endDate < today ? endDate : today;
+
   const presentDates = new Set(
     attendance
-      .filter(a => { const dt = new Date(a.date); return dt >= startDate && dt <= endDate; })
+      .filter(a => { const dt = new Date(a.date); return dt >= startDate && dt <= effectiveEnd; })
       .map(a => a.date)
   );
   const absentDates: string[] = [];
   const c2 = new Date(startDate);
-  while (c2 <= endDate) {
+  while (c2 <= effectiveEnd) {
     const dow = c2.getDay();
     if (dow !== 0 && dow !== 6) {
       const ds = c2.toISOString().split("T")[0];

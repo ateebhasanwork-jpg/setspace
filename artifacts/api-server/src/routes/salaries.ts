@@ -56,7 +56,11 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       const kpiThreshold = salary?.kpiThreshold ?? 2;
       const dependabilityThreshold = salary?.dependabilityThreshold ?? 2;
 
-      // Count absences: working days where the user has no attendance record
+      // Count absences: working days (up to today) where the user has no attendance record
+      const todayCap = new Date();
+      todayCap.setHours(23, 59, 59, 999);
+      const effectiveEnd = endDate < todayCap ? endDate : todayCap;
+
       const presentDates = new Set(
         attendance
           .filter(a => a.userId === user.id)
@@ -64,7 +68,7 @@ router.get("/salaries", requireAdminOrHR, async (req, res) => {
       );
       let absences = 0;
       const c = new Date(startDate);
-      while (c <= endDate) {
+      while (c <= effectiveEnd) {
         const dow = c.getDay();
         if (dow !== 0 && dow !== 6) {
           const dateStr = c.toISOString().split("T")[0];
