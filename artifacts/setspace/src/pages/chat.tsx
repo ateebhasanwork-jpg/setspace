@@ -3,6 +3,7 @@ import {
   useListMessages,
   useCreateMessage,
   getListMessagesQueryKey,
+  getListNotificationsQueryKey,
   useGetCurrentUser,
   useListUsers,
   type Message,
@@ -680,6 +681,24 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
+
+  // When chat opens, clear any pending "message"/"mention" chat notifications so the bell resets
+  useEffect(() => {
+    const notifs = queryClient.getQueryData<Array<{ id: number; type?: string }>>(
+      getListNotificationsQueryKey()
+    ) ?? [];
+    const chatNotifIds = notifs.filter(n => n.type === "message" || n.type === "mention").map(n => n.id);
+    if (chatNotifIds.length === 0) return;
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+    Promise.all(
+      chatNotifIds.map(id =>
+        fetch(`${base}/api/notifications/${id}/read`, { method: "POST", credentials: "include" }).catch(() => {})
+      )
+    ).then(() => {
+      queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+    });
+  }, [queryClient]);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);

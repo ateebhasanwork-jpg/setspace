@@ -156,20 +156,27 @@ router.post("/messages", async (req, res) => {
     // User lookup from cache
     const user = await getCachedUser(req.user.id);
 
-    // Detect @mentions and create notifications (cache hit for users list)
+    // Notify all other team members — @mentions get a "mention" type, everyone else gets a "message" type
     if (content?.trim()) {
-      const mentionedIds = await extractMentionedUserIds(content, req.user.id);
-      if (mentionedIds.length > 0) {
-        const authorName = displayName(user);
-        await Promise.all(mentionedIds.map(uid =>
-          notifyUser(uid, {
-            type: "mention",
-            title: `${authorName} mentioned you`,
-            body: content.length > 120 ? content.slice(0, 120) + "…" : content,
-            linkUrl: "/chat",
-          }).catch(() => {})
-        ));
-      }
+      const allUsers = await getCachedUsers();
+      const mentionedIds = new Set(await extractMentionedUserIds(content, req.user.id));
+      const authorName = displayName(user);
+      const preview = content.length > 120 ? content.slice(0, 120) + "…" : content;
+
+      await Promise.all(
+        allUsers
+          .filter(u => u.id !== req.user.id)
+          .map(u =>
+            notifyUser(u.id, {
+              type: mentionedIds.has(u.id) ? "mention" : "message",
+              title: mentionedIds.has(u.id)
+                ? `${authorName} mentioned you`
+                : `${authorName} in Team Chat`,
+              body: preview,
+              linkUrl: "/chat",
+            }).catch(() => {})
+          )
+      );
     }
 
     broadcastSse("messages", { action: "created", messageId: message.id });

@@ -101,7 +101,7 @@ export function useLiveEvents() {
 
       es.addEventListener("notifications", async () => {
         // Remember old IDs before invalidation
-        const oldNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null }>>(
+        const oldNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null; type?: string }>>(
           getListNotificationsQueryKey()
         ) ?? [];
         const oldIds = new Set(oldNotifs.map(n => n.id));
@@ -110,11 +110,14 @@ export function useLiveEvents() {
 
         // After refetch, show toasts for genuinely new notifications
         setTimeout(() => {
-          const newNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null }>>(
+          const newNotifs = queryClient.getQueryData<Array<{ id: number; title: string; body?: string | null; type?: string }>>(
             getListNotificationsQueryKey()
           ) ?? [];
           const fresh = newNotifs.filter(n => !oldIds.has(n.id));
           for (const n of fresh.slice(0, 3)) {
+            // Suppress "message" type toasts when the user is already viewing the chat
+            const onChat = window.location.pathname.endsWith("/chat");
+            if (n.type === "message" && onChat) continue;
             toast({
               title: n.title,
               description: n.body ?? undefined,
