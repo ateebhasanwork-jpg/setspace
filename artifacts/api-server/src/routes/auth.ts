@@ -18,9 +18,10 @@ const router: IRouter = Router();
 
 
 function setSessionCookie(res: Response, sid: string) {
+  const isProd = process.env.NODE_ENV === "production";
   res.cookie(SESSION_COOKIE, sid, {
     httpOnly: true,
-    secure: false,
+    secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL,
