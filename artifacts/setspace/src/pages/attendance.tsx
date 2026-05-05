@@ -149,41 +149,41 @@ export default function Attendance() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* ── Sticky Clock Card ── */}
         <Card className="glass-panel p-8 flex flex-col items-center justify-center text-center gap-5 lg:sticky lg:top-4">
-          <Clock className="w-12 h-12 text-indigo-400" />
+          <Clock className="w-12 h-12 text-foreground" />
           <h2 className="text-2xl font-display font-bold">Today's Status</h2>
 
           {!today?.clockIn ? (
             <div className="space-y-4 w-full">
-              <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-muted-foreground text-sm">
+              <div className="px-4 py-3 bg-muted border border-border rounded-xl text-muted-foreground text-sm">
                 Not clocked in yet today.
               </div>
               <Button
                 onClick={() => clockInMut.mutate()}
                 disabled={clockInMut.isPending}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/20 h-12 text-base"
+                className="w-full bg-foreground hover:bg-foreground/80 text-background rounded-xl h-12 text-base"
               >
                 <LogIn className="w-5 h-5 mr-2" /> Clock In
               </Button>
             </div>
           ) : (
             <div className="space-y-4 w-full">
-              <div className="px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-xl">
-                <p className="text-green-400 font-semibold text-sm mb-0.5">First Clock In</p>
+              <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
+                <p className="text-green-700 font-semibold text-sm mb-0.5">First Clock In</p>
                 <p className="text-sm font-mono">{new Date(today.clockIn).toLocaleTimeString()}</p>
               </div>
 
               {/* Late warning for today */}
               {todayEx?.isLate && (
-                <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                   <div className="text-left">
-                    <p className="text-red-400 font-semibold text-sm">Clocked in late</p>
+                    <p className="text-red-600 font-semibold text-sm">Clocked in late</p>
                     <p className="text-xs text-muted-foreground">{todayEx.lateMinutes} min after scheduled time</p>
                   </div>
                 </div>
               )}
 
-              <div className="py-4 rounded-2xl bg-black/30 border border-white/5 flex flex-col items-center gap-1">
+              <div className="py-4 rounded-2xl bg-muted border border-border flex flex-col items-center gap-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-widest mb-1">
                   Time Worked
                 </span>
@@ -198,7 +198,7 @@ export default function Attendance() {
                   </div>
                 )}
                 <span
-                  className={`text-xs mt-1 font-medium ${isActivelyIn ? "text-green-400" : "text-amber-400"}`}
+                  className={`text-xs mt-1 font-medium ${isActivelyIn ? "text-green-600" : "text-amber-600"}`}
                 >
                   {isActivelyIn ? "● Live" : "● Paused"}
                 </span>
@@ -214,8 +214,8 @@ export default function Attendance() {
                 </Button>
               ) : (
                 <>
-                  <div className="px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                    <p className="text-blue-400 font-semibold text-sm mb-0.5">Last Clock Out</p>
+                  <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p className="text-blue-700 font-semibold text-sm mb-0.5">Last Clock Out</p>
                     <p className="text-sm font-mono">
                       {new Date(today.clockOut!).toLocaleTimeString()}
                     </p>
@@ -223,7 +223,7 @@ export default function Attendance() {
                   <Button
                     onClick={() => clockInMut.mutate()}
                     disabled={clockInMut.isPending}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/20 h-12 text-base"
+                    className="w-full bg-foreground hover:bg-foreground/80 text-background rounded-xl h-12 text-base"
                   >
                     <TimerReset className="w-5 h-5 mr-2" /> Clock In Again
                   </Button>
@@ -237,7 +237,7 @@ export default function Attendance() {
         <div className="lg:col-span-2 space-y-4">
           {isLoading ? (
             <Card className="glass-panel p-8 flex justify-center">
-              <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
             </Card>
           ) : grouped.length === 0 ? (
             <Card className="glass-panel p-12 text-center">
@@ -252,17 +252,17 @@ export default function Attendance() {
             return (
               <Card key={monthKey} className="glass-panel overflow-hidden">
                 <button
-                  className="w-full flex items-center justify-between px-6 py-4 border-b border-white/5 bg-black/10 hover:bg-white/3 transition-colors"
+                  className="w-full flex items-center justify-between px-6 py-4 border-b border-border hover:bg-muted transition-colors"
                   onClick={() => toggleMonth(monthKey)}
                 >
                   <div className="flex items-center gap-3">
                     <CalIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="font-display font-bold text-base">{monthLabel}</span>
-                    <span className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border">
                       {recs.length} record{recs.length !== 1 ? "s" : ""}
                     </span>
                     {lateCount > 0 && (
-                      <span className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                      <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                         {lateCount} late
                       </span>
                     )}
@@ -276,7 +276,7 @@ export default function Attendance() {
                 {!isCollapsed && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-muted-foreground uppercase bg-black/20 border-b border-white/5">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted border-b border-border">
                         <tr>
                           <th className="px-5 py-3 font-medium">Employee</th>
                           <th className="px-5 py-3 font-medium">Date</th>
@@ -298,7 +298,7 @@ export default function Attendance() {
                           return (
                             <tr
                               key={rec.id}
-                              className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                              className="border-b border-border hover:bg-muted transition-colors"
                             >
                               <td className="px-5 py-3 font-medium text-foreground">
                                 {rec.user?.firstName} {rec.user?.lastName}
@@ -311,7 +311,7 @@ export default function Attendance() {
                                   <span>{new Date(rec.clockIn).toLocaleTimeString()}</span>
                                   {recEx.isLate && (
                                     <span
-                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/25"
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-600 border border-red-200"
                                       title={`${recEx.lateMinutes} min late`}
                                     >
                                       <AlertTriangle className="w-2.5 h-2.5" />
@@ -324,7 +324,7 @@ export default function Attendance() {
                                 {rec.clockOut ? (
                                   new Date(rec.clockOut).toLocaleTimeString()
                                 ) : (
-                                  <span className="text-green-400 text-xs font-semibold">Live</span>
+                                  <span className="text-green-600 text-xs font-semibold">Live</span>
                                 )}
                               </td>
                               <td className="px-5 py-3 font-mono text-sm text-muted-foreground">
@@ -332,7 +332,7 @@ export default function Attendance() {
                               </td>
                               <td className="px-5 py-3 font-mono text-sm">
                                 {overtimeSecs > 0 ? (
-                                  <span className="text-amber-400 font-semibold">
+                                  <span className="text-amber-600 font-semibold">
                                     +{formatHoursCompact(overtimeSecs)}
                                   </span>
                                 ) : (
@@ -343,8 +343,8 @@ export default function Attendance() {
                                 <span
                                   className={`px-2 py-1 rounded-sm text-xs font-bold uppercase tracking-wider ${
                                     rec.status === "Present" || rec.status === "present"
-                                      ? "bg-green-500/20 text-green-400"
-                                      : "bg-yellow-500/20 text-yellow-400"
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-yellow-100 text-yellow-700"
                                   }`}
                                 >
                                   {rec.status}
@@ -363,7 +363,7 @@ export default function Attendance() {
                                       </button>
                                       <button
                                         onClick={() => setConfirmDeleteId(null)}
-                                        className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-white/10"
+                                        className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border"
                                       >
                                         No
                                       </button>

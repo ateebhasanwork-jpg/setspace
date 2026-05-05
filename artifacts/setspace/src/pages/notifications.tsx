@@ -44,31 +44,31 @@ type NotifIconConfig = { icon: React.ReactNode; bg: string };
 function getNotifStyle(type: string): NotifIconConfig {
   switch (type) {
     case "task_assigned":
-      return { icon: <ClipboardList className="w-4 h-4" />, bg: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" };
+      return { icon: <ClipboardList className="w-4 h-4" />, bg: "bg-indigo-50 text-indigo-600 border-indigo-200" };
     case "task_status":
-      return { icon: <ArrowRightLeft className="w-4 h-4" />, bg: "bg-blue-500/20 text-blue-300 border-blue-500/30" };
+      return { icon: <ArrowRightLeft className="w-4 h-4" />, bg: "bg-blue-50 text-blue-600 border-blue-200" };
     case "task_completed":
-      return { icon: <CheckCircle2 className="w-4 h-4" />, bg: "bg-green-500/20 text-green-300 border-green-500/30" };
+      return { icon: <CheckCircle2 className="w-4 h-4" />, bg: "bg-green-50 text-green-600 border-green-200" };
     case "dm":
     case "message":
-      return { icon: <MessageSquare className="w-4 h-4" />, bg: "bg-violet-500/20 text-violet-300 border-violet-500/30" };
+      return { icon: <MessageSquare className="w-4 h-4" />, bg: "bg-violet-50 text-violet-600 border-violet-200" };
     case "video":
-      return { icon: <Video className="w-4 h-4" />, bg: "bg-rose-500/20 text-rose-300 border-rose-500/30" };
+      return { icon: <Video className="w-4 h-4" />, bg: "bg-rose-50 text-rose-600 border-rose-200" };
     case "meeting":
     case "meeting_invite":
-      return { icon: <Calendar className="w-4 h-4" />, bg: "bg-amber-500/20 text-amber-300 border-amber-500/30" };
+      return { icon: <Calendar className="w-4 h-4" />, bg: "bg-amber-50 text-amber-600 border-amber-200" };
     case "achievement":
-      return { icon: <Trophy className="w-4 h-4" />, bg: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" };
+      return { icon: <Trophy className="w-4 h-4" />, bg: "bg-yellow-50 text-yellow-600 border-yellow-200" };
     case "mention":
-      return { icon: <User className="w-4 h-4" />, bg: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" };
+      return { icon: <User className="w-4 h-4" />, bg: "bg-cyan-50 text-cyan-600 border-cyan-200" };
     case "reaction":
-      return { icon: <SmilePlus className="w-4 h-4" />, bg: "bg-pink-500/20 text-pink-300 border-pink-500/30" };
+      return { icon: <SmilePlus className="w-4 h-4" />, bg: "bg-pink-50 text-pink-600 border-pink-200" };
     case "quality_evaluation":
-      return { icon: <CheckCircle2 className="w-4 h-4" />, bg: "bg-orange-500/20 text-orange-300 border-orange-500/30" };
+      return { icon: <CheckCircle2 className="w-4 h-4" />, bg: "bg-orange-50 text-orange-600 border-orange-200" };
     case "video_revision":
-      return { icon: <Video className="w-4 h-4" />, bg: "bg-red-500/20 text-red-300 border-red-500/30" };
+      return { icon: <Video className="w-4 h-4" />, bg: "bg-red-50 text-red-600 border-red-200" };
     default:
-      return { icon: <AlertCircle className="w-4 h-4" />, bg: "bg-white/10 text-muted-foreground border-white/10" };
+      return { icon: <AlertCircle className="w-4 h-4" />, bg: "bg-muted text-muted-foreground border-border" };
   }
 }
 
@@ -113,7 +113,7 @@ export default function Notifications() {
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-display font-bold text-foreground">Notifications</h1>
             {count > 0 && (
-              <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
+              <span className="bg-foreground text-background text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
                 {count}
               </span>
             )}
@@ -124,7 +124,7 @@ export default function Notifications() {
           variant="outline"
           onClick={dismissAll}
           disabled={markAllMut.isPending || count === 0}
-          className="bg-black/20 border-white/10 text-muted-foreground hover:text-white gap-2 shrink-0"
+          className="border-border text-muted-foreground hover:text-destructive gap-2 shrink-0"
         >
           <Trash2 className="w-4 h-4" /> Delete all
         </Button>
@@ -142,7 +142,7 @@ export default function Notifications() {
             <p className="text-sm mt-1 opacity-60">Task updates and messages will appear here.</p>
           </div>
         ) : (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-border">
             {notifications!.map((notif) => {
               const style = getNotifStyle(notif.type);
               const handleRowClick = () => {
@@ -153,7 +153,7 @@ export default function Notifications() {
                 <div
                   key={notif.id}
                   onClick={handleRowClick}
-                  className={`flex items-start gap-4 px-5 py-4 transition-colors bg-indigo-500/5 hover:bg-indigo-500/8 border-l-2 border-l-indigo-500/60 ${
+                  className={`flex items-start gap-4 px-5 py-4 transition-colors hover:bg-muted ${
                     notif.linkUrl ? "cursor-pointer" : ""
                   }`}
                 >
@@ -171,7 +171,7 @@ export default function Notifications() {
                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.body}</p>
                     )}
                     {notif.linkUrl && (
-                      <span className="text-xs text-indigo-400 mt-1 inline-block">View →</span>
+                      <span className="text-xs text-muted-foreground mt-1 inline-block font-medium">View →</span>
                     )}
                   </div>
                   <button

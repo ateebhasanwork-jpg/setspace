@@ -124,14 +124,14 @@ export default function Meetings() {
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: getListMeetingsQueryKey() })}
             disabled={isFetching}
-            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+            className="p-2 rounded-lg border border-border bg-background hover:bg-accent transition-colors disabled:opacity-50"
             title="Refresh meetings"
           >
             <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
           </button>
           <Dialog open={isCreateOpen} onOpenChange={open => { setIsCreateOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg">
+            <Button className="bg-foreground hover:bg-foreground/80 text-background rounded-xl shadow-sm">
               <Plus className="w-4 h-4 mr-2" /> Schedule Meeting
             </Button>
           </DialogTrigger>
@@ -140,7 +140,7 @@ export default function Meetings() {
               <DialogTitle>New Meeting</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
-              <Input required placeholder="Meeting Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-black/20 border-white/10" />
+              <Input required placeholder="Meeting Title" value={title} onChange={e => setTitle(e.target.value)} className="bg-muted border-border" />
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Date</label>
@@ -149,7 +149,7 @@ export default function Meetings() {
                     type="date"
                     value={selectedDate}
                     onChange={e => setSelectedDate(e.target.value)}
-                    className="bg-black/20 border-white/10 text-foreground w-full"
+                    className="bg-muted border-border text-foreground w-full"
                   />
                 </div>
                 <div>
@@ -159,17 +159,17 @@ export default function Meetings() {
                     type="time"
                     value={selectedTime}
                     onChange={e => setSelectedTime(e.target.value)}
-                    className="bg-black/20 border-white/10 text-foreground w-full"
+                    className="bg-muted border-border text-foreground w-full"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Duration (minutes)</label>
-                  <Input required type="number" placeholder="30" value={duration} onChange={e => setDuration(e.target.value)} className="bg-black/20 border-white/10" />
+                  <Input required type="number" placeholder="30" value={duration} onChange={e => setDuration(e.target.value)} className="bg-muted border-border" />
                 </div>
               </div>
-              <Input placeholder="Meeting Link (Zoom, Meet...)" value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} className="bg-black/20 border-white/10" />
+              <Input placeholder="Meeting Link (Zoom, Meet...)" value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} className="bg-muted border-border" />
 
               {/* Employee picker */}
               {users && users.length > 0 && (
@@ -180,7 +180,7 @@ export default function Meetings() {
                       <span className="ml-2 text-xs text-primary font-normal">{selectedAttendees.length} selected</span>
                     )}
                   </label>
-                  <div className="space-y-1 max-h-44 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+                  <div className="space-y-1 max-h-44 overflow-y-auto rounded-xl border border-border bg-muted p-2">
                     {users.map(u => {
                       const selected = selectedAttendees.includes(u.id);
                       const initials = `${u.firstName?.[0] ?? ""}${u.lastName?.[0] ?? ""}`.toUpperCase() || u.username?.[0]?.toUpperCase() || "?";
@@ -189,9 +189,9 @@ export default function Meetings() {
                           key={u.id}
                           type="button"
                           onClick={() => toggleAttendee(u.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${selected ? "bg-primary/20 border border-primary/40" : "hover:bg-white/5 border border-transparent"}`}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${selected ? "bg-primary/15 border border-primary/40" : "hover:bg-accent border border-transparent"}`}
                         >
-                          <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold text-foreground shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-background border border-border flex items-center justify-center text-xs font-bold text-foreground shrink-0">
                             {initials}
                           </div>
                           <span className="flex-1 text-left text-foreground">
@@ -233,7 +233,7 @@ export default function Meetings() {
                       <Calendar className="w-6 h-6" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs bg-white/10 px-2.5 py-1 rounded-md text-muted-foreground font-semibold">
+                      <span className="text-xs bg-muted border border-border px-2.5 py-1 rounded-md text-muted-foreground font-semibold">
                         {meeting.duration} min
                       </span>
                       {!isOptimistic && (
@@ -241,13 +241,13 @@ export default function Meetings() {
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => deleteMut.mutate({ meetingId: meeting.id })}
-                              className="text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 px-2 py-1 rounded-md font-semibold transition-colors"
+                              className="text-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md font-semibold transition-colors"
                             >
                               Confirm
                             </button>
                             <button
                               onClick={() => setConfirmDeleteId(null)}
-                              className="text-xs bg-white/5 hover:bg-white/10 text-muted-foreground px-2 py-1 rounded-md transition-colors"
+                              className="text-xs bg-muted hover:bg-accent text-muted-foreground px-2 py-1 rounded-md transition-colors"
                             >
                               Cancel
                             </button>
@@ -255,7 +255,7 @@ export default function Meetings() {
                         ) : (
                           <button
                             onClick={() => setConfirmDeleteId(meeting.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600"
                             title="Delete meeting"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -286,7 +286,7 @@ export default function Meetings() {
                         );
                       })}
                       {attendees.length > 5 && (
-                        <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                        <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground">
                           +{attendees.length - 5}
                         </div>
                       )}
@@ -294,18 +294,18 @@ export default function Meetings() {
                   )}
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-white/5">
+                <div className="mt-6 pt-4 border-t border-border">
                   {safeLink ? (
                     <a
                       href={safeLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="w-full flex items-center justify-center py-2.5 bg-white/5 hover:bg-primary/20 text-white rounded-lg transition-colors text-sm font-medium border border-white/10"
+                      className="w-full flex items-center justify-center py-2.5 bg-muted hover:bg-accent text-foreground rounded-lg transition-colors text-sm font-medium border border-border"
                     >
                       <Video className="w-4 h-4 mr-2" /> Join Call
                     </a>
                   ) : (
-                    <div className="w-full flex items-center justify-center py-2.5 bg-black/20 text-muted-foreground rounded-lg text-sm border border-white/5 cursor-not-allowed">
+                    <div className="w-full flex items-center justify-center py-2.5 bg-muted text-muted-foreground rounded-lg text-sm border border-border cursor-not-allowed">
                       No Link Provided
                     </div>
                   )}
@@ -314,7 +314,7 @@ export default function Meetings() {
             );
           })}
           {meetings?.length === 0 && (
-            <div className="col-span-full py-16 text-center border-2 border-dashed border-white/10 rounded-2xl">
+            <div className="col-span-full py-16 text-center border-2 border-dashed border-border rounded-2xl">
               <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-display font-bold mb-1">No upcoming meetings</h3>
               <p className="text-muted-foreground text-sm">Your schedule is clear.</p>

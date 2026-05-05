@@ -146,7 +146,7 @@ function LoginForm() {
         <div className="w-52 h-52 bg-primary rounded-3xl mb-8 shadow-2xl shadow-primary/20 overflow-hidden">
           <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace Logo" className="w-full h-full object-contain scale-[1.35]" />
         </div>
-        <h1 className="text-4xl font-display font-bold text-white mb-2">Setspace</h1>
+        <h1 className="text-4xl font-display font-bold text-foreground mb-2">Setspace</h1>
         <p className="text-muted-foreground mb-8">Agency Management Platform</p>
         {setupNeeded === null ? (
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -154,36 +154,36 @@ function LoginForm() {
           <form onSubmit={handleSetup} className="w-full space-y-3 text-left">
             <p className="text-center text-sm text-amber-400 font-medium mb-4">First-time setup — create your admin account</p>
             <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="First name" value={setupData.firstName} onChange={e => setSetupData(p => ({ ...p, firstName: e.target.value }))} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
-              <Input placeholder="Last name" value={setupData.lastName} onChange={e => setSetupData(p => ({ ...p, lastName: e.target.value }))} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
+              <Input placeholder="First name" value={setupData.firstName} onChange={e => setSetupData(p => ({ ...p, firstName: e.target.value }))} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required />
+              <Input placeholder="Last name" value={setupData.lastName} onChange={e => setSetupData(p => ({ ...p, lastName: e.target.value }))} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required />
             </div>
-            <Input placeholder="Username" value={setupData.username} onChange={e => setSetupData(p => ({ ...p, username: e.target.value }))} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required autoCapitalize="none" />
-            <Input type="password" placeholder="Password (min 6 chars)" value={setupData.password} onChange={e => setSetupData(p => ({ ...p, password: e.target.value }))} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required />
-            {setupError && <p className="text-sm text-red-400 text-center">{setupError}</p>}
-            <Button type="submit" disabled={setupLoading} className="w-full h-12 text-base font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl">
+            <Input placeholder="Username" value={setupData.username} onChange={e => setSetupData(p => ({ ...p, username: e.target.value }))} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required autoCapitalize="none" />
+            <Input type="password" placeholder="Password (min 6 chars)" value={setupData.password} onChange={e => setSetupData(p => ({ ...p, password: e.target.value }))} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required />
+            {setupError && <p className="text-sm text-red-600 text-center">{setupError}</p>}
+            <Button type="submit" disabled={setupLoading} className="w-full h-12 text-base font-semibold bg-foreground hover:bg-foreground/80 text-background rounded-xl">
               {setupLoading ? "Creating account…" : "Create Admin Account"}
             </Button>
           </form>
         ) : initPassword ? (
           <form onSubmit={handleInitPassword} className="w-full space-y-3 text-left">
-            <p className="text-center text-sm text-amber-400 font-medium mb-4">
-              Set your password for <strong className="text-white">@{initPassword.username}</strong>
+            <p className="text-center text-sm text-amber-600 font-medium mb-4">
+              Set your password for <strong className="text-foreground">@{initPassword.username}</strong>
             </p>
             <p className="text-center text-xs text-muted-foreground mb-2">Your account was migrated — please choose a password to continue.</p>
-            <Input type="password" placeholder="New password (min 6 chars)" value={initPassword.password} onChange={e => setInitPassword(p => p ? { ...p, password: e.target.value } : p)} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required autoComplete="new-password" />
-            <Input type="password" placeholder="Confirm password" value={initPassword.confirm} onChange={e => setInitPassword(p => p ? { ...p, confirm: e.target.value } : p)} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required autoComplete="new-password" />
-            {initError && <p className="text-sm text-red-400 text-center">{initError}</p>}
-            <Button type="submit" disabled={initLoading} className="w-full h-12 text-base font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl">
+            <Input type="password" placeholder="New password (min 6 chars)" value={initPassword.password} onChange={e => setInitPassword(p => p ? { ...p, password: e.target.value } : p)} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required autoComplete="new-password" />
+            <Input type="password" placeholder="Confirm password" value={initPassword.confirm} onChange={e => setInitPassword(p => p ? { ...p, confirm: e.target.value } : p)} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required autoComplete="new-password" />
+            {initError && <p className="text-sm text-red-600 text-center">{initError}</p>}
+            <Button type="submit" disabled={initLoading} className="w-full h-12 text-base font-semibold bg-foreground hover:bg-foreground/80 text-background rounded-xl">
               {initLoading ? "Setting password…" : "Set Password & Sign In"}
             </Button>
-            <button type="button" onClick={() => setInitPassword(null)} className="w-full text-xs text-muted-foreground hover:text-white text-center mt-1 transition-colors">← Back to login</button>
+            <button type="button" onClick={() => setInitPassword(null)} className="w-full text-xs text-muted-foreground hover:text-foreground text-center mt-1 transition-colors">← Back to login</button>
           </form>
         ) : (
           <form onSubmit={handleLogin} className="w-full space-y-3 text-left">
-            <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required autoCapitalize="none" autoComplete="username" />
-            <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="bg-white/5 border-white/10 text-white placeholder:text-white/40" required autoComplete="current-password" />
-            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
-            <Button type="submit" disabled={loading} className="w-full h-12 text-base font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl">
+            <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required autoCapitalize="none" autoComplete="username" />
+            <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="bg-background border-border text-foreground placeholder:text-muted-foreground" required autoComplete="current-password" />
+            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            <Button type="submit" disabled={loading} className="w-full h-12 text-base font-semibold bg-foreground hover:bg-foreground/80 text-background rounded-xl">
               {loading ? "Signing in…" : "Sign In"}
             </Button>
           </form>

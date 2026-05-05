@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -49,67 +49,67 @@
   --color-sidebar-accent-border: var(--sidebar-accent-border);
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-display: 'Sora', sans-serif;
+  --font-sans: 'Inter', 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Inter', 'Plus Jakarta Sans', sans-serif;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
 :root {
-  /* DARK THEME DEFAULT - Deep charcoal with white/grey accents */
-  --background: 0 0% 5%;
-  --foreground: 0 0% 96%;
-  
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 96%;
-  --card-border: 0 0% 13%;
-  
-  --popover: 0 0% 7%;
-  --popover-foreground: 0 0% 96%;
-  --popover-border: 0 0% 13%;
-  
-  /* Clean White */
-  --primary: 0 0% 100%;
-  --primary-foreground: 0 0% 5%;
-  
-  --secondary: 0 0% 12%;
-  --secondary-foreground: 0 0% 90%;
-  
-  --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 55%;
-  
-  --accent: 0 0% 85%;
-  --accent-foreground: 0 0% 5%;
-  
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-  
-  --border: 0 0% 13%;
-  --input: 0 0% 13%;
-  --ring: 0 0% 70%;
-  
-  --sidebar: 0 0% 6%;
-  --sidebar-foreground: 0 0% 96%;
-  --sidebar-border: 0 0% 11%;
-  --sidebar-primary: 0 0% 100%;
-  --sidebar-primary-foreground: 0 0% 5%;
-  --sidebar-accent: 0 0% 12%;
-  --sidebar-accent-foreground: 0 0% 90%;
-  --sidebar-ring: 0 0% 70%;
-  
-  --radius: 0.75rem;
+  /* LIGHT THEME — clean black & white brand */
+  --background: 0 0% 98%;        /* #FAFAFA */
+  --foreground: 0 0% 7%;         /* #111111 */
 
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.8);
-  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.9);
+  --card: 0 0% 100%;             /* #FFFFFF */
+  --card-foreground: 0 0% 7%;
+  --card-border: 0 0% 90%;       /* #E5E5E5 */
 
-  --elevate-1: rgba(255, 255, 255, 0.05);
-  --elevate-2: rgba(255, 255, 255, 0.1);
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 7%;
+  --popover-border: 0 0% 90%;
+
+  /* Primary = BLACK — buttons, active states */
+  --primary: 0 0% 7%;            /* #111111 */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 0 0% 94%;         /* #F0F0F0 */
+  --secondary-foreground: 0 0% 7%;
+
+  --muted: 0 0% 96%;             /* #F5F5F5 */
+  --muted-foreground: 0 0% 42%;  /* #6B6B6B */
+
+  --accent: 0 0% 94%;            /* #F0F0F0 hover */
+  --accent-foreground: 0 0% 7%;
+
+  --destructive: 0 72% 59%;      /* #E24B4A */
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 0% 90%;            /* #E5E5E5 */
+  --input: 0 0% 100%;
+  --ring: 0 0% 7%;               /* black focus ring */
+
+  --sidebar: 0 0% 97%;           /* #F7F7F7 */
+  --sidebar-foreground: 0 0% 7%;
+  --sidebar-border: 0 0% 90%;
+  --sidebar-primary: 0 0% 7%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-accent-foreground: 0 0% 7%;
+  --sidebar-ring: 0 0% 7%;
+
+  --radius: 0.5rem;              /* 8px */
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow:    0 2px 8px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --shadow-xl: 0 16px 40px rgba(0,0,0,0.15);
+
+  --elevate-1: rgba(0,0,0,0.03);
+  --elevate-2: rgba(0,0,0,0.06);
   --opaque-button-border-intensity: 10;
 }
 
@@ -125,6 +125,8 @@
     height: 100%;
     overflow: hidden;
     @apply font-sans antialiased bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.6;
   }
   #root {
     height: 100%;
@@ -132,41 +134,40 @@
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    @apply font-bold tracking-tight;
+    @apply font-semibold tracking-tight;
   }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: rgba(0,0,0,0.25);
 }
 
+/* Clean card panel — no blur, no dark glass */
 .glass-panel {
-  @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-xl;
+  @apply bg-card border border-border shadow-sm;
 }
 
-/* Force dark colour-scheme so native date/time pickers and select dropdowns
-   render with dark backgrounds and legible text */
+/* Light color-scheme for native pickers */
 input[type="date"],
 input[type="time"],
 input[type="datetime-local"],
 select {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
-/* Ensure option elements are readable inside the dark dropdowns */
 select option {
-  background-color: hsl(0 0% 10%);
-  color: hsl(0 0% 96%);
+  background-color: #ffffff;
+  color: #111111;
 }

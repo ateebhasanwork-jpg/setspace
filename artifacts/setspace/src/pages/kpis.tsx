@@ -198,7 +198,7 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
       )}
       {asAdmin && (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-sm font-bold text-indigo-200 shrink-0">
+          <div className="w-9 h-9 rounded-full bg-muted border border-border flex items-center justify-center text-sm font-bold text-foreground shrink-0">
             {firstName?.[0]}{fullName?.split(" ")[1]?.[0]}
           </div>
           <div>
@@ -210,19 +210,19 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="glass-panel p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className={`w-5 h-5 ${kpiTriggered ? "text-red-400" : "text-muted-foreground"}`} />
+            <AlertTriangle className={`w-5 h-5 ${kpiTriggered ? "text-red-600" : "text-muted-foreground"}`} />
             <h3 className="text-sm font-semibold text-foreground">Late Deliveries</h3>
-            <span className={`ml-auto text-3xl font-bold ${kpiTriggered ? "text-red-400" : "text-foreground"}`}>{lateTasks.length}</span>
+            <span className={`ml-auto text-3xl font-bold ${kpiTriggered ? "text-red-600" : "text-foreground"}`}>{lateTasks.length}</span>
           </div>
           <p className="text-xs text-muted-foreground">KPI deduction triggers at {kpiThreshold}+ late tasks in a month.</p>
-          <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${kpiTriggered ? "bg-red-500/12 text-red-300 border-red-500/25" : "bg-green-500/8 text-green-300 border-green-500/20"}`}>
+          <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${kpiTriggered ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
             {kpiTriggered ? "⚠ KPI deduction triggered" : "✓ No KPI deduction this month"}
           </div>
           {lateTasks.length > 0 && (
             <ul className="space-y-1.5 pt-1">
               {lateTasks.map(t => (
                 <li key={t.id} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <XCircle className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
+                  <XCircle className="w-3 h-3 text-red-500 mt-0.5 shrink-0" />
                   <span className="truncate">{t.title}</span>
                 </li>
               ))}
@@ -236,7 +236,7 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
             <span className={`ml-auto text-3xl font-bold ${depTriggered ? "text-orange-400" : "text-foreground"}`}>{absences}</span>
           </div>
           <p className="text-xs text-muted-foreground">Dependability deduction triggers at {dependabilityThreshold}+ absences.</p>
-          <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${depTriggered ? "bg-orange-500/12 text-orange-300 border-orange-500/25" : "bg-green-500/8 text-green-300 border-green-500/20"}`}>
+          <div className={`text-xs font-semibold px-3 py-2 rounded-lg text-center border ${depTriggered ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-green-50 text-green-700 border-green-200"}`}>
             {depTriggered ? "⚠ Dependability deduction triggered" : "✓ No deduction this month"}
           </div>
           <p className="text-xs text-muted-foreground pt-1">
@@ -255,9 +255,9 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
         </Card>
       </div>
       {!kpiTriggered && !depTriggered && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-500/8 border border-green-500/20">
-          <Award className="w-5 h-5 text-green-400 shrink-0" />
-          <p className="text-sm text-green-300 font-medium">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-50 border border-green-200">
+          <Award className="w-5 h-5 text-green-700 shrink-0" />
+          <p className="text-sm text-green-700 font-medium">
             {asAdmin ? `${firstName} has no deductions this month.` : `Great month, ${firstName}! No deductions triggered.`}
           </p>
         </div>
@@ -558,11 +558,11 @@ export default function KPIs() {
       <div className="space-y-5">
         <div className="flex items-center gap-2 flex-wrap">
           <select value={month} onChange={e => setMonth(Number(e.target.value))}
-            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground">
+            className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground">
             {MONTHS.map((m, i) => <option key={i + 1} value={i + 1} className="bg-card">{m}</option>)}
           </select>
           <select value={year} onChange={e => setYear(Number(e.target.value))}
-            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground">
+            className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground">
             {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
@@ -576,7 +576,7 @@ export default function KPIs() {
       {/* Period modal */}
       {showPeriodModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <h2 className="text-lg font-semibold text-foreground">
               {editingPeriod ? "Edit Period" : "New Payroll Period"}
             </h2>
@@ -587,7 +587,7 @@ export default function KPIs() {
                   value={periodName}
                   onChange={e => setPeriodName(e.target.value)}
                   placeholder="e.g. May 2026"
-                  className="bg-black/20 border-white/10"
+                  className="bg-muted border-border"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -597,7 +597,7 @@ export default function KPIs() {
                     type="date"
                     value={periodStart}
                     onChange={e => setPeriodStart(e.target.value)}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+                    className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground"
                   />
                 </div>
                 <div>
@@ -606,23 +606,23 @@ export default function KPIs() {
                     type="date"
                     value={periodEnd}
                     onChange={e => setPeriodEnd(e.target.value)}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+                    className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground"
                   />
                 </div>
               </div>
-              {periodError && <p className="text-xs text-red-400">{periodError}</p>}
+              {periodError && <p className="text-xs text-red-600">{periodError}</p>}
             </div>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowPeriodModal(false)}
-                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={savePeriod}
                 disabled={savingPeriod}
-                className="px-4 py-2 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm bg-foreground hover:bg-foreground/80 text-background font-medium transition-colors disabled:opacity-50"
               >
                 {savingPeriod ? "Saving…" : editingPeriod ? "Save Changes" : "Create Period"}
               </button>
@@ -634,11 +634,11 @@ export default function KPIs() {
       {/* Confirm delete period */}
       {confirmDeletePeriodId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
             <h2 className="text-base font-semibold text-foreground">Delete this period?</h2>
             <p className="text-sm text-muted-foreground">This removes the period tab permanently. Salary configs and attendance data are not affected.</p>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmDeletePeriodId(null)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5">Cancel</button>
+              <button onClick={() => setConfirmDeletePeriodId(null)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent">Cancel</button>
               <button onClick={() => deletePeriod(confirmDeletePeriodId)} className="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-700 text-white font-medium">Delete</button>
             </div>
           </div>
@@ -654,7 +654,7 @@ export default function KPIs() {
         <button
           onClick={fetchSalaries}
           disabled={loading}
-          className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+          className="p-2 rounded-lg border border-border bg-background hover:bg-accent transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -667,8 +667,8 @@ export default function KPIs() {
             key={p.id}
             className={`group flex items-center gap-2 shrink-0 rounded-xl border px-4 py-2.5 cursor-pointer transition-all ${
               activePeriodId === p.id
-                ? "bg-indigo-600/20 border-indigo-500/40 text-foreground"
-                : "bg-black/20 border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground"
+                ? "bg-foreground/10 border-foreground/30 text-foreground"
+                : "bg-background border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
             }`}
             onClick={() => setActivePeriodId(p.id)}
           >
@@ -679,13 +679,13 @@ export default function KPIs() {
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
               <button
                 onClick={e => { e.stopPropagation(); openEditPeriod(p); }}
-                className="p-1 rounded hover:bg-white/10 transition-colors"
+                className="p-1 rounded hover:bg-accent transition-colors"
               >
                 <Pencil className="w-3 h-3" />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); setConfirmDeletePeriodId(p.id); }}
-                className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
+                className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"
               >
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -694,7 +694,7 @@ export default function KPIs() {
         ))}
         <button
           onClick={openNewPeriod}
-          className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-xl border border-dashed border-white/20 text-muted-foreground hover:text-foreground hover:border-white/30 transition-all text-sm"
+          className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all text-sm"
         >
           <Plus className="w-4 h-4" />
           New Period
@@ -705,14 +705,14 @@ export default function KPIs() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-black/20 border border-white/10 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 bg-muted border border-border rounded-xl w-fit">
         {canSeePayroll && (
           <button
             onClick={() => setActiveTab("payroll")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === "payroll"
-                ? "bg-indigo-600 text-white shadow"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                ? "bg-foreground text-background shadow"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
           >
             <span className="flex items-center gap-1.5"><Wallet className="w-3.5 h-3.5" /> Payroll</span>
@@ -722,8 +722,8 @@ export default function KPIs() {
           onClick={() => setActiveTab("deductions")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             activeTab === "deductions"
-              ? "bg-indigo-600 text-white shadow"
-              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              ? "bg-foreground text-background shadow"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
           <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Deductions</span>
@@ -732,8 +732,8 @@ export default function KPIs() {
           onClick={() => setActiveTab("employees")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             activeTab === "employees"
-              ? "bg-indigo-600 text-white shadow"
-              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              ? "bg-foreground text-background shadow"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
           <span className="flex items-center gap-1.5"><UserCheck className="w-3.5 h-3.5" /> Employee View</span>
@@ -742,8 +742,8 @@ export default function KPIs() {
           onClick={() => setActiveTab("settings")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             activeTab === "settings"
-              ? "bg-indigo-600 text-white shadow"
-              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              ? "bg-foreground text-background shadow"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
           <span className="flex items-center gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5" /> KPI Settings</span>
@@ -753,25 +753,25 @@ export default function KPIs() {
       {/* Loading */}
       {loading && (
         <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {/* Fetch error */}
       {!loading && fetchError && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
           <XCircle className="w-4 h-4 shrink-0" />
           <span>Failed to load salary data: {fetchError}</span>
-          <button onClick={fetchSalaries} className="ml-auto text-xs underline underline-offset-2 hover:text-red-300">Retry</button>
+          <button onClick={fetchSalaries} className="ml-auto text-xs underline underline-offset-2 hover:text-red-900">Retry</button>
         </div>
       )}
 
       {/* Save error */}
       {saveError && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
           <XCircle className="w-4 h-4 shrink-0" />
           <span>Could not save changes: {saveError}</span>
-          <button onClick={() => setSaveError(null)} className="ml-auto text-xs underline underline-offset-2 hover:text-red-300">Dismiss</button>
+          <button onClick={() => setSaveError(null)} className="ml-auto text-xs underline underline-offset-2 hover:text-red-900">Dismiss</button>
         </div>
       )}
 
@@ -785,13 +785,13 @@ export default function KPIs() {
               Dependability deducted if absences ≥ threshold
             </span>
             <span className="flex items-center gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
               KPI deducted if late deliveries ≥ threshold
             </span>
           </div>
 
           {salaryData.length === 0 ? (
-            <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
+            <div className="py-12 text-center border-2 border-dashed border-border rounded-2xl">
               <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
               <p className="text-muted-foreground">No salary data yet.</p>
             </div>
@@ -804,7 +804,7 @@ export default function KPIs() {
                     {/* Employee header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-sm font-bold text-indigo-200 shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-muted border border-border flex items-center justify-center text-sm font-bold text-foreground shrink-0">
                           {row.user.firstName?.[0]}{row.user.lastName?.[0]}
                         </div>
                         <div>
@@ -821,22 +821,22 @@ export default function KPIs() {
                           {confirmDeleteSalaryId === row.user.id ? (
                             <>
                               <button onClick={() => deleteSalaryConfig(row.user.id)} disabled={!!deletingSalaryId}
-                                className="text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 transition-colors disabled:opacity-50">
+                                className="text-[11px] font-semibold text-red-700 hover:text-red-800 bg-red-50 px-2 py-1 rounded-lg border border-red-200 transition-colors disabled:opacity-50">
                                 {deletingSalaryId === row.user.id ? "…" : "Confirm"}
                               </button>
                               <button onClick={() => setConfirmDeleteSalaryId(null)}
-                                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-white/10 transition-colors">
+                                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-border transition-colors">
                                 Cancel
                               </button>
                             </>
                           ) : (
                             <>
                               <button onClick={() => openEdit(row)}
-                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors" title="Edit salary">
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors" title="Edit salary">
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => setConfirmDeleteSalaryId(row.user.id)}
-                                className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Reset salary config">
+                                className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reset salary config">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </>
@@ -847,13 +847,13 @@ export default function KPIs() {
                           <button
                             onClick={() => saveEdit(row.user.id)}
                             disabled={saving}
-                            className="p-1.5 text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-colors"
+                            className="p-1.5 text-green-700 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setEditingUserId(null)}
-                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -872,7 +872,7 @@ export default function KPIs() {
                         </span>
                         {isEditing ? (
                           <Input type="number" value={editBasic} onChange={e => setEditBasic(e.target.value)}
-                            className="h-7 w-28 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
+                            className="h-7 w-28 text-xs bg-muted border-border text-right" placeholder="0" />
                         ) : (
                           <span className="text-sm font-semibold text-foreground">{formatPKR(row.basicSalary)}</span>
                         )}
@@ -880,18 +880,18 @@ export default function KPIs() {
 
                       {/* Dependability Component */}
                       <div className="flex items-center justify-between">
-                        <span className={`text-xs flex items-center gap-1.5 ${row.dependabilityTriggered ? "text-orange-400" : "text-muted-foreground"}`}>
+                        <span className={`text-xs flex items-center gap-1.5 ${row.dependabilityTriggered ? "text-orange-600" : "text-muted-foreground"}`}>
                           <AlertTriangle className="w-3.5 h-3.5" />
                           Dependability
                           {row.dependabilityTriggered && (
-                            <span className="ml-1 text-[10px] bg-orange-500/15 border border-orange-500/25 px-1.5 py-0.5 rounded-full">
+                            <span className="ml-1 text-[10px] bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded-full">
                               {row.absences} absent — withheld
                             </span>
                           )}
                         </span>
                         {isEditing ? (
                           <Input type="number" value={editDep} onChange={e => setEditDep(e.target.value)}
-                            className="h-7 w-28 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
+                            className="h-7 w-28 text-xs bg-muted border-border text-right" placeholder="0" />
                         ) : (
                           <span className={`text-sm font-semibold ${row.dependabilityTriggered ? "text-orange-400 line-through" : "text-foreground"}`}>
                             {formatPKR(row.depComponent)}
@@ -901,27 +901,27 @@ export default function KPIs() {
 
                       {/* KPI Component */}
                       <div className="flex items-center justify-between">
-                        <span className={`text-xs flex items-center gap-1.5 ${row.kpiTriggered ? "text-red-400" : "text-muted-foreground"}`}>
+                        <span className={`text-xs flex items-center gap-1.5 ${row.kpiTriggered ? "text-red-600" : "text-muted-foreground"}`}>
                           <TrendingDown className="w-3.5 h-3.5" />
                           KPI
                           {row.kpiTriggered && (
-                            <span className="ml-1 text-[10px] bg-red-500/15 border border-red-500/25 px-1.5 py-0.5 rounded-full">
+                            <span className="ml-1 text-[10px] bg-red-100 border border-red-200 px-1.5 py-0.5 rounded-full">
                               {row.lateTasks} late — withheld
                             </span>
                           )}
                         </span>
                         {isEditing ? (
                           <Input type="number" value={editKpi} onChange={e => setEditKpi(e.target.value)}
-                            className="h-7 w-28 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
+                            className="h-7 w-28 text-xs bg-muted border-border text-right" placeholder="0" />
                         ) : (
-                          <span className={`text-sm font-semibold ${row.kpiTriggered ? "text-red-400 line-through" : "text-foreground"}`}>
+                          <span className={`text-sm font-semibold ${row.kpiTriggered ? "text-red-600 line-through" : "text-foreground"}`}>
                             {formatPKR(row.kpiComponent)}
                           </span>
                         )}
                       </div>
 
                       {/* Total Package subtotal */}
-                      <div className="flex items-center justify-between pt-2 border-t border-white/8">
+                      <div className="flex items-center justify-between pt-2 border-t border-border">
                         <span className="text-xs font-medium text-muted-foreground">Total Package</span>
                         <span className="text-sm font-bold text-foreground">{formatPKR(row.totalPackage)}</span>
                       </div>
@@ -934,7 +934,7 @@ export default function KPIs() {
                         {isEditing ? (
                           <div className="flex items-center gap-1">
                             <Input type="number" value={editOvertime} onChange={e => setEditOvertime(e.target.value)}
-                              className="h-7 w-24 text-xs bg-black/30 border-white/15 text-right" placeholder="0" />
+                              className="h-7 w-24 text-xs bg-muted border-border text-right" placeholder="0" />
                             <span className="text-[10px] text-muted-foreground">/hr</span>
                           </div>
                         ) : (
@@ -950,7 +950,7 @@ export default function KPIs() {
                     </div>
 
                     {/* Threshold & working days config */}
-                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                    <div className="pt-2.5 mt-1 border-t border-border space-y-2">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Thresholds & Schedule</p>
 
                         {/* Working Days */}
@@ -961,7 +961,7 @@ export default function KPIs() {
                           {isEditing ? (
                             <div className="flex items-center gap-1">
                               <Input type="number" value={editWorkingDays} onChange={e => setEditWorkingDays(e.target.value)}
-                                className="h-7 w-20 text-xs bg-black/30 border-white/15 text-right" placeholder="auto" />
+                                className="h-7 w-20 text-xs bg-muted border-border text-right" placeholder="auto" />
                               <span className="text-[10px] text-muted-foreground">days/mo</span>
                             </div>
                           ) : (
@@ -982,7 +982,7 @@ export default function KPIs() {
                           </span>
                           {isEditing ? (
                             <Input type="date" value={editEffectiveStart} onChange={e => setEditEffectiveStart(e.target.value)}
-                              className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" />
+                              className="h-7 w-36 text-xs bg-muted border-border text-right" />
                           ) : (
                             <span className="text-xs font-semibold text-foreground">
                               {row.effectiveStartDate
@@ -1000,11 +1000,11 @@ export default function KPIs() {
                           {isEditing ? (
                             <div className="flex items-center gap-1">
                               <Input type="number" value={editDepThreshold} onChange={e => setEditDepThreshold(e.target.value)}
-                                className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right" placeholder="2" />
+                                className="h-7 w-16 text-xs bg-muted border-border text-right" placeholder="2" />
                               <span className="text-[10px] text-muted-foreground">absences</span>
                             </div>
                           ) : (
-                            <span className={`text-xs font-semibold ${row.dependabilityThreshold !== 2 ? "text-orange-400" : "text-muted-foreground"}`}>
+                            <span className={`text-xs font-semibold ${row.dependabilityThreshold !== 2 ? "text-orange-600" : "text-muted-foreground"}`}>
                               {row.dependabilityThreshold}+ absences
                             </span>
                           )}
@@ -1013,16 +1013,16 @@ export default function KPIs() {
                         {/* KPI Threshold */}
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> KPI triggers at
+                            <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> KPI triggers at
                           </span>
                           {isEditing ? (
                             <div className="flex items-center gap-1">
                               <Input type="number" value={editKpiThreshold} onChange={e => setEditKpiThreshold(e.target.value)}
-                                className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right" placeholder="2" />
+                                className="h-7 w-16 text-xs bg-muted border-border text-right" placeholder="2" />
                               <span className="text-[10px] text-muted-foreground">late tasks</span>
                             </div>
                           ) : (
-                            <span className={`text-xs font-semibold ${row.kpiThreshold !== 2 ? "text-red-400" : "text-muted-foreground"}`}>
+                            <span className={`text-xs font-semibold ${row.kpiThreshold !== 2 ? "text-red-600" : "text-muted-foreground"}`}>
                               {row.kpiThreshold}+ late tasks
                             </span>
                           )}
@@ -1030,7 +1030,7 @@ export default function KPIs() {
                     </div>
 
                     {/* Approved Days Off */}
-                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                    <div className="pt-2.5 mt-1 border-t border-border space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Approved Days Off</p>
                         {addLeaveUserId === row.user.id ? null : (
@@ -1046,9 +1046,9 @@ export default function KPIs() {
                       {addLeaveUserId === row.user.id && (
                         <div className="flex items-center gap-1.5">
                           <Input type="date" value={addLeaveDate} onChange={e => setAddLeaveDate(e.target.value)}
-                            className="h-7 flex-1 text-xs bg-black/30 border-white/15" />
+                            className="h-7 flex-1 text-xs bg-muted border-border" />
                           <Input value={addLeaveNote} onChange={e => setAddLeaveNote(e.target.value)}
-                            className="h-7 flex-1 text-xs bg-black/30 border-white/15" placeholder="note (optional)" />
+                            className="h-7 flex-1 text-xs bg-muted border-border" placeholder="note (optional)" />
                           <button
                             disabled={!addLeaveDate || leaveSaving}
                             onClick={async () => {
@@ -1065,7 +1065,7 @@ export default function KPIs() {
                                 await fetchSalaries();
                               } finally { setLeaveSaving(false); }
                             }}
-                            className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded disabled:opacity-50"
+                            className="h-7 px-2 text-xs bg-foreground hover:bg-foreground/80 text-background rounded disabled:opacity-50"
                           >Save</button>
                           <button onClick={() => setAddLeaveUserId(null)}
                             className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground">✕</button>
@@ -1086,7 +1086,7 @@ export default function KPIs() {
                                     await fetch(`${BASE}/api/approved-leaves/${l.id}`, { method: "DELETE", credentials: "include" });
                                     await fetchSalaries();
                                   }}
-                                  className="text-[10px] text-red-400/60 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="text-[10px] text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >remove</button>
                               </div>
                             </div>
@@ -1096,7 +1096,7 @@ export default function KPIs() {
                     </div>
 
                     {/* Employee Profile */}
-                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                    <div className="pt-2.5 mt-1 border-t border-border space-y-2">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Employee Profile</p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -1104,7 +1104,7 @@ export default function KPIs() {
                         </span>
                         {isEditing ? (
                           <Input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Video Editor" />
+                            className="h-7 w-36 text-xs bg-muted border-border text-right" placeholder="e.g. Video Editor" />
                         ) : (
                           <span className="text-xs font-semibold text-foreground">{row.user.title || <span className="text-muted-foreground">—</span>}</span>
                         )}
@@ -1115,7 +1115,7 @@ export default function KPIs() {
                         </span>
                         {isEditing ? (
                           <Input value={editDepartment} onChange={e => setEditDepartment(e.target.value)}
-                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Production" />
+                            className="h-7 w-36 text-xs bg-muted border-border text-right" placeholder="e.g. Production" />
                         ) : (
                           <span className="text-xs font-semibold text-foreground">{row.user.department || <span className="text-muted-foreground">—</span>}</span>
                         )}
@@ -1123,7 +1123,7 @@ export default function KPIs() {
                     </div>
 
                     {/* Net / Tax / Take-Home */}
-                    <div className={`pt-3 border-t space-y-1.5 ${row.dependabilityTriggered || row.kpiTriggered ? "border-red-500/20" : "border-white/10"}`}>
+                    <div className={`pt-3 border-t space-y-1.5 ${row.dependabilityTriggered || row.kpiTriggered ? "border-red-200" : "border-border"}`}>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Net (before tax)</span>
                         <span className="text-sm font-semibold text-foreground">{formatPKR(row.netSalary)}</span>
@@ -1142,9 +1142,9 @@ export default function KPIs() {
                           {row.monthlyTax > 0 ? `− ${formatPKR(row.monthlyTax)}` : "— tax-free"}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between pt-1.5 border-t border-white/8">
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border">
                         <span className="text-sm font-bold text-foreground">Take-Home</span>
-                        <span className={`text-lg font-display font-bold ${row.dependabilityTriggered || row.kpiTriggered ? "text-red-400" : "text-green-400"}`}>
+                        <span className={`text-lg font-display font-bold ${row.dependabilityTriggered || row.kpiTriggered ? "text-red-600" : "text-green-700"}`}>
                           {formatPKR(row.takeHome)}
                         </span>
                       </div>
@@ -1153,8 +1153,8 @@ export default function KPIs() {
                     {/* Status badge */}
                     <div className={`text-xs font-medium px-3 py-2 rounded-xl border text-center ${
                       !row.dependabilityTriggered && !row.kpiTriggered
-                        ? "bg-green-500/8 border-green-500/20 text-green-300"
-                        : "bg-red-500/8 border-red-500/20 text-red-300"
+                        ? "bg-green-50 border-green-200 text-green-700"
+                        : "bg-red-50 border-red-200 text-red-700"
                     }`}>
                       {!row.dependabilityTriggered && !row.kpiTriggered
                         ? <span className="flex items-center justify-center gap-1.5"><Award className="w-3.5 h-3.5" /> Full salary — no deductions</span>
@@ -1178,13 +1178,13 @@ export default function KPIs() {
               Dependability — per-employee absence threshold
             </span>
             <span className="flex items-center gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
               KPI — per-employee late delivery threshold
             </span>
           </div>
 
           {salaryData.length === 0 ? (
-            <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
+            <div className="py-12 text-center border-2 border-dashed border-border rounded-2xl">
               <UserCheck className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
               <p className="text-muted-foreground text-sm">No data for this period.</p>
             </div>
@@ -1192,7 +1192,7 @@ export default function KPIs() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 text-left">
+                  <tr className="border-b border-border text-left">
                     <th className="pb-3 pr-4 text-xs text-muted-foreground font-medium">Employee</th>
                     <th className="pb-3 px-4 text-xs text-muted-foreground font-medium text-center">Absences</th>
                     <th className="pb-3 px-4 text-xs text-muted-foreground font-medium text-center">Dependability</th>
@@ -1200,12 +1200,12 @@ export default function KPIs() {
                     <th className="pb-3 pl-4 text-xs text-muted-foreground font-medium text-center">KPI</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-border">
                   {salaryData.map(row => (
-                    <tr key={row.user.id} className="group hover:bg-white/2 transition-colors">
+                    <tr key={row.user.id} className="group hover:bg-muted transition-colors">
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-600/25 border border-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-200 shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-xs font-bold text-foreground shrink-0">
                             {row.user.firstName?.[0]}{row.user.lastName?.[0]}
                           </div>
                           <div>
@@ -1219,8 +1219,8 @@ export default function KPIs() {
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg text-xs font-bold ${
                           row.absences >= row.dependabilityThreshold
-                            ? "bg-orange-500/15 border border-orange-500/25 text-orange-300"
-                            : "bg-white/5 border border-white/10 text-muted-foreground"
+                            ? "bg-orange-100 border border-orange-200 text-orange-700"
+                            : "bg-muted border border-border text-muted-foreground"
                         }`}>
                           {row.absences}
                         </span>
@@ -1229,12 +1229,12 @@ export default function KPIs() {
                       {/* Dependability status */}
                       <td className="py-3 px-4 text-center">
                         {row.dependabilityTriggered ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full">
                             <AlertTriangle className="w-3 h-3" /> Triggered
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-white/4 border border-white/8 px-2.5 py-1 rounded-full">
-                            <Check className="w-3 h-3 text-green-500" /> Clear
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted border border-border px-2.5 py-1 rounded-full">
+                            <Check className="w-3 h-3 text-green-600" /> Clear
                           </span>
                         )}
                       </td>
@@ -1243,8 +1243,8 @@ export default function KPIs() {
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg text-xs font-bold ${
                           row.lateTasks >= row.kpiThreshold
-                            ? "bg-red-500/15 border border-red-500/25 text-red-300"
-                            : "bg-white/5 border border-white/10 text-muted-foreground"
+                            ? "bg-red-100 border border-red-200 text-red-700"
+                            : "bg-muted border border-border text-muted-foreground"
                         }`}>
                           {row.lateTasks}
                         </span>
@@ -1253,12 +1253,12 @@ export default function KPIs() {
                       {/* KPI status */}
                       <td className="py-3 pl-4 text-center">
                         {row.kpiTriggered ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
                             <AlertTriangle className="w-3 h-3" /> Triggered
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-white/4 border border-white/8 px-2.5 py-1 rounded-full">
-                            <Check className="w-3 h-3 text-green-500" /> Clear
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted border border-border px-2.5 py-1 rounded-full">
+                            <Check className="w-3 h-3 text-green-600" /> Clear
                           </span>
                         )}
                       </td>
@@ -1275,14 +1275,14 @@ export default function KPIs() {
       {!loading && activeTab === "employees" && (
         <>
           {salaryData.length === 0 ? (
-            <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
+            <div className="py-12 text-center border-2 border-dashed border-border rounded-2xl">
               <UserCheck className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
               <p className="text-muted-foreground text-sm">No employee data for this period.</p>
             </div>
           ) : (
             <div className="space-y-8">
               {salaryData.map(row => (
-                <div key={row.user.id} className="glass-panel rounded-2xl border border-white/8 p-5">
+                <div key={row.user.id} className="glass-panel rounded-2xl border border-border p-5">
                   <PersonalPerformanceView
                     userId={row.user.id}
                     firstName={row.user.firstName ?? ""}
@@ -1306,7 +1306,7 @@ export default function KPIs() {
           {/* Global: KPI Tracking Start Date */}
           <Card className="glass-panel p-5 space-y-3">
             <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-indigo-400" />
+              <CalendarDays className="w-4 h-4 text-muted-foreground" />
               <h3 className="font-semibold text-sm text-foreground">Absence Tracking Start Date</h3>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -1318,29 +1318,29 @@ export default function KPIs() {
                 type="date"
                 value={editTrackingDate}
                 onChange={e => setEditTrackingDate(e.target.value)}
-                className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground"
+                className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground"
               />
               <button
                 onClick={saveTrackingDate}
                 disabled={savingTracking}
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-foreground hover:bg-foreground/80 text-background text-xs font-semibold transition-colors disabled:opacity-50"
               >
                 {savingTracking ? "Saving…" : "Save"}
               </button>
               {editTrackingDate && (
                 <button
                   onClick={() => { setEditTrackingDate(""); }}
-                  className="px-3 py-2 rounded-lg border border-white/10 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Clear
                 </button>
               )}
             </div>
             {trackingError && (
-              <p className="text-xs text-red-400">{trackingError}</p>
+              <p className="text-xs text-red-600">{trackingError}</p>
             )}
             {trackingStartDate && (
-              <p className="text-xs text-green-400">
+              <p className="text-xs text-green-700">
                 Currently tracking from {new Date(trackingStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
               </p>
             )}
@@ -1358,7 +1358,7 @@ export default function KPIs() {
           </div>
 
           {salaryData.length === 0 ? (
-            <div className="py-12 text-center border-2 border-dashed border-white/10 rounded-2xl">
+            <div className="py-12 text-center border-2 border-dashed border-border rounded-2xl">
               <SlidersHorizontal className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
               <p className="text-muted-foreground text-sm">No employee data yet.</p>
             </div>
@@ -1371,7 +1371,7 @@ export default function KPIs() {
                     {/* Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-sm font-bold text-indigo-200 shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-muted border border-border flex items-center justify-center text-sm font-bold text-foreground shrink-0">
                           {row.user.firstName?.[0]}{row.user.lastName?.[0]}
                         </div>
                         <div>
@@ -1384,22 +1384,22 @@ export default function KPIs() {
                           {confirmDeleteSalaryId === row.user.id ? (
                             <>
                               <button onClick={() => deleteSalaryConfig(row.user.id)} disabled={!!deletingSalaryId}
-                                className="text-[11px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20 transition-colors disabled:opacity-50">
+                                className="text-[11px] font-semibold text-red-700 hover:text-red-800 bg-red-50 px-2 py-1 rounded-lg border border-red-200 transition-colors disabled:opacity-50">
                                 {deletingSalaryId === row.user.id ? "…" : "Confirm"}
                               </button>
                               <button onClick={() => setConfirmDeleteSalaryId(null)}
-                                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-white/10 transition-colors">
+                                className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg border border-border transition-colors">
                                 Cancel
                               </button>
                             </>
                           ) : (
                             <>
                               <button onClick={() => openEdit(row)}
-                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors" title="Edit thresholds">
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors" title="Edit thresholds">
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => setConfirmDeleteSalaryId(row.user.id)}
-                                className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Reset salary config">
+                                className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reset salary config">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </>
@@ -1410,13 +1410,13 @@ export default function KPIs() {
                           <button
                             onClick={() => saveEdit(row.user.id)}
                             disabled={saving}
-                            className="p-1.5 text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-colors"
+                            className="p-1.5 text-green-700 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setEditingUserId(null)}
-                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -1436,7 +1436,7 @@ export default function KPIs() {
                               type="number"
                               value={editWorkingDays}
                               onChange={e => setEditWorkingDays(e.target.value)}
-                              className="h-7 w-20 text-xs bg-black/30 border-white/15 text-right"
+                              className="h-7 w-20 text-xs bg-muted border-border text-right"
                               placeholder="auto"
                             />
                             <span className="text-[10px] text-muted-foreground">days</span>
@@ -1462,13 +1462,13 @@ export default function KPIs() {
                               type="number"
                               value={editDepThreshold}
                               onChange={e => setEditDepThreshold(e.target.value)}
-                              className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right"
+                              className="h-7 w-16 text-xs bg-muted border-border text-right"
                               placeholder="2"
                             />
                             <span className="text-[10px] text-muted-foreground">absences</span>
                           </div>
                         ) : (
-                          <span className={`text-sm font-semibold ${row.dependabilityThreshold !== 2 ? "text-orange-400" : "text-foreground"}`}>
+                          <span className={`text-sm font-semibold ${row.dependabilityThreshold !== 2 ? "text-orange-600" : "text-foreground"}`}>
                             {row.dependabilityThreshold}+ absences
                           </span>
                         )}
@@ -1477,7 +1477,7 @@ export default function KPIs() {
                       {/* KPI Threshold */}
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> KPI Trigger
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> KPI Trigger
                         </span>
                         {isEditing ? (
                           <div className="flex items-center gap-1.5">
@@ -1485,13 +1485,13 @@ export default function KPIs() {
                               type="number"
                               value={editKpiThreshold}
                               onChange={e => setEditKpiThreshold(e.target.value)}
-                              className="h-7 w-16 text-xs bg-black/30 border-white/15 text-right"
+                              className="h-7 w-16 text-xs bg-muted border-border text-right"
                               placeholder="2"
                             />
                             <span className="text-[10px] text-muted-foreground">late tasks</span>
                           </div>
                         ) : (
-                          <span className={`text-sm font-semibold ${row.kpiThreshold !== 2 ? "text-red-400" : "text-foreground"}`}>
+                          <span className={`text-sm font-semibold ${row.kpiThreshold !== 2 ? "text-red-600" : "text-foreground"}`}>
                             {row.kpiThreshold}+ late tasks
                           </span>
                         )}
@@ -1499,7 +1499,7 @@ export default function KPIs() {
                     </div>
 
                     {/* Employee Profile */}
-                    <div className="pt-2.5 mt-1 border-t border-white/8 space-y-2">
+                    <div className="pt-2.5 mt-1 border-t border-border space-y-2">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Employee Profile</p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -1507,7 +1507,7 @@ export default function KPIs() {
                         </span>
                         {isEditing ? (
                           <Input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Video Editor" />
+                            className="h-7 w-36 text-xs bg-muted border-border text-right" placeholder="e.g. Video Editor" />
                         ) : (
                           <span className="text-sm font-semibold text-foreground">{row.user.title || <span className="text-muted-foreground">—</span>}</span>
                         )}
@@ -1518,7 +1518,7 @@ export default function KPIs() {
                         </span>
                         {isEditing ? (
                           <Input value={editDepartment} onChange={e => setEditDepartment(e.target.value)}
-                            className="h-7 w-36 text-xs bg-black/30 border-white/15 text-right" placeholder="e.g. Production" />
+                            className="h-7 w-36 text-xs bg-muted border-border text-right" placeholder="e.g. Production" />
                         ) : (
                           <span className="text-sm font-semibold text-foreground">{row.user.department || <span className="text-muted-foreground">—</span>}</span>
                         )}
@@ -1528,8 +1528,8 @@ export default function KPIs() {
                     {/* Current month status */}
                     <div className={`text-xs px-3 py-2 rounded-xl border text-center font-medium ${
                       row.dependabilityTriggered || row.kpiTriggered
-                        ? "bg-red-500/8 border-red-500/20 text-red-300"
-                        : "bg-green-500/8 border-green-500/20 text-green-300"
+                        ? "bg-red-50 border-red-200 text-red-700"
+                        : "bg-green-50 border-green-200 text-green-700"
                     }`}>
                       {row.dependabilityTriggered || row.kpiTriggered
                         ? <span className="flex items-center justify-center gap-1.5"><AlertTriangle className="w-3 h-3" /> Deduction active this month</span>

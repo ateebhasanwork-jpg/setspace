@@ -38,7 +38,7 @@ function Avatar({ entry, size = "md" }: { entry: LeaderEntry; size?: "sm" | "md"
     return <img src={entry.user.profileImage} alt={initials} className={`${sz} rounded-full object-cover`} />;
   }
   return (
-    <div className={`${sz} rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center font-display font-bold text-indigo-200 shrink-0`}>
+    <div className={`${sz} rounded-full bg-muted border border-border flex items-center justify-center font-display font-bold text-foreground shrink-0`}>
       {initials || "?"}
     </div>
   );
@@ -92,7 +92,7 @@ export default function Leaderboard() {
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-indigo-500"
+            className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground"
           >
             {MONTHS.map((m, i) => (
               <option key={i + 1} value={i + 1} className="bg-card">{m}</option>
@@ -101,7 +101,7 @@ export default function Leaderboard() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-indigo-500"
+            className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground"
           >
             {[2024, 2025, 2026].map((y) => (
               <option key={y} value={y} className="bg-card">{y}</option>
@@ -110,7 +110,7 @@ export default function Leaderboard() {
           <button
             onClick={handleRefresh}
             disabled={isFetching}
-            className="p-2 rounded-lg border border-white/10 bg-black/20 hover:bg-white/5 transition-colors disabled:opacity-50"
+            className="p-2 rounded-lg border border-border bg-background hover:bg-accent transition-colors disabled:opacity-50"
             title="Refresh leaderboard"
           >
             <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
@@ -128,10 +128,10 @@ export default function Leaderboard() {
 
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-foreground border-t-transparent rounded-full" />
         </div>
       ) : !hasData ? (
-        <div className="py-24 text-center border-2 border-dashed border-white/10 rounded-2xl">
+        <div className="py-24 text-center border-2 border-dashed border-border rounded-2xl">
           <Trophy className="w-14 h-14 text-muted-foreground mx-auto mb-4 opacity-20" />
           <p className="text-foreground font-semibold">No performance data for {MONTHS[month - 1]} {year}</p>
           <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
@@ -151,11 +151,11 @@ export default function Leaderboard() {
                 </div>
                 <h3 className={`font-bold text-base text-center ${getUserTextColor(leaderboard[1].userId)}`}>{fullName(leaderboard[1] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[1].score.toFixed(0)} pts</p>
-                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/10 w-full justify-center">
-                  <ScorePill label="On-Time" value={(leaderboard[1] as LeaderEntry).onTimeScore} color="text-amber-400" />
-                  <ScorePill label="Quality" value={(leaderboard[1] as LeaderEntry).qualityScore} color="text-violet-300" />
-                  <ScorePill label="Attend." value={(leaderboard[1] as LeaderEntry).attendanceScore} color="text-emerald-400" />
-                  <ScorePill label="Punctual." value={(leaderboard[1] as LeaderEntry).punctualityScore ?? 0} color="text-sky-400" />
+                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border w-full justify-center">
+                  <ScorePill label="On-Time" value={(leaderboard[1] as LeaderEntry).onTimeScore} color="text-amber-600" />
+                  <ScorePill label="Quality" value={(leaderboard[1] as LeaderEntry).qualityScore} color="text-violet-600" />
+                  <ScorePill label="Attend." value={(leaderboard[1] as LeaderEntry).attendanceScore} color="text-emerald-600" />
+                  <ScorePill label="Punctual." value={(leaderboard[1] as LeaderEntry).punctualityScore ?? 0} color="text-sky-600" />
                 </div>
               </Card>
             )}
@@ -170,14 +170,14 @@ export default function Leaderboard() {
                 <div className="mt-8 mb-4">
                   <Avatar entry={leaderboard[0] as LeaderEntry} size="lg" />
                 </div>
-                <h3 className="font-display font-bold text-2xl text-yellow-400 text-center">{fullName(leaderboard[0] as LeaderEntry)}</h3>
-                <p className="text-white font-mono text-xl mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
-                <p className="text-xs text-yellow-400/70 mt-1 font-semibold tracking-wider uppercase">Employee of the Month</p>
-                <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-white/10 w-full justify-center">
-                  <ScorePill label="On-Time" value={(leaderboard[0] as LeaderEntry).onTimeScore} color="text-amber-400" />
-                  <ScorePill label="Quality" value={(leaderboard[0] as LeaderEntry).qualityScore} color="text-violet-300" />
-                  <ScorePill label="Attend." value={(leaderboard[0] as LeaderEntry).attendanceScore} color="text-emerald-400" />
-                  <ScorePill label="Punctual." value={(leaderboard[0] as LeaderEntry).punctualityScore ?? 0} color="text-sky-400" />
+                <h3 className="font-display font-bold text-2xl text-yellow-600 text-center">{fullName(leaderboard[0] as LeaderEntry)}</h3>
+                <p className="text-foreground font-mono text-xl mt-1">{leaderboard[0].score.toFixed(0)} pts</p>
+                <p className="text-xs text-yellow-600/80 mt-1 font-semibold tracking-wider uppercase">Employee of the Month</p>
+                <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-border w-full justify-center">
+                  <ScorePill label="On-Time" value={(leaderboard[0] as LeaderEntry).onTimeScore} color="text-amber-600" />
+                  <ScorePill label="Quality" value={(leaderboard[0] as LeaderEntry).qualityScore} color="text-violet-600" />
+                  <ScorePill label="Attend." value={(leaderboard[0] as LeaderEntry).attendanceScore} color="text-emerald-600" />
+                  <ScorePill label="Punctual." value={(leaderboard[0] as LeaderEntry).punctualityScore ?? 0} color="text-sky-600" />
                 </div>
                 {(leaderboard[0] as LeaderEntry).completedTasks !== undefined && (
                   <p className="text-xs text-muted-foreground mt-3">
@@ -197,11 +197,11 @@ export default function Leaderboard() {
                 </div>
                 <h3 className={`font-bold text-base text-center ${getUserTextColor(leaderboard[2].userId)}`}>{fullName(leaderboard[2] as LeaderEntry)}</h3>
                 <p className="text-muted-foreground text-sm font-mono mt-0.5">{leaderboard[2].score.toFixed(0)} pts</p>
-                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-white/10 w-full justify-center">
-                  <ScorePill label="On-Time" value={(leaderboard[2] as LeaderEntry).onTimeScore} color="text-amber-400" />
-                  <ScorePill label="Quality" value={(leaderboard[2] as LeaderEntry).qualityScore} color="text-violet-300" />
-                  <ScorePill label="Attend." value={(leaderboard[2] as LeaderEntry).attendanceScore} color="text-emerald-400" />
-                  <ScorePill label="Punctual." value={(leaderboard[2] as LeaderEntry).punctualityScore ?? 0} color="text-sky-400" />
+                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border w-full justify-center">
+                  <ScorePill label="On-Time" value={(leaderboard[2] as LeaderEntry).onTimeScore} color="text-amber-600" />
+                  <ScorePill label="Quality" value={(leaderboard[2] as LeaderEntry).qualityScore} color="text-violet-600" />
+                  <ScorePill label="Attend." value={(leaderboard[2] as LeaderEntry).attendanceScore} color="text-emerald-600" />
+                  <ScorePill label="Punctual." value={(leaderboard[2] as LeaderEntry).punctualityScore ?? 0} color="text-sky-600" />
                 </div>
               </Card>
             )}
@@ -218,8 +218,8 @@ export default function Leaderboard() {
                     <XAxis dataKey="name" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
                     <Tooltip
-                      cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                      contentStyle={{ backgroundColor: "#111", borderColor: "#333", borderRadius: "10px", fontSize: "12px" }}
+                      cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                      contentStyle={{ backgroundColor: "#fff", borderColor: "#e5e5e5", borderRadius: "10px", fontSize: "12px", color: "#111" }}
                     />
                     <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "16px" }} />
                     <Bar dataKey="On-Time" stackId="a" fill="#f59e0b" radius={[0, 0, 4, 4]} />
@@ -239,27 +239,27 @@ export default function Leaderboard() {
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {leaderboard?.map((entry, idx) => (
                   <div key={entry.userId} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
-                    idx === 0 ? "bg-yellow-500/5 border-yellow-500/20" :
-                    idx === 1 ? "bg-slate-500/5 border-slate-400/20" :
-                    idx === 2 ? "bg-orange-500/5 border-orange-400/20" :
-                    "bg-white/3 border-white/5"
+                    idx === 0 ? "bg-yellow-50 border-yellow-200" :
+                    idx === 1 ? "bg-slate-50 border-slate-200" :
+                    idx === 2 ? "bg-orange-50 border-orange-200" :
+                    "bg-background border-border"
                   }`}>
                     <div className="flex items-center gap-3">
                       <span className={`w-5 text-center font-mono font-bold text-sm ${
-                        idx === 0 ? "text-yellow-400" : idx === 1 ? "text-slate-300" : idx === 2 ? "text-orange-400" : "text-muted-foreground"
+                        idx === 0 ? "text-yellow-600" : idx === 1 ? "text-slate-500" : idx === 2 ? "text-orange-600" : "text-muted-foreground"
                       }`}>
                         {idx + 1}
                       </span>
-                      <div className="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-300">
+                      <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-bold text-foreground">
                         {(entry.user?.firstName?.[0] ?? "") + (entry.user?.lastName?.[0] ?? "")}
                       </div>
                       <div>
                         <span className={`font-medium text-sm ${getUserTextColor(entry.userId)}`}>{fullName(entry as LeaderEntry)}</span>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-amber-400">{(entry as LeaderEntry).onTimeScore.toFixed(0)} OT</span>
-                          <span className="text-[10px] text-violet-300">{(entry as LeaderEntry).qualityScore.toFixed(0)} Q</span>
-                          <span className="text-[10px] text-emerald-400">{(entry as LeaderEntry).attendanceScore.toFixed(0)} A</span>
-                          <span className="text-[10px] text-sky-400">{((entry as LeaderEntry).punctualityScore ?? 0).toFixed(0)} P</span>
+                          <span className="text-[10px] text-amber-600">{(entry as LeaderEntry).onTimeScore.toFixed(0)} OT</span>
+                          <span className="text-[10px] text-violet-600">{(entry as LeaderEntry).qualityScore.toFixed(0)} Q</span>
+                          <span className="text-[10px] text-emerald-600">{(entry as LeaderEntry).attendanceScore.toFixed(0)} A</span>
+                          <span className="text-[10px] text-sky-600">{((entry as LeaderEntry).punctualityScore ?? 0).toFixed(0)} P</span>
                         </div>
                       </div>
                     </div>

@@ -118,9 +118,9 @@ export default function Profile() {
       <Card className="glass-panel p-8 flex flex-col items-center text-center gap-5">
         <div className="relative group">
           {imgUrl ? (
-            <img src={imgUrl} alt={displayName} className="w-28 h-28 rounded-full object-cover border-2 border-white/10" />
+            <img src={imgUrl} alt={displayName} className="w-28 h-28 rounded-full object-cover border-2 border-border" />
           ) : (
-            <div className="w-28 h-28 rounded-full bg-white/10 border-2 border-white/10 flex items-center justify-center text-3xl font-bold text-foreground">
+            <div className="w-28 h-28 rounded-full bg-muted border-2 border-border flex items-center justify-center text-3xl font-bold text-foreground">
               {user.firstName?.[0] ?? (user as { username?: string }).username?.[0] ?? "?"}
             </div>
           )}
@@ -140,13 +140,13 @@ export default function Profile() {
           <p className="text-sm text-muted-foreground capitalize mt-0.5">{(user as { role?: string }).role}</p>
         </div>
 
-        <Button onClick={() => fileRef.current?.click()} disabled={uploading} variant="outline" className="gap-2 border-white/10 hover:bg-white/5">
+        <Button onClick={() => fileRef.current?.click()} disabled={uploading} variant="outline" className="gap-2 border-border hover:bg-accent">
           {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</> :
-           saved    ? <><CheckCircle2 className="w-4 h-4 text-green-400" /> Photo updated!</> :
+           saved    ? <><CheckCircle2 className="w-4 h-4 text-green-700" /> Photo updated!</> :
                       <><Camera className="w-4 h-4" /> Upload Photo</>}
         </Button>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-xs text-muted-foreground">JPG, PNG or WebP · Max 10 MB</p>
       </Card>
 
@@ -173,7 +173,7 @@ export default function Profile() {
             <p className="font-medium capitalize">{(user as { role?: string }).role || "Employee"}</p>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground pt-2 border-t border-white/5">
+        <p className="text-xs text-muted-foreground pt-2 border-t border-border">
           Name and role changes must be requested from your manager.
         </p>
       </Card>
@@ -189,7 +189,7 @@ export default function Profile() {
             placeholder="Current password"
             value={pwCurrent}
             onChange={e => setPwCurrent(e.target.value)}
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+            className="bg-muted border-border"
             required
             autoComplete="current-password"
           />
@@ -198,7 +198,7 @@ export default function Profile() {
             placeholder="New password (min 6 chars)"
             value={pwNew}
             onChange={e => setPwNew(e.target.value)}
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+            className="bg-muted border-border"
             required
             autoComplete="new-password"
           />
@@ -207,13 +207,13 @@ export default function Profile() {
             placeholder="Confirm new password"
             value={pwConfirm}
             onChange={e => setPwConfirm(e.target.value)}
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+            className="bg-muted border-border"
             required
             autoComplete="new-password"
           />
-          {pwError && <p className="text-sm text-red-400">{pwError}</p>}
-          {pwSuccess && <p className="text-sm text-green-400 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Password updated successfully!</p>}
-          <Button type="submit" disabled={pwLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+          {pwError && <p className="text-sm text-red-600">{pwError}</p>}
+          {pwSuccess && <p className="text-sm text-green-700 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Password updated successfully!</p>}
+          <Button type="submit" disabled={pwLoading} className="bg-foreground hover:bg-foreground/80 text-background font-semibold">
             {pwLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Updating…</> : "Update Password"}
           </Button>
         </form>

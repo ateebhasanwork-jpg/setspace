@@ -69,7 +69,7 @@ function profileImageUrl(profileImage: string | null | undefined): string | null
 function BadgeDot({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-sm shadow-red-900/40 animate-pulse">
+    <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-sm shadow-red-500/20">
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -93,26 +93,26 @@ function NavItem({ item, isActive }: { item: typeof NAV_ITEMS[0]; isActive: bool
         <Link
           href={item.href}
           onClick={() => setOpenMobile(false)}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
             isActive
-              ? "bg-white/10 text-foreground font-semibold shadow-inner border border-white/10"
+              ? "bg-foreground text-background font-medium"
               : hasActivity
-              ? "text-indigo-300 font-semibold bg-indigo-500/8 border border-indigo-500/15 hover:bg-indigo-500/12"
-              : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+              ? "text-foreground font-medium bg-muted border border-border"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground"
           }`}
         >
           <div className="relative shrink-0">
             <item.icon
               className={`w-5 h-5 transition-colors ${
                 isActive
-                  ? "text-foreground"
+                  ? "text-background"
                   : hasActivity
-                  ? "text-indigo-400"
-                  : "opacity-70"
+                  ? "text-foreground"
+                  : "opacity-50"
               }`}
             />
             {badgeCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-sidebar" />
+              <span className="absolute -top-1.5 -right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
             )}
           </div>
           <span className="flex-1">{item.title}</span>
@@ -156,11 +156,11 @@ function SidebarInner() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-border/50">
         <Link href="/profile" onClick={() => setOpenMobile(false)}>
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-black/20 border border-white/5 mb-3 hover:bg-white/5 transition-colors cursor-pointer group">
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-border mb-3 hover:bg-accent transition-colors cursor-pointer group">
             {imgUrl ? (
-              <img src={imgUrl} alt={user?.firstName ?? ""} className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" />
+              <img src={imgUrl} alt={user?.firstName ?? ""} className="w-10 h-10 rounded-full object-cover border border-border shrink-0" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-sm font-bold text-foreground shrink-0">
+              <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center text-sm font-semibold text-foreground shrink-0">
                 {initial}
               </div>
             )}
@@ -268,11 +268,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex h-full w-full bg-background overflow-hidden selection:bg-primary/30">
           <SidebarInner />
           <main className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
-            <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-white/3 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-white/2 blur-[100px] pointer-events-none" />
 
             {/* Mobile top bar */}
-            <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-background/80 backdrop-blur-md border-b border-white/5 shrink-0">
+            <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-background border-b border-border shrink-0">
               <SidebarTrigger className="text-foreground" />
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-primary overflow-hidden shrink-0">

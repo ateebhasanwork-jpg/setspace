@@ -93,26 +93,22 @@ function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isM
     return (
       <img
         src={src} alt={name}
-        className="max-w-[240px] max-h-[200px] rounded-xl object-cover mt-2 cursor-pointer border border-white/10"
+        className="max-w-[240px] max-h-[200px] rounded-xl object-cover mt-2 cursor-pointer border border-border"
         onClick={() => window.open(src, "_blank")}
       />
     );
   }
   if (isAudio) {
     return (
-      <div className={`mt-2 rounded-xl overflow-hidden border ${isMe ? "border-white/20" : "border-white/10"}`}>
-        <audio controls src={src} className="w-full max-w-[260px] h-10" style={{ colorScheme: "dark" }} />
+      <div className="mt-2 rounded-xl overflow-hidden border border-border">
+        <audio controls src={src} className="w-full max-w-[260px] h-10" style={{ colorScheme: "light" }} />
       </div>
     );
   }
   return (
     <a
       href={src} target="_blank" rel="noopener noreferrer"
-      className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-        isMe
-          ? "border-white/30 text-white/80 hover:text-white hover:bg-white/10"
-          : "border-white/15 text-foreground hover:bg-white/10"
-      }`}
+      className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-accent transition-colors"
     >
       <FileText className="w-3.5 h-3.5 shrink-0" />
       <span className="truncate max-w-[200px]">{name}</span>
@@ -395,8 +391,8 @@ function MessageBubble({
           <div
             className={`px-3.5 py-2.5 ${shape}`}
             style={isMe
-              ? { background: "#DCF8C6", color: "#111827" }
-              : { background: "#FFFFFF", color: "#111827", boxShadow: "0 1px 2px rgba(0,0,0,0.10)" }
+              ? { background: "#111111", color: "#FFFFFF" }
+              : { background: "#F0F2F5", color: "#111827", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
             }
           >
             {parentMsg && <QuotedReply parent={parentMsg} isMe={isMe} />}
@@ -408,7 +404,7 @@ function MessageBubble({
             {msg.attachmentUrl && msg.attachmentName && (
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
-            <span className="text-[11px] block mt-1 text-right" style={{ color: "#6B7280" }}>
+            <span className="text-[11px] block mt-1 text-right" style={{ color: isMe ? "rgba(255,255,255,0.55)" : "#6B7280" }}>
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
@@ -425,7 +421,7 @@ function MessageBubble({
                     title={`${r.count} reaction${r.count !== 1 ? "s" : ""}`}
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-all"
                     style={iReacted
-                      ? { background: "rgba(37,211,102,0.20)", border: "1px solid rgba(37,211,102,0.45)", color: "#15803d" }
+                      ? { background: "#111111", border: "1px solid #111111", color: "#FFFFFF" }
                       : { background: "#F3F4F6", border: "1px solid #E5E7EB", color: "#374151" }}
                   >
                     <span>{r.emoji}</span>
@@ -538,20 +534,19 @@ function DMBubble({
         {!isMe && <Avatar name={sender?.firstName} profileImage={sender?.profileImage} userId={msg.senderId} />}
         <div className="flex flex-col gap-1">
           <div
-            className={`p-4 rounded-2xl ${
-              isMe
-                ? "bg-primary text-primary-foreground rounded-br-sm"
-                : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
-            }`}
+            className={`px-3.5 py-2.5 ${isMe ? "rounded-2xl rounded-br-[4px]" : "rounded-2xl rounded-bl-[4px]"}`}
+            style={isMe
+              ? { background: "#111111", color: "#FFFFFF" }
+              : { background: "#F0F2F5", color: "#111827", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
+            }
           >
             {msg.content && <p className="text-[15px] whitespace-pre-wrap leading-relaxed tracking-[0.01em]">{msg.content}</p>}
             {msg.attachmentUrl && msg.attachmentName && (
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
             <span
-              className={`text-[10px] block mt-2 text-right ${
-                isMe ? "text-primary-foreground/70" : "text-muted-foreground"
-              }`}
+              className="text-[10px] block mt-2 text-right"
+              style={{ color: isMe ? "rgba(255,255,255,0.55)" : "#6B7280" }}
             >
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -567,11 +562,10 @@ function DMBubble({
                     key={r.emoji}
                     onClick={() => onReact(msg.id, r.emoji)}
                     title={`${r.count} reaction${r.count !== 1 ? "s" : ""}`}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-all ${
-                      iReacted
-                        ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-200"
-                        : "bg-white/8 border-white/10 text-foreground hover:bg-white/15"
-                    }`}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-all"
+                    style={iReacted
+                      ? { background: "#111111", border: "1px solid #111111", color: "#FFFFFF" }
+                      : { background: "#F3F4F6", border: "1px solid #E5E7EB", color: "#374151" }}
                   >
                     <span>{r.emoji}</span>
                     <span className="text-[11px] font-medium">{r.count}</span>
@@ -587,7 +581,7 @@ function DMBubble({
               <div className="relative" ref={pickerRef}>
                 <button
                   onClick={() => setPickerOpen((o) => !o)}
-                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-indigo-400 transition-all ${
+                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-all ${
                     hovered || pickerOpen ? "opacity-100" : "opacity-0"
                   }`}
                 >
@@ -595,7 +589,7 @@ function DMBubble({
                 </button>
                 {pickerOpen && (
                   <div
-                    className={`absolute z-50 bottom-full mb-1.5 bg-card border border-white/10 rounded-xl shadow-xl p-2 flex gap-1 ${
+                    className={`absolute z-50 bottom-full mb-1.5 bg-card border border-border rounded-xl shadow-md p-2 flex gap-1 ${
                       isMe ? "right-0" : "left-0"
                     }`}
                   >
@@ -607,7 +601,7 @@ function DMBubble({
                           onReact(msg.id, e);
                           setPickerOpen(false);
                         }}
-                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-white/10 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-accent transition-colors"
                       >
                         {e}
                       </button>
@@ -620,7 +614,7 @@ function DMBubble({
               {isMe && (
                 <button
                   onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
-                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all ${
+                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-500 transition-all ${
                     hovered ? "opacity-100" : "opacity-30"
                   }`}
                   title="Delete message"
@@ -660,9 +654,9 @@ function MentionDropdown({
   if (filtered.length === 0) return null;
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-56 bg-card border border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
-      <div className="px-3 py-2 border-b border-white/5 flex items-center gap-1.5">
-        <AtSign className="w-3 h-3 text-indigo-400" />
+    <div className="absolute bottom-full left-0 mb-2 w-56 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-50">
+      <div className="px-3 py-2 border-b border-border flex items-center gap-1.5">
+        <AtSign className="w-3 h-3 text-muted-foreground" />
         <span className="text-[11px] text-muted-foreground font-medium">Mention someone</span>
       </div>
       {filtered.map((u) => (
@@ -672,9 +666,9 @@ function MentionDropdown({
             e.preventDefault();
             onSelect(u);
           }}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-indigo-600/20 transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-accent transition-colors text-left"
         >
-          <div className="w-7 h-7 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-[11px] font-bold text-indigo-200 shrink-0">
+          <div className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center text-[11px] font-bold text-foreground shrink-0">
             {u.firstName?.[0]}{u.lastName?.[0]}
           </div>
           <div className="min-w-0">
@@ -920,7 +914,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
                 currentUserId={user.id}
               />
               {replies.length > 0 && (
-                <div className="ml-10 mt-2 pl-4 border-l-2 border-white/10 space-y-3">
+                <div className="ml-10 mt-2 pl-4 border-l-2 border-border space-y-3">
                   {replies.map((reply) => {
                     const replyIsMe = reply.authorId === user.id;
                     const replyAuthor = reply.author as (typeof reply.author & { profileImage?: string | null }) | undefined;
@@ -937,8 +931,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
                         <div
                           className={`p-3 rounded-xl text-sm max-w-[85%] ${
                             replyIsMe
-                              ? "bg-primary/80 text-primary-foreground"
-                              : "bg-white/8 text-foreground border border-white/5"
+                              ? "bg-foreground text-background"
+                              : "bg-muted text-foreground border border-border"
                           }`}
                         >
                           {/* Show quoted parent in each reply */}
@@ -980,9 +974,9 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
       {/* Reply banner */}
       {replyTo && (
         <div className="px-4 pt-2.5 pb-2 flex items-center gap-3 text-sm shrink-0" style={{ background: "#F8FAFC", borderTop: "1px solid #E5E7EB" }}>
-          <CornerDownRight className="w-4 h-4 shrink-0" style={{ color: "#25D366" }} />
+          <CornerDownRight className="w-4 h-4 shrink-0 text-muted-foreground" />
           <div className="flex-1 min-w-0">
-            <span className="font-semibold text-xs" style={{ color: "#15803d" }}>
+            <span className="font-semibold text-xs text-foreground">
               Replying to {(replyTo.author as User | undefined)?.firstName ?? "message"}
             </span>
             <p className="truncate text-xs mt-0.5" style={{ color: "#6B7280" }}>
@@ -1021,9 +1015,9 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
           {pendingFile && (
             <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl text-sm" style={{ background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
               {IMAGE_EXTS.test(pendingFile.name)
-                ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "#25D366" }} />
+                ? <ImageIcon className="w-4 h-4 shrink-0 text-foreground" />
                 : pendingFile.name.startsWith("voice-note")
-                ? <Mic className="w-4 h-4 shrink-0" style={{ color: "#25D366" }} />
+                ? <Mic className="w-4 h-4 shrink-0 text-foreground" />
                 : <FileText className="w-4 h-4 shrink-0" style={{ color: "#6B7280" }} />}
               <span className="flex-1 truncate text-xs" style={{ color: "#374151" }}>{pendingFile.name.startsWith("voice-note") ? "Voice note ready" : pendingFile.name}</span>
               <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} style={{ color: "#9CA3AF" }}>
@@ -1087,7 +1081,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
               type="submit"
               disabled={(!content.trim() && !pendingFile) || uploading || voice.recording}
               className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
-              style={{ background: "#25D366" }}
+              style={{ background: "#111111" }}
             >
               {uploading
                 ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1276,7 +1270,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-2" style={{ background: "rgb(9, 11, 19)" }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-2" style={{ background: "#F5F5F5" }}>
         {dms.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
             <UserIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
@@ -1298,25 +1292,25 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         })}
         <div ref={bottomRef} />
       </div>
-      <div className="p-4 border-t border-white/8 shrink-0" style={{ background: "rgb(12, 14, 24)" }}>
+      <div className="px-3 py-3 shrink-0" style={{ background: "#FFFFFF", borderTop: "1px solid #E5E5E5" }}>
         {/* Recording indicator */}
         {voice.recording && (
-          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm">
+          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-            <span className="text-red-400 text-xs font-medium">Recording {formatRecordTime(voice.seconds)}</span>
-            <button onClick={voice.stop} className="ml-auto text-red-400 hover:text-red-300 flex items-center gap-1 text-xs">
+            <span className="text-red-600 text-xs font-medium">Recording {formatRecordTime(voice.seconds)}</span>
+            <button onClick={voice.stop} className="ml-auto text-red-500 hover:text-red-700 flex items-center gap-1 text-xs">
               <Square className="w-3.5 h-3.5" /> Stop
             </button>
           </div>
         )}
         {/* Pending attachment preview */}
         {pendingFile && (
-          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm">
+          <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-muted border border-border text-sm">
             {IMAGE_EXTS.test(pendingFile.name)
-              ? <ImageIcon className="w-4 h-4 text-indigo-400 shrink-0" />
+              ? <ImageIcon className="w-4 h-4 text-foreground shrink-0" />
               : pendingFile.name.startsWith("voice-note")
-              ? <Mic className="w-4 h-4 text-green-400 shrink-0" />
-              : <FileText className="w-4 h-4 text-indigo-400 shrink-0" />}
+              ? <Mic className="w-4 h-4 text-foreground shrink-0" />
+              : <FileText className="w-4 h-4 text-foreground shrink-0" />}
             <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name.startsWith("voice-note") ? "Voice note ready" : pendingFile.name}</span>
             <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
               <X className="w-4 h-4" />
@@ -1331,13 +1325,14 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         />
         <form
           onSubmit={(e) => { e.preventDefault(); send(); }}
-          className="flex gap-2"
+          className="flex items-end gap-2"
         >
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={voice.recording}
-            className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40"
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-colors shrink-0 disabled:opacity-40 hover:bg-muted"
+            style={{ color: "#6B7280" }}
             title="Attach file"
           >
             <Paperclip className="w-4 h-4" />
@@ -1345,11 +1340,8 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
           <button
             type="button"
             onClick={voice.recording ? voice.stop : voice.start}
-            className={`h-12 w-10 flex items-center justify-center rounded-xl border transition-colors shrink-0 ${
-              voice.recording
-                ? "border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20"
-                : "border-white/10 text-muted-foreground hover:text-green-400 hover:bg-white/8"
-            }`}
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-colors shrink-0 hover:bg-muted"
+            style={{ color: voice.recording ? "#DC2626" : "#6B7280" }}
             title={voice.recording ? "Stop recording" : "Record voice note"}
           >
             {voice.recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -1367,17 +1359,18 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
             placeholder={`Message ${otherUser.firstName}…`}
-            className="flex-1 bg-card/50 border border-white/10 focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-xl resize-none px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground leading-5"
-            style={{ minHeight: "48px", maxHeight: "120px" }}
+            className="flex-1 focus:outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground leading-5 px-4 py-2.5"
+            style={{ background: "#F5F5F5", borderRadius: "24px", border: "1px solid #E5E5E5", minHeight: "40px", maxHeight: "120px" }}
             autoComplete="off"
           />
-          <Button
+          <button
             type="submit"
             disabled={(!content.trim() && !pendingFile) || sending || voice.recording}
-            className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
+            style={{ background: "#111111" }}
           >
-            {sending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
-          </Button>
+            {sending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4 text-white" />}
+          </button>
         </form>
       </div>
     </div>
@@ -1448,7 +1441,7 @@ export default function TeamChat() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
-          <MessageSquare className="w-6 h-6 text-indigo-400" />
+          <MessageSquare className="w-6 h-6 text-foreground" />
           Team Chat
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">Group channel and direct messages</p>
@@ -1456,37 +1449,37 @@ export default function TeamChat() {
 
       <div className="flex gap-4" style={{ height: "calc(100vh - 11rem)" }}>
         {/* Sidebar */}
-        <div className={`shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden w-full sm:w-52 ${mobileChatOpen ? "hidden sm:flex" : "flex"}`}>
-          <div className="p-4 border-b border-white/8 shrink-0">
+        <div className={`shrink-0 flex flex-col border border-border rounded-xl bg-card overflow-hidden w-full sm:w-52 ${mobileChatOpen ? "hidden sm:flex" : "flex"}`}>
+          <div className="p-4 border-b border-border shrink-0">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Chat</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70 px-3 py-2">Channels</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 py-2">Channels</p>
             <button
               onClick={() => { setView("group"); setGroupUnread(0); setMobileChatOpen(true); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 view === "group"
-                  ? "bg-indigo-600/30 text-indigo-200 border border-indigo-500/30"
+                  ? "bg-foreground text-background"
                   : groupUnread > 0
-                  ? "text-white bg-indigo-600/10 border border-indigo-500/20"
-                  : "text-muted-foreground hover:text-indigo-300 hover:bg-indigo-500/10"
+                  ? "text-foreground font-semibold bg-muted border border-border"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
               }`}
             >
               <div className="relative shrink-0">
-                <Hash className="w-4 h-4 text-indigo-400" />
+                <Hash className="w-4 h-4" />
                 {groupUnread > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold px-0.5">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-foreground rounded-full text-[9px] text-background flex items-center justify-center font-bold px-0.5">
                     {groupUnread > 99 ? "99+" : groupUnread}
                   </span>
                 )}
               </div>
               <span className={`truncate flex-1 text-left ${groupUnread > 0 && view !== "group" ? "font-bold" : ""}`}>Team Channel</span>
               {groupUnread > 0 && view !== "group" && (
-                <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-foreground shrink-0 animate-pulse" />
               )}
             </button>
 
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-400/70 px-3 pt-4 pb-2">Direct Messages</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-4 pb-2">Direct Messages</p>
             {otherUsers.map((u) => {
               const unread = unreadByUser[u.id] ?? 0;
               const isActive = view === u.id;
@@ -1501,10 +1494,10 @@ export default function TeamChat() {
                   }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? "bg-white/8 text-foreground border border-white/10"
+                      ? "bg-muted text-foreground border border-border"
                       : unread > 0
-                      ? "text-white bg-white/5 border border-white/8"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      ? "text-foreground font-semibold bg-muted border border-border"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   }`}
                 >
                   <div className="relative shrink-0">
@@ -1512,18 +1505,18 @@ export default function TeamChat() {
                       <img
                         src={resolveProfileImage((u as any).profileImage)!}
                         alt={u.firstName ?? ""}
-                        className="w-6 h-6 rounded-full object-cover border border-white/15"
+                        className="w-6 h-6 rounded-full object-cover border border-border"
                       />
                     ) : (
                       <div
-                        className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold"
+                        className="w-6 h-6 rounded-full border border-border flex items-center justify-center text-[10px] font-bold"
                         style={avatarStyle}
                       >
                         {u.firstName?.[0]}
                       </div>
                     )}
                     {unread > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-foreground rounded-full text-[9px] text-background flex items-center justify-center font-bold">
                         {unread > 9 ? "9+" : unread}
                       </span>
                     )}
@@ -1538,18 +1531,18 @@ export default function TeamChat() {
         {/* Chat area */}
         <Card className={`flex-1 glass-panel overflow-hidden flex-col ${mobileChatOpen ? "flex" : "hidden sm:flex"}`}>
           {/* Chat header */}
-          <div className="px-5 py-3 border-b border-white/5 shrink-0 flex items-center gap-2">
+          <div className="px-5 py-3 border-b border-border shrink-0 flex items-center gap-2 bg-card">
             <button
               onClick={() => setMobileChatOpen(false)}
-              className="sm:hidden mr-1 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              className="sm:hidden mr-1 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               aria-label="Back to conversations"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
             {view === "group" ? (
               <>
-                <div className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: "rgba(37,211,102,0.15)" }}>
-                  <Hash className="w-4 h-4" style={{ color: "#25D366" }} />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 bg-muted">
+                  <Hash className="w-4 h-4 text-foreground" />
                 </div>
                 <div className="min-w-0">
                   <span className="font-semibold text-sm block">team-channel</span>
@@ -1558,7 +1551,7 @@ export default function TeamChat() {
               </>
             ) : (
               <>
-                <UserIcon className="w-4 h-4 text-indigo-400" />
+                <UserIcon className="w-4 h-4 text-muted-foreground" />
                 <span className="font-semibold text-sm">{currentDMUser?.firstName} {currentDMUser?.lastName}</span>
                 {currentDMUser?.title && (
                   <span className="hidden sm:inline text-xs text-muted-foreground ml-1">— {currentDMUser.title}</span>

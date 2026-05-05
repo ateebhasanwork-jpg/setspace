@@ -101,7 +101,7 @@ function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="glass-panel w-full max-w-md rounded-3xl p-8 md:p-10 flex flex-col items-center text-center shadow-2xl border border-white/10">
+      <div className="glass-panel w-full max-w-md rounded-3xl p-8 md:p-10 flex flex-col items-center text-center shadow-2xl border border-border">
         {/* Logo */}
         <div className="w-14 h-14 rounded-2xl bg-primary overflow-hidden mb-6 shadow-lg shrink-0">
           <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Setspace" className="w-full h-full object-contain scale-[1.35]" />
@@ -120,9 +120,9 @@ function OnboardingModal() {
               className="relative group w-24 h-24 rounded-full focus:outline-none"
             >
               {previewUrl ? (
-                <img src={previewUrl} alt="Profile" className="w-full h-full rounded-full object-cover border-2 border-white/10" />
+                <img src={previewUrl} alt="Profile" className="w-full h-full rounded-full object-cover border-2 border-border" />
               ) : (
-                <div className="w-full h-full rounded-full bg-white/10 border-2 border-white/10 flex items-center justify-center text-3xl font-bold text-foreground">
+                <div className="w-full h-full rounded-full bg-muted border-2 border-border flex items-center justify-center text-3xl font-bold text-foreground">
                   {initials}
                 </div>
               )}
@@ -144,13 +144,13 @@ function OnboardingModal() {
           {/* Name fields */}
           <div className="grid grid-cols-2 gap-3">
             <div className="text-left">
-              <label className="text-xs text-muted-foreground font-medium mb-1.5 block">First Name <span className="text-red-400">*</span></label>
+              <label className="text-xs text-muted-foreground font-medium mb-1.5 block">First Name <span className="text-red-600">*</span></label>
               <Input
                 required
                 placeholder="Jane"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
-                className="bg-black/20 border-white/10"
+                className="bg-muted border-border"
                 disabled={uploading}
               />
             </div>
@@ -160,7 +160,7 @@ function OnboardingModal() {
                 placeholder="Smith"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
-                className="bg-black/20 border-white/10"
+                className="bg-muted border-border"
                 disabled={uploading}
               />
             </div>
@@ -169,10 +169,10 @@ function OnboardingModal() {
           {/* Username read-only */}
           <div className="text-left">
             <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Username</label>
-            <Input value={`@${user?.username}`} disabled className="bg-black/10 border-white/5 text-muted-foreground" />
+            <Input value={`@${user?.username}`} disabled className="bg-muted border-border text-muted-foreground" />
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <Button
             type="submit"

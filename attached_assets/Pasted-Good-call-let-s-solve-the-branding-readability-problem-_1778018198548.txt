@@ -1,0 +1,112 @@
+Good call — let's solve the branding + readability problem properly first, then give you the full Replit prompt.
+The core tension: Black and white is clean, but a pure black/white chat app is genuinely hard to read — no visual separation between your bubble and theirs, no depth, no hierarchy. The fix isn't abandoning your brand, it's using it smarter.
+Here's the system I'd recommend:
+
+Your messages: Black bubble, white text (pure brand)
+Their messages: Light gray bubble (#F0F2F5), dark text — feels white-adjacent, stays on-brand
+Background: Very light warm gray (#FAFAFA) — not pure white, gives the bubbles somewhere to "sit"
+Accent: One single accent color for interactive elements only (send button, unread badge, active states) — I'd suggest a very dark charcoal or keep it black
+All other boards (Dashboard, Tasks, KPIs etc.): White backgrounds, black text, gray borders — pure SetSpace brand with proper spacing for readability
+
+This way the chat feels intentional and premium, not like a broken WhatsApp clone, and every other board stays true to black/white.
+
+Here's the full Replit prompt:
+
+This project has multiple boards: Dashboard, Tasks, KPIs, Attendance, Quality, Leadership, Team Chat, and Notifications. I want you to apply a consistent design system across the entire app, fix readability issues, and enhance both the Team Channel and individual one-on-one chats to feel like WhatsApp. Here is everything I need:
+
+GLOBAL DESIGN SYSTEM — apply to all boards:
+Brand: black and white. Clean, minimal, no gradients, no drop shadows, no decorative effects.
+Typography:
+
+Font: Inter or System UI across the entire app
+Minimum font size: 14px for all body text, 13px for labels/metadata, 11px for timestamps only
+Line height: 1.6 for body, 1.4 for compact UI elements
+Font weights: 400 for body, 500 for headings and labels — never 600 or 700
+All text must pass WCAG AA contrast on its background
+
+Spacing and layout:
+
+Consistent padding: 16px inside cards and panels, 24px between major sections
+All cards: white background, 0.5px solid #E5E5E5 border, 8px border-radius
+No floating elements without a clear surface behind them
+Sidebar (if any): #F7F7F7 background, 0.5px right border #E5E5E5
+
+Colors — entire app:
+
+Background: #FAFAFA (not pure white — gives cards a place to sit)
+Card/panel surface: #FFFFFF
+Primary text: #111111
+Secondary/muted text: #6B6B6B
+Borders: #E5E5E5
+Interactive hover states: #F0F0F0
+Active/selected state: #111111 background, white text
+Destructive actions only: #E24B4A red
+
+Do NOT introduce any color outside of the above palette on any board except the chat (covered below).
+
+DASHBOARD, TASKS, KPIs, ATTENDANCE, QUALITY, LEADERSHIP, NOTIFICATIONS — readability fixes:
+
+Increase all font sizes to minimum 14px body, 16px headings
+Ensure every label has enough contrast — no gray-on-gray
+Add clear visual hierarchy: page title at top, section headers below, content below that
+Cards must have consistent padding (16px) and not feel cramped
+Tables: add alternating row shading (#FAFAFA / #FFFFFF), clear column headers in 500 weight, 14px
+Buttons: black background, white text, 8px border-radius, 500 weight — no colored buttons except destructive red
+Form inputs: white background, 1px solid #E5E5E5 border, 14px font, 8px border-radius, black focus ring (2px solid #111111)
+Notifications board: show each notification as a card with a clear title, muted timestamp below, unread indicator as a small black dot on the left
+
+
+TEAM CHANNEL + ONE-ON-ONE CHATS — apply identical treatment to both:
+Both the group Team Channel and every individual one-on-one chat should use the same WhatsApp-style layout. The only difference is the header (channel name vs. person's name).
+Bubbles:
+
+My messages: right-aligned, black bubble (#111111), white text (#FFFFFF)
+Others' messages: left-aligned, light gray bubble (#F0F2F5), dark text (#111111)
+Bubble border-radius: 18px all corners, except the tail corner — bottom-right for mine (4px), bottom-left for theirs (4px)
+No borders on bubbles
+Max bubble width: 70% of the chat area
+
+Typography in chat:
+
+Message body: Inter, 14px, weight 400, line-height 1.5
+Sender name (others only, not mine): 12px, weight 500, #6B6B6B, shown above first bubble in a group only
+Timestamp: 11px, #9B9B9B, bottom-right of bubble
+
+Chat background: #F5F5F5 (light gray — distinct from the white bubble surface)
+Input area:
+
+Sticky bottom, white background (#FFFFFF), 1px top border #E5E5E5
+Input field: rounded (border-radius: 24px), 14px font, 1px solid #E5E5E5 border, placeholder "Type a message..."
+Send button: circular, black (#111111), white arrow icon, 44x44px
+Emoji and attachment icons to the left of input (visual icons only — functional if already wired up)
+
+Header (both channel and DM):
+
+White background, bottom border 1px #E5E5E5
+Left: name (channel name or person's name), 16px, weight 500
+Below name: member count for channel (e.g. "8 members") or last seen for DMs (e.g. "Last seen today at 2:14pm"), 12px, #6B6B6B
+
+UX behavior (apply to both):
+
+Auto-scroll to latest message on load and on every new message
+Message grouping: if same sender within 2 minutes, only show name on first bubble — subsequent bubbles have no name label
+Date separators: centered pill label between days ("Today", "Yesterday", "Monday 5 May") — #E5E5E5 background, #6B6B6B text, 12px
+Floating "↓ New messages" button when user is scrolled up and new messages arrive — black pill button, white text
+Enter key sends message
+Read receipts if data supports it: single gray tick = sent, double gray = delivered, double black = read
+
+
+DO NOT CHANGE:
+
+Any backend logic, authentication, or data structures
+The navigation/tab structure between boards
+Any existing functionality — this is UI and UX only
+
+
+AFTER IMPLEMENTING:
+
+Verify chat bubbles align correctly (mine right in black, theirs left in gray) in both Team Channel and all one-on-one chats
+Verify all font sizes are 14px minimum across every board
+Verify no gray-on-gray text anywhere in the app
+List every file you changed with a one-line summary of what changed in each
+

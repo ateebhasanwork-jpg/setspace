@@ -30,37 +30,37 @@ const COLUMNS = ["To Do", "In Progress", "Review", "Done"] as const;
 type Column = typeof COLUMNS[number];
 
 const PRIORITY_STYLES: Record<string, string> = {
-  High: "bg-red-500/20 text-red-400",
-  Medium: "bg-yellow-500/20 text-yellow-400",
-  Low: "bg-blue-500/20 text-blue-400",
+  High: "bg-red-50 text-red-600 border border-red-200",
+  Medium: "bg-amber-50 text-amber-600 border border-amber-200",
+  Low: "bg-blue-50 text-blue-600 border border-blue-200",
 };
 
 const COL_ACCENT: Record<Column, string> = {
-  "To Do": "border-white/10",
-  "In Progress": "border-blue-500/30",
-  "Review": "border-yellow-500/30",
-  "Done": "border-green-500/30",
+  "To Do": "border-border",
+  "In Progress": "border-blue-400",
+  "Review": "border-amber-400",
+  "Done": "border-green-500",
 };
 
 const COL_HEADER: Record<Column, string> = {
-  "To Do": "text-white/60",
-  "In Progress": "text-blue-400",
-  "Review": "text-yellow-400",
-  "Done": "text-green-400",
+  "To Do": "text-muted-foreground",
+  "In Progress": "text-blue-600",
+  "Review": "text-amber-600",
+  "Done": "text-green-600",
 };
 
 // ── Member color palette ────────────────────────────────────────────────────
 const MEMBER_PALETTE = [
-  { bg: "bg-violet-500/25", text: "text-violet-300", border: "border-l-violet-500" },
-  { bg: "bg-blue-500/25",   text: "text-blue-300",   border: "border-l-blue-500"   },
-  { bg: "bg-emerald-500/25",text: "text-emerald-300", border: "border-l-emerald-500"},
-  { bg: "bg-orange-500/25", text: "text-orange-300",  border: "border-l-orange-500" },
-  { bg: "bg-pink-500/25",   text: "text-pink-300",    border: "border-l-pink-500"   },
-  { bg: "bg-cyan-500/25",   text: "text-cyan-300",    border: "border-l-cyan-500"   },
-  { bg: "bg-amber-500/25",  text: "text-amber-300",   border: "border-l-amber-500"  },
-  { bg: "bg-rose-500/25",   text: "text-rose-300",    border: "border-l-rose-500"   },
-  { bg: "bg-teal-500/25",   text: "text-teal-300",    border: "border-l-teal-500"   },
-  { bg: "bg-indigo-500/25", text: "text-indigo-300",  border: "border-l-indigo-500" },
+  { bg: "bg-violet-100", text: "text-violet-700", border: "border-l-violet-500" },
+  { bg: "bg-blue-100",   text: "text-blue-700",   border: "border-l-blue-500"   },
+  { bg: "bg-emerald-100",text: "text-emerald-700", border: "border-l-emerald-500"},
+  { bg: "bg-orange-100", text: "text-orange-700",  border: "border-l-orange-500" },
+  { bg: "bg-pink-100",   text: "text-pink-700",    border: "border-l-pink-500"   },
+  { bg: "bg-cyan-100",   text: "text-cyan-700",    border: "border-l-cyan-500"   },
+  { bg: "bg-amber-100",  text: "text-amber-700",   border: "border-l-amber-500"  },
+  { bg: "bg-rose-100",   text: "text-rose-700",    border: "border-l-rose-500"   },
+  { bg: "bg-teal-100",   text: "text-teal-700",    border: "border-l-teal-500"   },
+  { bg: "bg-indigo-100", text: "text-indigo-700",  border: "border-l-indigo-500" },
 ];
 
 function getUserColorIndex(userId: string): number {
@@ -82,7 +82,7 @@ function AssigneeAvatar({ user }: { user: User | null | undefined }) {
   const color = getMemberColor(user.id);
   return (
     <div
-      className={`w-6 h-6 rounded-full ${color?.bg ?? "bg-white/10"} ${color?.text ?? "text-white"} flex items-center justify-center text-[10px] font-bold shrink-0 ring-1 ring-white/10`}
+      className={`w-6 h-6 rounded-full ${color?.bg ?? "bg-muted"} ${color?.text ?? "text-foreground"} flex items-center justify-center text-[10px] font-bold shrink-0 ring-1 ring-border`}
       title={`${user.firstName} ${user.lastName}`}
     >
       {initials}
@@ -108,7 +108,7 @@ function AutoTextarea({
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       rows={3}
-      className={`w-full rounded-md bg-black/20 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary p-3 text-sm resize-none overflow-hidden transition-all ${className ?? ""}`}
+      className={`w-full rounded-md bg-muted border border-border focus:border-foreground focus:ring-1 focus:ring-foreground p-3 text-sm resize-none overflow-hidden transition-all ${className ?? ""}`}
       style={{ minHeight: "80px" }}
     />
   );
@@ -118,11 +118,11 @@ function OnTimeBadge({ task }: { task: TaskWithDerived }) {
   if (task.status !== "Done") return null;
   if (task.completedOnTime === null || task.completedOnTime === undefined) return null;
   return task.completedOnTime ? (
-    <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+    <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
       <CheckCircle2 className="w-3 h-3" /> On Time
     </span>
   ) : (
-    <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">
+    <span className="flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
       <XCircle className="w-3 h-3" /> Late
     </span>
   );
@@ -197,10 +197,10 @@ function TaskComments({ taskId }: { taskId: number }) {
         )}
         {comments.map(c => (
           <div key={c.id} className="flex gap-2">
-            <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-200 shrink-0 mt-0.5">
+            <div className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-bold text-foreground shrink-0 mt-0.5">
               {c.author?.firstName?.[0]}{c.author?.lastName?.[0]}
             </div>
-            <div className="flex-1 bg-black/20 rounded-lg px-3 py-2 min-w-0">
+            <div className="flex-1 bg-muted rounded-lg px-3 py-2 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-xs font-semibold text-foreground truncate">
                   {c.author ? `${c.author.firstName} ${c.author.lastName}` : "Unknown"}
@@ -220,13 +220,13 @@ function TaskComments({ taskId }: { taskId: number }) {
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); post(); } }}
           placeholder="Add a comment… (Enter to send, Shift+Enter for new line)"
           rows={2}
-          className="flex-1 rounded-lg bg-black/20 border border-white/10 focus:border-indigo-500/60 focus:outline-none px-3 py-2 text-sm resize-none text-foreground placeholder:text-muted-foreground/60"
+          className="flex-1 rounded-lg bg-muted border border-border focus:border-foreground focus:outline-none px-3 py-2 text-sm resize-none text-foreground placeholder:text-muted-foreground/60"
         />
         <button
           type="button"
           onClick={post}
           disabled={!text.trim() || posting}
-          className="h-9 w-9 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 shrink-0 transition-colors"
+          className="h-9 w-9 flex items-center justify-center rounded-lg bg-foreground hover:bg-foreground/80 text-background disabled:opacity-40 shrink-0 transition-colors"
         >
           <Send className="w-3.5 h-3.5" />
         </button>
@@ -469,16 +469,16 @@ export default function Tasks() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center bg-black/20 p-1 rounded-lg border border-white/5">
+          <div className="flex items-center bg-muted p-1 rounded-lg border border-border">
             <button
               onClick={() => setViewMode("board")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              className={`p-2 rounded-md transition-colors ${viewMode === "board" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              className={`p-2 rounded-md transition-colors ${viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
             >
               <ListIcon className="w-4 h-4" />
             </button>
@@ -489,7 +489,7 @@ export default function Tasks() {
             size="icon"
             onClick={handleRefresh}
             disabled={isFetching}
-            className="rounded-xl border-white/10 hover:bg-white/5"
+            className="rounded-xl border-border hover:bg-accent"
             title="Refresh tasks"
           >
             <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
@@ -497,11 +497,11 @@ export default function Tasks() {
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 rounded-xl font-semibold px-6">
+              <Button className="bg-foreground hover:bg-foreground/80 text-background rounded-xl font-semibold px-6">
                 <Plus className="w-4 h-4 mr-2" /> New Task
               </Button>
             </DialogTrigger>
-            <DialogContent className="glass-panel border-white/10 sm:max-w-md">
+            <DialogContent className="glass-panel sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-display">Create Task</DialogTitle>
               </DialogHeader>
@@ -512,7 +512,7 @@ export default function Tasks() {
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="bg-black/20 border-white/10 focus:border-primary"
+                    className="bg-muted border-border focus:border-foreground"
                     placeholder="Video Edit – Project X"
                   />
                 </div>
@@ -526,7 +526,7 @@ export default function Tasks() {
                     <select
                       value={priority}
                       onChange={(e) => setPriority(e.target.value)}
-                      className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
+                      className="w-full h-10 rounded-md bg-muted border border-border text-sm px-3 focus:outline-none focus:border-foreground text-foreground"
                     >
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
@@ -539,7 +539,7 @@ export default function Tasks() {
                       type="date"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="bg-black/20 border-white/10 focus:border-primary text-sm"
+                      className="bg-muted border-border focus:border-foreground text-sm"
                     />
                   </div>
                 </div>
@@ -548,7 +548,7 @@ export default function Tasks() {
                   <select
                     value={assigneeId}
                     onChange={(e) => setAssigneeId(e.target.value)}
-                    className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
+                    className="w-full h-10 rounded-md bg-muted border border-border text-sm px-3 focus:outline-none focus:border-foreground text-foreground"
                   >
                     <option value="">— Unassigned —</option>
                     {users?.map((u) => (
@@ -567,7 +567,7 @@ export default function Tasks() {
                     type="url"
                     value={externalLink}
                     onChange={e => setExternalLink(e.target.value)}
-                    className="bg-black/20 border-white/10 focus:border-primary text-sm"
+                    className="bg-muted border-border focus:border-foreground text-sm"
                     placeholder="https://..."
                   />
                 </div>
@@ -576,16 +576,16 @@ export default function Tasks() {
                     <Paperclip className="w-3.5 h-3.5" /> Attachment
                   </label>
                   {attachmentUrl ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-black/20 border border-white/10 rounded-md text-sm">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-muted border border-border rounded-md text-sm">
                       <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
                       <span className="truncate flex-1 text-foreground">{attachmentName}</span>
-                      <button type="button" onClick={() => { setAttachmentUrl(""); setAttachmentName(""); }} className="text-muted-foreground hover:text-red-400">
+                      <button type="button" onClick={() => { setAttachmentUrl(""); setAttachmentName(""); }} className="text-muted-foreground hover:text-red-600">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ) : (
-                    <label className={`flex items-center gap-2 px-3 py-2 border border-dashed border-white/20 rounded-md cursor-pointer hover:border-primary/50 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
-                      {uploading ? <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Uploading…</span></> : <><Upload className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to upload file</span></>}
+                    <label className={`flex items-center gap-2 px-3 py-2 border border-dashed border-border rounded-md cursor-pointer hover:border-foreground/50 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                      {uploading ? <><div className="w-3.5 h-3.5 border-2 border-foreground border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Uploading…</span></> : <><Upload className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to upload file</span></>}
                       <input type="file" className="hidden" onChange={async e => {
                         const f = e.target.files?.[0];
                         if (!f) return;
@@ -610,7 +610,7 @@ export default function Tasks() {
 
       {/* ── Edit Task Dialog ── */}
       <Dialog open={!!editingTask} onOpenChange={(open) => { if (!open) { setEditingTask(null); setConfirmDelete(false); } }}>
-        <DialogContent className="glass-panel border-white/10 sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="glass-panel sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display">Edit Task</DialogTitle>
           </DialogHeader>
@@ -621,7 +621,7 @@ export default function Tasks() {
                 required
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="bg-black/20 border-white/10 focus:border-primary"
+                className="bg-muted border-border focus:border-foreground"
               />
             </div>
             <div>
@@ -634,7 +634,7 @@ export default function Tasks() {
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
+                  className="w-full h-10 rounded-md bg-muted border border-border text-sm px-3 focus:outline-none focus:border-foreground text-foreground"
                 >
                   {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -644,7 +644,7 @@ export default function Tasks() {
                 <select
                   value={editPriority}
                   onChange={(e) => setEditPriority(e.target.value)}
-                  className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
+                  className="w-full h-10 rounded-md bg-muted border border-border text-sm px-3 focus:outline-none focus:border-foreground text-foreground"
                 >
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
@@ -659,7 +659,7 @@ export default function Tasks() {
                   type="date"
                   value={editDueDate}
                   onChange={(e) => setEditDueDate(e.target.value)}
-                  className="bg-black/20 border-white/10 text-sm"
+                  className="bg-muted border-border text-sm"
                 />
               </div>
               <div>
@@ -667,7 +667,7 @@ export default function Tasks() {
                 <select
                   value={editAssigneeId}
                   onChange={(e) => setEditAssigneeId(e.target.value)}
-                  className="w-full h-10 rounded-md bg-black/20 border border-white/10 text-sm px-3 focus:outline-none focus:border-primary text-foreground"
+                  className="w-full h-10 rounded-md bg-muted border border-border text-sm px-3 focus:outline-none focus:border-foreground text-foreground"
                 >
                   <option value="">— Unassigned —</option>
                   {users?.map((u) => (
@@ -687,7 +687,7 @@ export default function Tasks() {
                 type="url"
                 value={editExternalLink}
                 onChange={e => setEditExternalLink(e.target.value)}
-                className="bg-black/20 border-white/10 focus:border-primary text-sm"
+                className="bg-muted border-border focus:border-foreground text-sm"
                 placeholder="https://..."
               />
             </div>
@@ -696,16 +696,16 @@ export default function Tasks() {
                 <Paperclip className="w-3.5 h-3.5" /> Attachment
               </label>
               {editAttachmentUrl ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-black/20 border border-white/10 rounded-md text-sm">
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted border border-border rounded-md text-sm">
                   <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span className="truncate flex-1 text-foreground">{editAttachmentName}</span>
-                  <button type="button" onClick={() => { setEditAttachmentUrl(""); setEditAttachmentName(""); }} className="text-muted-foreground hover:text-red-400">
+                  <button type="button" onClick={() => { setEditAttachmentUrl(""); setEditAttachmentName(""); }} className="text-muted-foreground hover:text-red-600">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
-                <label className={`flex items-center gap-2 px-3 py-2 border border-dashed border-white/20 rounded-md cursor-pointer hover:border-primary/50 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
-                  {uploading ? <><div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Uploading…</span></> : <><Upload className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to upload file</span></>}
+                <label className={`flex items-center gap-2 px-3 py-2 border border-dashed border-border rounded-md cursor-pointer hover:border-foreground/50 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {uploading ? <><div className="w-3.5 h-3.5 border-2 border-foreground border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Uploading…</span></> : <><Upload className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to upload file</span></>}
                   <input type="file" className="hidden" onChange={async e => {
                     const f = e.target.files?.[0];
                     if (!f) return;
@@ -739,7 +739,7 @@ export default function Tasks() {
                   type="button"
                   variant="ghost"
                   onClick={() => setConfirmDelete(true)}
-                  className="rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -747,7 +747,7 @@ export default function Tasks() {
             </div>
           </form>
           {editingTask && (
-            <div className="mt-5 pt-4 border-t border-white/10">
+            <div className="mt-5 pt-4 border-t border-border">
               <TaskComments taskId={editingTask.id} />
             </div>
           )}
@@ -773,8 +773,8 @@ export default function Tasks() {
                 key={col}
                 className={`flex flex-col rounded-2xl p-4 border transition-colors h-full ${
                   isOver
-                    ? "bg-white/8 border-primary/50 ring-1 ring-primary/30"
-                    : `bg-black/10 ${COL_ACCENT[col]}`
+                    ? "bg-accent border-primary ring-1 ring-primary/30"
+                    : `bg-muted ${COL_ACCENT[col]}`
                 }`}
                 onDragEnter={(e) => onDragEnter(e, col)}
                 onDragOver={onDragOver}
@@ -787,7 +787,7 @@ export default function Tasks() {
                     {col === "Done" && archivedCount > 0 && (
                       <button
                         onClick={() => setShowArchived(v => !v)}
-                        className="text-[10px] text-muted-foreground hover:text-foreground bg-white/5 hover:bg-white/10 border border-white/10 px-2 py-0.5 rounded-full transition-colors"
+                        className="text-[10px] text-muted-foreground hover:text-foreground bg-background hover:bg-accent border border-border px-2 py-0.5 rounded-full transition-colors"
                         title={showArchived ? "Hide archived tasks" : `${archivedCount} archived task(s) hidden`}
                       >
                         {showArchived ? "Hide archived" : `+${archivedCount} archived`}
@@ -799,13 +799,13 @@ export default function Tasks() {
                           if (!confirm(`Delete all ${allColTasks.length} done task(s)? This cannot be undone.`)) return;
                           allColTasks.forEach(t => deleteMut.mutate({ taskId: t.id }));
                         }}
-                        className="text-[10px] text-red-400/70 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full transition-colors flex items-center gap-1"
+                        className="text-[10px] text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-0.5 rounded-full transition-colors flex items-center gap-1"
                         title="Delete all done tasks"
                       >
                         <Trash2 className="w-2.5 h-2.5" /> Clear all
                       </button>
                     )}
-                    <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-muted-foreground font-medium">
+                    <span className="text-xs bg-background px-2 py-1 rounded-full text-muted-foreground font-medium border border-border">
                       {colTasks.length}
                     </span>
                   </div>
@@ -819,12 +819,12 @@ export default function Tasks() {
                       draggable
                       onDragStart={(e) => onDragStart(e, task.id)}
                       onDragEnd={onDragEnd}
-                      className={`p-4 bg-card border-white/5 hover:border-primary/40 transition-colors shadow-md group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95 border-l-4 ${memberColor?.border ?? "border-l-white/10"} ${task.archived ? "opacity-55" : ""}`}
+                      className={`p-4 bg-card border-border hover:border-primary/40 transition-colors shadow-sm group cursor-grab active:cursor-grabbing active:opacity-60 active:scale-95 border-l-4 ${memberColor?.border ?? "border-l-border"} ${task.archived ? "opacity-55" : ""}`}
                       onClick={() => openEdit(task)}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span
-                          className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-sm ${PRIORITY_STYLES[task.priority] ?? "bg-white/10 text-muted-foreground"}`}
+                          className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-sm ${PRIORITY_STYLES[task.priority] ?? "bg-muted text-muted-foreground"}`}
                         >
                           {task.priority}
                         </span>
@@ -848,7 +848,7 @@ export default function Tasks() {
                                   if (!confirm("Delete this task? This cannot be undone.")) return;
                                   deleteMut.mutate({ taskId: task.id });
                                 }}
-                                className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+                                className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"
                                 title="Delete task"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -857,7 +857,7 @@ export default function Tasks() {
                           )}
                           <button
                             onClick={(e) => { e.stopPropagation(); openEdit(task); }}
-                            className="p-1 rounded hover:bg-white/10 text-muted-foreground"
+                            className="p-1 rounded hover:bg-accent text-muted-foreground"
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
@@ -875,13 +875,13 @@ export default function Tasks() {
                               value={linkEditValue}
                               onChange={e => setLinkEditValue(e.target.value)}
                               placeholder="https://..."
-                              className="flex-1 h-7 rounded-md bg-black/30 border border-white/15 px-2 text-xs text-foreground focus:outline-none focus:border-indigo-500 placeholder:text-muted-foreground/50"
+                              className="flex-1 h-7 rounded-md bg-muted border border-border px-2 text-xs text-foreground focus:outline-none focus:border-foreground placeholder:text-muted-foreground/50"
                               onKeyDown={e => { if (e.key === "Escape") setLinkEditingTaskId(null); }}
                             />
-                            <button type="submit" className="h-7 px-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shrink-0 transition-colors">
+                            <button type="submit" className="h-7 px-2 rounded-md bg-foreground hover:bg-foreground/80 text-background text-xs font-semibold shrink-0 transition-colors">
                               <Check className="w-3 h-3" />
                             </button>
-                            <button type="button" onClick={() => setLinkEditingTaskId(null)} className="h-7 px-1.5 rounded-md hover:bg-white/10 text-muted-foreground shrink-0 transition-colors">
+                            <button type="button" onClick={() => setLinkEditingTaskId(null)} className="h-7 px-1.5 rounded-md hover:bg-accent text-muted-foreground shrink-0 transition-colors">
                               <X className="w-3 h-3" />
                             </button>
                           </div>
@@ -896,12 +896,12 @@ export default function Tasks() {
                             className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/12 border border-violet-500/25 hover:bg-violet-500/20 transition-colors group/link"
                           >
                             <Video className="w-3 h-3 text-violet-400 shrink-0" />
-                            <span className="text-xs font-medium text-violet-300 truncate flex-1">Video Link</span>
+                            <span className="text-xs font-medium text-violet-700 truncate flex-1">Video Link</span>
                             <ExternalLink className="w-2.5 h-2.5 text-violet-400/50 group-hover/link:text-violet-400 transition-colors shrink-0" />
                           </a>
                           <button
                             onClick={(e) => openLinkEdit(task, e)}
-                            className="h-[30px] w-[30px] flex items-center justify-center rounded-lg hover:bg-white/10 text-muted-foreground transition-colors shrink-0"
+                            className="h-[30px] w-[30px] flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors shrink-0"
                             title="Edit video link"
                           >
                             <Pencil className="w-3 h-3" />
@@ -910,7 +910,7 @@ export default function Tasks() {
                       ) : (
                         <button
                           onClick={(e) => openLinkEdit(task, e)}
-                          className="mt-2 mb-1 w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-white/10 hover:border-violet-500/30 hover:bg-violet-500/5 text-muted-foreground hover:text-violet-400 transition-colors text-xs"
+                          className="mt-2 mb-1 w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-border hover:border-violet-500/40 hover:bg-violet-50 text-muted-foreground hover:text-violet-700 transition-colors text-xs"
                         >
                           <Video className="w-3 h-3" />
                           <span>Add video link</span>
@@ -925,7 +925,7 @@ export default function Tasks() {
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
                         <div className="flex items-center gap-2">
                           <AssigneeAvatar user={task.assignee} />
                           {task.assignee && (
@@ -960,7 +960,7 @@ export default function Tasks() {
       ) : (
         <Card className="glass-panel overflow-hidden">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-black/20 border-b border-white/5">
+            <thead className="text-xs text-muted-foreground uppercase bg-muted border-b border-border">
               <tr>
                 <th className="px-6 py-4 font-medium">Title</th>
                 <th className="px-6 py-4 font-medium">Assignee</th>
@@ -976,7 +976,7 @@ export default function Tasks() {
               {(tasks as TaskWithDerived[] | undefined)?.filter(t =>
                 !(t.status === "Done" && t.archived && !showArchived)
               ).map((task) => (
-                <tr key={task.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors group ${task.archived ? "opacity-50" : ""}`}>
+                <tr key={task.id} className={`border-b border-border hover:bg-muted transition-colors group ${task.archived ? "opacity-50" : ""}`}>
                   <td className="px-6 py-4 font-medium text-foreground">{task.title}</td>
                   <td className="px-6 py-4">
                     {task.assignee ? (
@@ -992,7 +992,7 @@ export default function Tasks() {
                   </td>
                   <td className="px-6 py-4">
                     <select
-                      className="bg-transparent text-sm text-muted-foreground outline-none cursor-pointer p-1 rounded hover:bg-white/10"
+                      className="bg-transparent text-sm text-muted-foreground outline-none cursor-pointer p-1 rounded hover:bg-accent"
                       value={task.status}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) =>
@@ -1008,7 +1008,7 @@ export default function Tasks() {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-sm ${PRIORITY_STYLES[task.priority] ?? "bg-white/10 text-muted-foreground"}`}
+                      className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-sm ${PRIORITY_STYLES[task.priority] ?? "bg-muted text-muted-foreground"}`}
                     >
                       {task.priority}
                     </span>
@@ -1029,13 +1029,13 @@ export default function Tasks() {
                           value={linkEditValue}
                           onChange={e => setLinkEditValue(e.target.value)}
                           placeholder="https://..."
-                          className="w-40 h-7 rounded-md bg-black/30 border border-white/15 px-2 text-xs text-foreground focus:outline-none focus:border-indigo-500 placeholder:text-muted-foreground/50"
+                          className="w-40 h-7 rounded-md bg-muted border border-border px-2 text-xs text-foreground focus:outline-none focus:border-foreground placeholder:text-muted-foreground/50"
                           onKeyDown={e => { if (e.key === "Escape") setLinkEditingTaskId(null); }}
                         />
-                        <button type="submit" className="h-7 px-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs shrink-0 transition-colors">
+                        <button type="submit" className="h-7 px-2 rounded-md bg-foreground hover:bg-foreground/80 text-background text-xs shrink-0 transition-colors">
                           <Check className="w-3 h-3" />
                         </button>
-                        <button type="button" onClick={() => setLinkEditingTaskId(null)} className="h-7 px-1 rounded-md hover:bg-white/10 text-muted-foreground shrink-0">
+                        <button type="button" onClick={() => setLinkEditingTaskId(null)} className="h-7 px-1 rounded-md hover:bg-accent text-muted-foreground shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </form>
@@ -1045,7 +1045,7 @@ export default function Tasks() {
                           href={(task as Task & { externalLink?: string }).externalLink!}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/12 border border-violet-500/25 hover:bg-violet-500/20 transition-colors text-xs font-medium text-violet-300"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-50 border border-violet-200 hover:bg-violet-100 transition-colors text-xs font-medium text-violet-700"
                         >
                           <Video className="w-3 h-3 text-violet-400 shrink-0" />
                           Open
@@ -1053,7 +1053,7 @@ export default function Tasks() {
                         </a>
                         <button
                           onClick={(e) => openLinkEdit(task, e)}
-                          className="p-1 rounded hover:bg-white/10 text-muted-foreground transition-colors"
+                          className="p-1 rounded hover:bg-accent text-muted-foreground transition-colors"
                           title="Edit link"
                         >
                           <Pencil className="w-3 h-3" />
@@ -1084,7 +1084,7 @@ export default function Tasks() {
                       )}
                       <button
                         onClick={() => openEdit(task)}
-                        className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-opacity"
+                        className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-opacity"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
