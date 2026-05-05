@@ -18,7 +18,11 @@
       "bundleIdentifier": "com.setspace.mobile"
     },
     "android": {
-      "package": "com.setspace.mobile"
+      "package": "com.setspace.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0d0d0d"
+      }
     },
     "web": {
       "favicon": "./assets/images/icon.png"
