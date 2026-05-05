@@ -1,0 +1,62 @@
+C:\Users\user>ssh root@204.168.194.113
+root@204.168.194.113's password:
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-106-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Tue May  5 10:37:52 PM UTC 2026
+
+  System load:  0.1                Processes:             159
+  Usage of /:   24.4% of 37.23GB   Users logged in:       1
+  Memory usage: 31%                IPv4 address for eth0: 204.168.194.113
+  Swap usage:   0%                 IPv6 address for eth0: 2a01:4f9:c013:690a::1
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+32 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+*** System restart required ***
+Last login: Tue May  5 22:36:30 2026 from 119.73.104.21
+root@Setspace:~# cd /root/setspace && git fetch origin && git reset --hard origin/master && pnpm --filter @workspace/setspace run build && pm2 restart setspace-api && echo DONE
+HEAD is now at d9d6863 Update chat interface to a WhatsApp-style theme for group conversations
+
+> @workspace/setspace@0.0.0 build /root/setspace/artifacts/setspace
+> vite build --config vite.config.ts
+
+vite v7.3.1 building client environment for production...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/sidebar.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/sheet.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2856 modules transformed.
+dist/public/index.html                     0.74 kB │ gzip:   0.41 kB
+dist/public/assets/index-DARw79pZ.css    114.98 kB │ gzip:  17.72 kB
+dist/public/assets/index-yUdTsYbV.js   1,118.42 kB │ gzip: 317.63 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 12.61s
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [setspace-api](ids: [ 0 ])
+[PM2] [setspace-api](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ setspace-api       │ fork     │ 74   │ online    │ 0%       │ 21.4mb   │
+│ 1  │ setspace-website   │ fork     │ 5    │ online    │ 0%       │ 88.5mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+DONE
+root@Setspace:~/setspace#
