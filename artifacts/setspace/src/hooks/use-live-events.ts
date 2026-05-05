@@ -91,6 +91,13 @@ export function useLiveEvents() {
         queryClient.invalidateQueries({ queryKey: ["dm-unread"] });
       });
 
+      es.addEventListener("dm-read", (e) => {
+        try {
+          const data = JSON.parse(e.data) as { by?: string };
+          window.dispatchEvent(new CustomEvent("sse:dm-read", { detail: data }));
+        } catch {}
+      });
+
       es.addEventListener("tasks", () => {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       });

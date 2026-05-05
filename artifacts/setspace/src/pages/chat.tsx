@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   useListMessages,
   useCreateMessage,
@@ -29,6 +29,10 @@ import {
   Mic,
   Square,
   Trash2,
+  Play,
+  Pause,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
 import { getUserAvatarStyle, getUserNameColor, getUserNameColorLight } from "@/lib/user-colors";
@@ -85,6 +89,97 @@ async function uploadFile(file: File): Promise<{ objectPath: string; name: strin
 const IMAGE_EXTS = /\.(jpe?g|png|gif|webp|svg|bmp)$/i;
 const AUDIO_EXTS = /\.(webm|ogg|mp4|m4a|wav|opus)$/i;
 
+/** WhatsApp-style inline voice note player */
+function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+    } else {
+      audio.play().then(() => setPlaying(true)).catch(() => {});
+    }
+  };
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
+  };
+
+  const progress = duration > 0 ? currentTime / duration : 0;
+
+  const bars = useMemo(() =>
+    Array.from({ length: 32 }, (_, i) => {
+      const h = 4 + Math.abs(Math.sin(i * 2.3 + 1.1) * 12 + Math.cos(i * 1.7 + 0.5) * 5);
+      return Math.max(3, Math.min(18, h));
+    }), []);
+
+  const activeColor = isMe ? "#FFFFFF" : "#111111";
+  const inactiveColor = isMe ? "rgba(255,255,255,0.28)" : "#D1D5DB";
+  const textColor = isMe ? "rgba(255,255,255,0.60)" : "#6B7280";
+
+  return (
+    <div className="flex items-center gap-2.5 mt-2" style={{ minWidth: 210, maxWidth: 240 }}>
+      <audio
+        ref={audioRef}
+        src={url}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
+        onEnded={() => { setPlaying(false); setCurrentTime(0); if (audioRef.current) audioRef.current.currentTime = 0; }}
+      />
+      <button
+        onClick={toggle}
+        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-75 active:scale-95"
+        style={{ background: isMe ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.09)" }}
+      >
+        {playing
+          ? <Pause className="w-4 h-4" style={{ color: activeColor }} />
+          : <Play className="w-4 h-4 ml-0.5" style={{ color: activeColor }} />
+        }
+      </button>
+      <div className="flex flex-col gap-1 flex-1 min-w-0">
+        <div
+          className="flex items-center gap-[2px] cursor-pointer"
+          style={{ height: 22 }}
+          onClick={(e) => {
+            if (!audioRef.current || !duration) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            audioRef.current.currentTime = ratio * duration;
+          }}
+        >
+          {bars.map((h, i) => {
+            const active = i / bars.length <= progress;
+            return (
+              <div
+                key={i}
+                style={{
+                  width: 2.5,
+                  height: h,
+                  borderRadius: 2,
+                  background: active ? activeColor : inactiveColor,
+                  flexShrink: 0,
+                  transition: "background 0.08s",
+                }}
+              />
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 10, color: textColor, lineHeight: 1 }}>
+          {currentTime > 0 ? formatTime(currentTime) : (duration > 0 ? formatTime(duration) : "0:00")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isMe: boolean }) {
   const src = resolveAttachmentUrl(url);
   const isImage = IMAGE_EXTS.test(name);
@@ -99,11 +194,7 @@ function AttachmentPreview({ url, name, isMe }: { url: string; name: string; isM
     );
   }
   if (isAudio) {
-    return (
-      <div className="mt-2 rounded-xl overflow-hidden border border-border">
-        <audio controls src={src} className="w-full max-w-[260px] h-10" style={{ colorScheme: "light" }} />
-      </div>
-    );
+    return <VoiceNotePlayer url={src} isMe={isMe} />;
   }
   return (
     <a
@@ -545,10 +636,17 @@ function DMBubble({
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
             <span
-              className="text-[10px] block mt-2 text-right"
+              className="text-[10px] block mt-2 text-right flex items-center justify-end gap-1"
               style={{ color: isMe ? "rgba(255,255,255,0.55)" : "#6B7280" }}
             >
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {isMe && (
+                msg._optimistic
+                  ? <Check className="w-3 h-3 inline-block" style={{ color: "rgba(255,255,255,0.45)" }} />
+                  : msg.isRead
+                    ? <CheckCheck className="w-3.5 h-3.5 inline-block" style={{ color: "#4ADE80" }} />
+                    : <CheckCheck className="w-3.5 h-3.5 inline-block" style={{ color: "rgba(255,255,255,0.45)" }} />
+              )}
             </span>
           </div>
 
@@ -1173,7 +1271,22 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
       fetchDMs();
     };
     window.addEventListener("sse:dm", sseHandler);
-    return () => { window.removeEventListener("sse:dm", sseHandler); };
+
+    // When the other person reads our messages, flip isRead to true for live green ticks
+    const readHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ by?: string }>).detail;
+      if (detail?.by === otherUser.id) {
+        setDms((prev) => prev.map((m) =>
+          m.senderId === otherUser.id ? m : { ...m, isRead: true }
+        ));
+      }
+    };
+    window.addEventListener("sse:dm-read", readHandler);
+
+    return () => {
+      window.removeEventListener("sse:dm", sseHandler);
+      window.removeEventListener("sse:dm-read", readHandler);
+    };
   }, [otherUser.id]);
 
 

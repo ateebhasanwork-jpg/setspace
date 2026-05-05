@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { messagesTable, directMessagesTable, usersTable, messageReactionsTable, dmReactionsTable } from "@workspace/db/schema";
 import { eq, or, and, desc, asc, inArray, gt, sql } from "drizzle-orm";
-import { broadcastSse } from "../lib/sse";
+import { broadcastSse, broadcastSseToUser } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
 import { getCachedUsers, getCachedUser, getUserMap, displayName } from "../lib/cache";
 
@@ -228,6 +228,10 @@ router.get("/dm/:userId", async (req, res) => {
       db.update(directMessagesTable)
         .set({ isRead: true })
         .where(and(eq(directMessagesTable.senderId, other), eq(directMessagesTable.receiverId, me)))
+        .then(() => {
+          // Notify the sender that their messages have been read (green ticks)
+          broadcastSseToUser(other, "dm-read", { by: me });
+        })
         .catch(() => {});
     }
 
