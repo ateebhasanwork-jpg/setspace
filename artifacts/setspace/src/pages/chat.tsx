@@ -213,23 +213,37 @@ function Avatar({
   visible?: boolean;
 }) {
   const photo = resolveProfileImage(profileImage);
-  const cls = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm";
+  const cls = size === "sm" ? "w-10 h-10 text-sm" : "w-11 h-11 text-sm";
   const avatarStyle = userId
     ? getUserAvatarStyle(userId)
     : { backgroundColor: "rgba(99,102,241,0.18)", borderColor: "rgba(99,102,241,0.30)", color: "#a5b4fc" };
   if (!visible) return <div className={`${cls} rounded-full shrink-0 opacity-0`} />;
   if (photo)
     return (
-      <img src={photo} alt="" className={`${cls} rounded-full object-cover border border-white/10 shrink-0`} />
+      <img src={photo} alt="" className={`${cls} rounded-full object-cover border-2 border-white/15 shrink-0`} />
     );
   return (
     <div
-      className={`${cls} rounded-full flex items-center justify-center font-bold shrink-0 border`}
+      className={`${cls} rounded-full flex items-center justify-center font-bold shrink-0 border-2 text-base`}
       style={avatarStyle}
     >
       {name?.[0]?.toUpperCase()}
     </div>
   );
+}
+
+type BubblePosition = "solo" | "first" | "middle" | "last";
+
+function getBubbleShape(isMe: boolean, pos: BubblePosition): string {
+  if (isMe) {
+    if (pos === "solo" || pos === "first") return "rounded-2xl rounded-br-[5px]";
+    if (pos === "middle") return "rounded-2xl rounded-tr-[5px] rounded-br-[5px]";
+    return "rounded-2xl rounded-tr-[5px]";
+  } else {
+    if (pos === "solo" || pos === "first") return "rounded-2xl rounded-bl-[5px]";
+    if (pos === "middle") return "rounded-2xl rounded-tl-[5px] rounded-bl-[5px]";
+    return "rounded-2xl rounded-tl-[5px]";
+  }
 }
 
 /** Render @mentions as highlighted spans */
@@ -304,7 +318,7 @@ function MessageBubble({
   msg,
   isMe,
   canDelete,
-  showAvatar,
+  position,
   onReply,
   onReact,
   onDelete,
@@ -315,7 +329,7 @@ function MessageBubble({
   msg: LocalMessage;
   isMe: boolean;
   canDelete?: boolean;
-  showAvatar: boolean;
+  position: BubblePosition;
   onReply: (m: LocalMessage) => void;
   onReact: (msgId: number, emoji: string) => void;
   onDelete: (msgId: number) => void;
@@ -328,7 +342,6 @@ function MessageBubble({
   const pickerRef = useRef<HTMLDivElement>(null);
   const author = msg.author as (typeof msg.author & { profileImage?: string | null }) | undefined;
 
-  // Close picker when clicking outside
   useEffect(() => {
     if (!pickerOpen) return;
     const handler = (e: MouseEvent) => {
@@ -341,6 +354,10 @@ function MessageBubble({
   }, [pickerOpen]);
 
   const reactions = msg.reactions ?? [];
+  const showName = !isMe && (position === "solo" || position === "first");
+  const showAvatar = !isMe && (position === "solo" || position === "last");
+  const nameColor = getUserNameColor(msg.authorId);
+  const shape = getBubbleShape(isMe, position);
 
   return (
     <div
@@ -348,15 +365,15 @@ function MessageBubble({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); }}
     >
-      {!isMe && showAvatar && (
+      {showName && (
         <span
-          className="text-xs font-semibold mb-1 ml-11"
-          style={{ color: getUserNameColor(msg.authorId) }}
+          className="text-[13px] font-bold mb-1 ml-[52px]"
+          style={{ color: nameColor }}
         >
           {author?.firstName} {author?.lastName}
         </span>
       )}
-      <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
+      <div className={`flex items-end gap-2.5 max-w-[78%] ${isMe ? "flex-row-reverse" : ""}`}>
         {!isMe && (
           <Avatar
             name={author?.firstName}
@@ -367,13 +384,17 @@ function MessageBubble({
         )}
         <div className="flex flex-col gap-1">
           <div
-            className={`p-4 rounded-2xl ${
+            className={`px-4 py-3 ${shape} ${
               isMe
-                ? "bg-primary text-primary-foreground rounded-br-sm"
-                : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
+                ? "bg-primary text-primary-foreground"
+                : "text-foreground"
             }`}
+            style={!isMe ? {
+              background: "rgba(255,255,255,0.09)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderLeft: `3px solid ${nameColor}`,
+            } : undefined}
           >
-            {/* Quoted reply preview */}
             {parentMsg && <QuotedReply parent={parentMsg} isMe={isMe} />}
             {msg.content && (
               <p className="text-sm whitespace-pre-wrap leading-relaxed">
@@ -384,8 +405,8 @@ function MessageBubble({
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
             <span
-              className={`text-[10px] block mt-2 text-right ${
-                isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+              className={`text-[10px] block mt-1.5 text-right ${
+                isMe ? "text-primary-foreground/60" : "text-muted-foreground/80"
               }`}
             >
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -428,7 +449,6 @@ function MessageBubble({
                 <CornerDownRight className="w-3 h-3" /> Reply
               </button>
 
-              {/* Emoji picker trigger */}
               <div className="relative" ref={pickerRef}>
                 <button
                   onClick={() => setPickerOpen((o) => !o)}
@@ -461,7 +481,6 @@ function MessageBubble({
                 )}
               </div>
 
-              {/* Delete — own messages or admin */}
               {canDelete && (
                 <button
                   onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
@@ -868,23 +887,30 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {topLevel.map((msg, i, arr) => {
           const isMe = msg.authorId === user.id;
           const prevMsg = arr[i - 1];
-          const showAvatar = !isMe && prevMsg?.authorId !== msg.authorId;
-          const replies = repliesById[msg.id] ?? [];
+          const nextMsg = arr[i + 1];
           const msgDate = formatDateLabel(msg.createdAt);
           const prevDate = prevMsg ? formatDateLabel(prevMsg.createdAt) : null;
+          const nextDate = nextMsg ? formatDateLabel(nextMsg.createdAt) : null;
           const showDate = msgDate !== prevDate;
+          const prevSameAuthor = !showDate && prevMsg?.authorId === msg.authorId;
+          const nextSameAuthor = nextMsg?.authorId === msg.authorId && nextDate === msgDate;
+          const position: BubblePosition = prevSameAuthor
+            ? nextSameAuthor ? "middle" : "last"
+            : nextSameAuthor ? "first" : "solo";
+          const replies = repliesById[msg.id] ?? [];
+          const isNewGroup = position === "solo" || position === "first";
           return (
-            <div key={msg.id}>
-              {showDate && <DateSeparator label={msgDate} />}
+            <div key={msg.id} className={isNewGroup && i > 0 && !showDate ? "mt-4" : "mt-0.5"}>
+              {showDate && <div className={i > 0 ? "mt-4 mb-3" : "mb-3"}><DateSeparator label={msgDate} /></div>}
               <MessageBubble
                 msg={msg}
                 isMe={isMe}
                 canDelete={isMe || (user as { role?: string })?.role === "admin"}
-                showAvatar={showAvatar}
+                position={position}
                 onReply={setReplyTo}
                 onReact={handleReact}
                 onDelete={handleDeleteMessage}
