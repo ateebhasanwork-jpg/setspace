@@ -1364,6 +1364,7 @@ export default function TeamChat() {
   const { data: user } = useGetCurrentUser();
   const { data: users } = useListUsers();
   const [view, setView] = useState<"group" | string>("group");
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [unreadByUser, setUnreadByUser] = useState<Record<string, number>>({});
   const [groupUnread, setGroupUnread] = useState(0);
   const lastGroupMsgIdRef = useRef<number | null>(null);
@@ -1431,14 +1432,14 @@ export default function TeamChat() {
 
       <div className="flex gap-4" style={{ height: "calc(100vh - 11rem)" }}>
         {/* Sidebar */}
-        <div className="w-52 shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden">
+        <div className={`shrink-0 flex flex-col border border-white/8 rounded-xl bg-white/2 overflow-hidden w-full sm:w-52 ${mobileChatOpen ? "hidden sm:flex" : "flex"}`}>
           <div className="p-4 border-b border-white/8 shrink-0">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Chat</span>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70 px-3 py-2">Channels</p>
             <button
-              onClick={() => { setView("group"); setGroupUnread(0); }}
+              onClick={() => { setView("group"); setGroupUnread(0); setMobileChatOpen(true); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 view === "group"
                   ? "bg-indigo-600/30 text-indigo-200 border border-indigo-500/30"
@@ -1472,6 +1473,7 @@ export default function TeamChat() {
                   onClick={() => {
                     setView(u.id);
                     setUnreadByUser((prev) => ({ ...prev, [u.id]: 0 }));
+                    setMobileChatOpen(true);
                   }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                     isActive
@@ -1510,21 +1512,28 @@ export default function TeamChat() {
         </div>
 
         {/* Chat area */}
-        <Card className="flex-1 glass-panel overflow-hidden flex flex-col">
+        <Card className={`flex-1 glass-panel overflow-hidden flex-col ${mobileChatOpen ? "flex" : "hidden sm:flex"}`}>
           {/* Chat header */}
           <div className="px-5 py-3 border-b border-white/5 shrink-0 flex items-center gap-2">
+            <button
+              onClick={() => setMobileChatOpen(false)}
+              className="sm:hidden mr-1 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              aria-label="Back to conversations"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
             {view === "group" ? (
               <>
                 <Hash className="w-4 h-4 text-indigo-400" />
                 <span className="font-semibold text-sm">Team Channel</span>
-                <span className="text-xs text-muted-foreground ml-1">— Type @ to mention someone</span>
+                <span className="hidden sm:inline text-xs text-muted-foreground ml-1">— Type @ to mention someone</span>
               </>
             ) : (
               <>
                 <UserIcon className="w-4 h-4 text-indigo-400" />
                 <span className="font-semibold text-sm">{currentDMUser?.firstName} {currentDMUser?.lastName}</span>
                 {currentDMUser?.title && (
-                  <span className="text-xs text-muted-foreground ml-1">— {currentDMUser.title}</span>
+                  <span className="hidden sm:inline text-xs text-muted-foreground ml-1">— {currentDMUser.title}</span>
                 )}
               </>
             )}

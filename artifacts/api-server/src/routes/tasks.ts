@@ -47,7 +47,7 @@ router.get("/tasks", async (req, res) => {
   }
 });
 
-router.post("/tasks", requireAdminOrHR, async (req, res) => {
+router.post("/tasks", async (req, res) => {
   try {
     const { title, description, status, priority, assigneeId, dueDate, externalLink, attachmentUrl, attachmentName } = req.body;
     const [task] = await db.insert(tasksTable).values({
