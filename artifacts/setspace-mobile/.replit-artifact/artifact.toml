@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "Setspace Mobile"
+version = "1.0.0"
+id = "artifacts/setspace-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 21435
+
+[services.development]
+run = "pnpm --filter @workspace/setspace-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/setspace-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/setspace-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "21435"
+BASE_PATH = "/mobile/"

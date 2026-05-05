@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Fm_mOSjH6Y0XC4m5bRKVG"
+uri = "file://artifacts/setspace-mobile/assets/images/icon.png"
+type = "image"
+title = "setspace mobile app icon"

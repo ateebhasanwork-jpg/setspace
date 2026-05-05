@@ -16,9 +16,11 @@ Full-stack internal management platform for a video editing agency. Built as a p
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 - **Auth**: Replit Auth (OIDC/PKCE) via `openid-client` v6
+- **Mobile Auth**: `POST /api/mobile-auth/token-exchange` → `{ token: sid }`, use `Authorization: Bearer <sid>` for all mobile API calls
 - **File storage**: GCS-backed object storage via Replit object storage
 - **Email**: Nodemailer (meeting invites — requires EMAIL_HOST, EMAIL_USER, EMAIL_PASS env vars)
 - **Frontend**: React 18 + Vite + Tailwind v4 + shadcn/ui + framer-motion + recharts
+- **Mobile**: Expo (React Native) — dark-only theme matching web, Expo Go compatible
 - **IMPORTANT**: Tailwind v4 JIT does not reliably scan dynamic TS strings for color classes. All dynamic per-user colors MUST use inline CSS `style={}` (see `user-colors.ts`), never Tailwind class names.
 
 ## Features
@@ -33,6 +35,7 @@ Full-stack internal management platform for a video editing agency. Built as a p
 - **Meetings**: Scheduling with attendees, email notifications, and calendar links
 - **Notifications**: Per-user notification feed
 - **Public Review**: Client-facing public review link (`/review/:token`) — removed internal Video Studio UI for now
+- **Mobile App**: Expo app with Login, Home (attendance clock in/out + task summary), Chat, Tasks, and Profile (notifications + sign out) screens
 
 ## Structure
 
@@ -40,10 +43,11 @@ Full-stack internal management platform for a video editing agency. Built as a p
 workspace/
 ├── artifacts/
 │   ├── api-server/          # Express API (port via $PORT, serves at /api)
-│   └── setspace/            # React+Vite frontend (port via $PORT, base path /)
+│   ├── setspace/            # React+Vite frontend (port via $PORT, base path /)
+│   └── setspace-mobile/     # Expo mobile app (Expo Go, dark theme)
 ├── lib/
 │   ├── api-spec/            # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/    # Generated React Query hooks
+│   ├── api-client-react/    # Generated React Query hooks + setBaseUrl/setAuthTokenGetter
 │   ├── api-zod/             # Generated Zod schemas
 │   ├── db/                  # Drizzle ORM schema + connection
 │   ├── replit-auth-web/     # Replit Auth hooks for frontend
@@ -76,8 +80,18 @@ Tables: `users`, `sessions`, `tasks`, `kpis`, `kpi_entries`, `attendance`, `qual
 - `POST /api/video-versions/:id/share-token` — generate public share link
 - `GET/POST /api/review/:token` — public client review (no auth required)
 - `GET /api/login`, `GET /api/callback`, `GET /api/logout` — Replit OIDC auth
+- `POST /api/mobile-auth/token-exchange` — mobile login → `{ token: sid }`
+- `POST /api/mobile-auth/logout` — mobile logout
 - `POST /api/storage/uploads/request-url` — presigned upload URL
 - `GET /api/storage/objects/*` — serve stored files
+
+## API Client — Mobile Support
+
+`lib/api-client-react/src/custom-fetch.ts` exports:
+- `setBaseUrl(url)` — prepends absolute domain to all relative `/api/...` requests
+- `setAuthTokenGetter(fn)` — called before every request; return the Bearer token string or null
+
+Call both at module level in `app/_layout.tsx` (outside any component) to configure the client for mobile.
 
 ## TypeScript & Composite Projects
 
