@@ -866,6 +866,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
   const isInitialRef = useRef(true);
+  const markedReadIdsRef = useRef<Set<number>>(new Set());
   const sendRef = useRef<(f?: File) => void>(() => {});
   const voice = useVoiceRecorder((file) => { sendRef.current(file); });
 
@@ -902,13 +903,15 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
       }
       lastSeenIdRef.current = latest.id;
     }
-    // Mark all visible messages as read (idempotent — server uses ON CONFLICT DO NOTHING)
-    const ids = real.map(m => m.id).filter(id => id > 0);
-    if (ids.length > 0) {
+    // Mark only newly seen messages as read — track sent IDs in a ref so this
+    // never re-fires for the same messages, breaking any SSE → refetch → mark loop
+    const unread = real.map(m => m.id).filter(id => id > 0 && !markedReadIdsRef.current.has(id));
+    if (unread.length > 0) {
+      unread.forEach(id => markedReadIdsRef.current.add(id));
       fetch(`${BASE}/api/messages/mark-read`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageIds: ids }),
+        body: JSON.stringify({ messageIds: unread }),
         credentials: "include",
       }).catch(() => {});
     }

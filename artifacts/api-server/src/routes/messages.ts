@@ -121,9 +121,10 @@ router.post("/messages/mark-read", async (req, res) => {
     if (!Array.isArray(messageIds) || messageIds.length === 0) { res.json({ ok: true }); return; }
     const me = req.user.id;
     const values = messageIds.map(mid => ({ messageId: mid, userId: me }));
-    await db.insert(messageReadsTable).values(values).onConflictDoNothing();
-    broadcastSse("messages-read", { byUserId: me });
-    res.json({ ok: true });
+    const inserted = await db.insert(messageReadsTable).values(values).onConflictDoNothing().returning();
+    // Only broadcast if something actually changed — avoids SSE → refetch → mark-read loop
+    if (inserted.length > 0) broadcastSse("messages-read", { byUserId: me });
+    res.json({ ok: true, inserted: inserted.length });
   } catch (err) {
     console.error("[messages] POST /messages/mark-read error:", err);
     res.status(500).json({ error: "Failed to mark read" });
