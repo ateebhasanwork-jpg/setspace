@@ -1252,7 +1252,14 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         // Append new messages, guard against duplicates from optimistic updates
         const existingIds = new Set(prev.filter(m => m.id > 0).map(m => m.id));
         const toAdd = data.filter(m => !existingIds.has(m.id));
-        return toAdd.length > 0 ? [...prev.filter(m => m.id > 0 || m._optimistic), ...toAdd] : prev;
+        if (toAdd.length === 0) return prev;
+        // If any of our own sent messages just arrived from the server, drop all optimistic
+        // placeholders — they've been confirmed and the real rows are in toAdd
+        const myNewMessages = toAdd.filter(m => m.senderId === me.id);
+        const base = myNewMessages.length > 0
+          ? prev.filter(m => m.id > 0)          // confirmed — remove optimistic ghosts
+          : prev.filter(m => m.id > 0 || m._optimistic); // others' messages — keep pending
+        return [...base, ...toAdd];
       });
     } catch {}
   };
