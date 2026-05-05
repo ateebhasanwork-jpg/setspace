@@ -1,0 +1,31 @@
+root@Setspace:~/setspace# cd /root/setspace && git fetch origin && git reset --hard origin/master && pnpm --filter @workspace/setspace run build && pm2 restart setspace-api && echo "DONE"
+HEAD is now at a72219e Add QR code for mobile app login
+
+> @workspace/setspace@0.0.0 build /root/setspace/artifacts/setspace
+> vite build --config vite.config.ts
+
+vite v7.3.1 building client environment for production...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/sidebar.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/sheet.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2856 modules transformed.
+dist/public/index.html                     0.74 kB │ gzip:   0.41 kB
+dist/public/assets/index-Bf-N1-BK.css    115.26 kB │ gzip:  17.68 kB
+dist/public/assets/index-Cs9kAuys.js   1,116.79 kB │ gzip: 316.65 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 12.45s
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [setspace-api](ids: [ 0 ])
+[PM2] [setspace-api](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ setspace-api       │ fork     │ 72   │ online    │ 0%       │ 20.6mb   │
+│ 1  │ setspace-website   │ fork     │ 5    │ online    │ 0%       │ 88.2mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+DONE
+root@Setspace:~/setspace#
