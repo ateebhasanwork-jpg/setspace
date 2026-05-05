@@ -78,6 +78,15 @@ export const dmReactionsTable = pgTable("dm_reactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [unique("dm_reactions_uniq").on(t.dmId, t.userId, t.emoji)]);
 
+export const messageReadsTable = pgTable("message_reads", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").notNull().references(() => messagesTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at").notNull().defaultNow(),
+}, (t) => [unique("message_reads_uniq").on(t.messageId, t.userId)]);
+
+export type MessageRead = typeof messageReadsTable.$inferSelect;
+
 export type DmReaction = typeof dmReactionsTable.$inferSelect;
 
 export const pushSubscriptionsTable = pgTable("push_subscriptions", {

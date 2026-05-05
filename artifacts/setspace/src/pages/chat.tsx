@@ -38,7 +38,8 @@ import { playMessageSound } from "@/lib/sounds";
 import { getUserAvatarStyle, getUserNameColor, getUserNameColorLight } from "@/lib/user-colors";
 
 type ReactionGroup = { emoji: string; count: number; userIds: string[] };
-type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[] };
+type ReadByUser = { userId: string; firstName?: string | null; lastName?: string | null; profileImage?: string | null };
+type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[]; readBy?: ReadByUser[] };
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "👏", "🎉", "😢"];
 
@@ -523,6 +524,57 @@ function MessageBubble({
             </div>
           )}
 
+          {/* Seen-by avatars — only on sender's own messages */}
+          {isMe && !msg._optimistic && (() => {
+            const readers = (msg.readBy ?? []).filter(r => r.userId !== currentUserId);
+            if (readers.length === 0) return null;
+            const MAX = 5;
+            const visible = readers.slice(0, MAX);
+            const extra = readers.length - MAX;
+            const names = readers.map(r => r.firstName ?? "?").join(", ");
+            return (
+              <div
+                className="flex items-center gap-1 self-end mt-0.5"
+                title={`Seen by: ${names}`}
+              >
+                <span className="text-[9px] text-gray-400 mr-0.5">Seen</span>
+                <div className="flex items-center">
+                  {visible.map((r, idx) => {
+                    const photo = resolveProfileImage(r.profileImage);
+                    const avatarStyle = getUserAvatarStyle(r.userId, true);
+                    return photo ? (
+                      <img
+                        key={r.userId}
+                        src={photo}
+                        alt={r.firstName ?? ""}
+                        title={`${r.firstName ?? ""} ${r.lastName ?? ""}`.trim()}
+                        className="w-4 h-4 rounded-full object-cover border border-white"
+                        style={{ marginLeft: idx === 0 ? 0 : -4, zIndex: idx }}
+                      />
+                    ) : (
+                      <div
+                        key={r.userId}
+                        title={`${r.firstName ?? ""} ${r.lastName ?? ""}`.trim()}
+                        className="w-4 h-4 rounded-full border border-white flex items-center justify-center text-[7px] font-bold"
+                        style={{ ...avatarStyle, marginLeft: idx === 0 ? 0 : -4, zIndex: idx }}
+                      >
+                        {r.firstName?.[0]}
+                      </div>
+                    );
+                  })}
+                  {extra > 0 && (
+                    <div
+                      className="w-4 h-4 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[7px] font-bold text-gray-500"
+                      style={{ marginLeft: -4 }}
+                    >
+                      +{extra}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Action bar: reply + react + delete */}
           {!msg._optimistic && (
             <div className={`flex items-center gap-1.5 ${isMe ? "self-end" : "self-start ml-1"}`}>
@@ -840,9 +892,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
       isInitialRef.current = false;
       // Delay so the browser has painted all message rows before we measure scrollHeight
       setTimeout(() => scrollToBottom(false), 60);
-      return;
-    }
-    if (lastSeenIdRef.current === null || latest.id > lastSeenIdRef.current) {
+    } else if (lastSeenIdRef.current === null || latest.id > lastSeenIdRef.current) {
       const newFromOthers = real.filter(
         (m) => m.id > (lastSeenIdRef.current ?? 0) && m.authorId !== user.id
       );
@@ -851,6 +901,16 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
         if (isNearBottom()) scrollToBottom();
       }
       lastSeenIdRef.current = latest.id;
+    }
+    // Mark all visible messages as read (idempotent — server uses ON CONFLICT DO NOTHING)
+    const ids = real.map(m => m.id).filter(id => id > 0);
+    if (ids.length > 0) {
+      fetch(`${BASE}/api/messages/mark-read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds: ids }),
+        credentials: "include",
+      }).catch(() => {});
     }
   }, [messages, user]);
 

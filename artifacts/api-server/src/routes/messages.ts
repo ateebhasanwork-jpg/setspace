@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, directMessagesTable, usersTable, messageReactionsTable, dmReactionsTable } from "@workspace/db/schema";
+import { messagesTable, directMessagesTable, usersTable, messageReactionsTable, dmReactionsTable, messageReadsTable } from "@workspace/db/schema";
 import { eq, or, and, desc, asc, inArray, gt, sql } from "drizzle-orm";
 import { broadcastSse, broadcastSseToUser } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
@@ -77,24 +77,56 @@ router.get("/messages", async (req, res) => {
       return;
     }
 
-    // Fetch users (from cache) and reactions in parallel
+    // Fetch users (from cache), reactions, and read receipts in parallel
     const msgIds = messages.map(m => m.id);
-    const [users, reactions] = await Promise.all([
+    const [users, reactions, reads] = await Promise.all([
       getCachedUsers(),
       db.select().from(messageReactionsTable).where(inArray(messageReactionsTable.messageId, msgIds)),
+      db.select().from(messageReadsTable).where(inArray(messageReadsTable.messageId, msgIds)),
     ]);
     const userMap = getUserMap(users);
     const reactionsByMsg = buildReactionMap(reactions as Parameters<typeof buildReactionMap>[0], "messageId");
+
+    // Build readBy map: messageId → array of reader user objects
+    const readsByMsg: Record<number, { userId: string; firstName?: string | null; lastName?: string | null; profileImage?: string | null }[]> = {};
+    for (const r of reads) {
+      if (!readsByMsg[r.messageId]) readsByMsg[r.messageId] = [];
+      const u = userMap[r.userId];
+      readsByMsg[r.messageId].push({
+        userId: r.userId,
+        firstName: u?.firstName ?? null,
+        lastName: u?.lastName ?? null,
+        profileImage: (u as { profileImage?: string | null } | undefined)?.profileImage ?? null,
+      });
+    }
 
     res.json(messages.map(m => ({
       ...m,
       createdAt: m.createdAt.toISOString(),
       author: m.authorId ? (userMap[m.authorId] ?? null) : null,
       reactions: Object.values(reactionsByMsg[m.id] ?? {}),
+      readBy: readsByMsg[m.id] ?? [],
     })));
   } catch (err) {
     console.error("[messages] GET /messages error:", err);
     res.status(500).json({ error: "Failed to list messages" });
+  }
+});
+
+/** POST /api/messages/mark-read — mark a batch of messages as read for the current user */
+router.post("/messages/mark-read", async (req, res) => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const { messageIds } = req.body as { messageIds: number[] };
+    if (!Array.isArray(messageIds) || messageIds.length === 0) { res.json({ ok: true }); return; }
+    const me = req.user.id;
+    const values = messageIds.map(mid => ({ messageId: mid, userId: me }));
+    await db.insert(messageReadsTable).values(values).onConflictDoNothing();
+    broadcastSse("messages-read", { byUserId: me });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[messages] POST /messages/mark-read error:", err);
+    res.status(500).json({ error: "Failed to mark read" });
   }
 });
 

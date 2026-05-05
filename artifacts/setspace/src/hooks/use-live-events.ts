@@ -98,6 +98,11 @@ export function useLiveEvents() {
         } catch {}
       });
 
+      es.addEventListener("messages-read", () => {
+        // Someone read a group message — refetch to update seen-by avatars
+        queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+      });
+
       es.addEventListener("tasks", () => {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       });
