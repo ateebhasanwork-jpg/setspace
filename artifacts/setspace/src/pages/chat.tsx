@@ -191,10 +191,15 @@ function formatDateLabel(dateStr: string): string {
 
 function DateSeparator({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 py-1">
-      <div className="flex-1 h-px bg-white/8" />
-      <span className="text-[11px] font-medium text-muted-foreground/70 px-2 shrink-0">{label}</span>
-      <div className="flex-1 h-px bg-white/8" />
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex-1 h-px bg-white/10" />
+      <span
+        className="text-[11px] font-semibold tracking-wide px-3 py-1 rounded-full shrink-0"
+        style={{ background: "rgb(18, 22, 38)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-white/10" />
     </div>
   );
 }
@@ -390,14 +395,16 @@ function MessageBubble({
                 : "text-foreground"
             }`}
             style={!isMe ? {
-              background: "rgba(255,255,255,0.09)",
-              border: "1px solid rgba(255,255,255,0.07)",
+              background: "rgb(22, 26, 44)",
               borderLeft: `3px solid ${nameColor}`,
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderLeftWidth: "3px",
+              borderLeftColor: nameColor,
             } : undefined}
           >
             {parentMsg && <QuotedReply parent={parentMsg} isMe={isMe} />}
             {msg.content && (
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">
+              <p className="text-[15px] whitespace-pre-wrap leading-relaxed tracking-[0.01em]">
                 <MessageContent content={msg.content} users={users} currentUserId={currentUserId} />
               </p>
             )}
@@ -405,8 +412,8 @@ function MessageBubble({
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
             <span
-              className={`text-[10px] block mt-1.5 text-right ${
-                isMe ? "text-primary-foreground/60" : "text-muted-foreground/80"
+              className={`text-[11px] block mt-1.5 text-right ${
+                isMe ? "text-primary-foreground/60" : "text-muted-foreground"
               }`}
             >
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -546,7 +553,7 @@ function DMBubble({
                 : "bg-white/10 text-foreground border border-white/5 rounded-bl-sm"
             }`}
           >
-            {msg.content && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
+            {msg.content && <p className="text-[15px] whitespace-pre-wrap leading-relaxed tracking-[0.01em]">{msg.content}</p>}
             {msg.attachmentUrl && msg.attachmentName && (
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
@@ -887,7 +894,11 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-5 py-5"
+        style={{ background: "rgb(9, 11, 19)" }}
+      >
         {topLevel.map((msg, i, arr) => {
           const isMe = msg.authorId === user.id;
           const prevMsg = arr[i - 1];
@@ -994,7 +1005,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
       )}
 
       {/* Input area */}
-      <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
+      <div className="p-4 border-t border-white/8 shrink-0" style={{ background: "rgb(12, 14, 24)" }}>
         <div className="relative">
           {/* Mention autocomplete */}
           {mentionSearch !== null && (
@@ -1278,7 +1289,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-2" style={{ background: "rgb(9, 11, 19)" }}>
         {dms.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
             <UserIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
@@ -1300,7 +1311,7 @@ function DMConversation({ otherUser, me }: { otherUser: User; me: User }) {
         })}
         <div ref={bottomRef} />
       </div>
-      <div className="p-4 bg-black/20 border-t border-white/5 shrink-0">
+      <div className="p-4 border-t border-white/8 shrink-0" style={{ background: "rgb(12, 14, 24)" }}>
         {/* Recording indicator */}
         {voice.recording && (
           <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm">
