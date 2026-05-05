@@ -1,0 +1,74 @@
+Here's the full prompt, mobile section removed:
+
+I have a team chat tab built in Replit. It has two parts:
+
+A Team Channel — group chat for the whole team
+Individual DMs — one-on-one chats with each team member
+
+I want you to redesign and enhance the Team Channel to feel like WhatsApp. Do NOT touch the individual DM section — only the Team Channel view.
+
+VISUAL & LAYOUT:
+
+Chat bubble style (like WhatsApp)
+
+My messages: right-aligned, green bubble (#DCF8C6), dark text
+Others' messages: left-aligned, white or light gray bubble, dark text
+Bubble border-radius: 18px, with the tail corner (bottom-right for me, bottom-left for others) set to 4px
+No hard box borders on bubbles
+
+
+Typography
+
+Message font: Inter or System UI, 14–15px, line-height 1.5
+Sender name shown above bubble in muted color (only for others' messages)
+Timestamp bottom-right of bubble, 11px, muted gray
+
+
+Background
+
+Chat area: light warm gray (#F0F2F5)
+Header/sidebar in a darker tone so the chat area feels distinct
+
+
+Input area
+
+Sticky at the bottom, white background, subtle top border
+Rounded input field (border-radius: 24px), placeholder "Type a message..."
+Send button: circular, green (#25D366), white arrow icon
+Emoji and attachment icons to the left of input (visual only is fine)
+
+
+Header
+
+Show channel name (e.g. "#team-channel") on the left
+Show member count below in small muted text (e.g. "5 members online")
+
+
+
+
+UX BEHAVIOR:
+
+Auto-scroll to latest message on load and on every new message sent or received
+Message grouping — if the same person sends multiple messages within 2 minutes, only show their name/avatar on the first bubble. Subsequent ones are just the bubble + timestamp
+Date separators — centered gray pill label between days (e.g. "Today", "Yesterday", "Monday 5 May")
+Read receipts if data supports it — single gray tick = sent, double gray = delivered, double green = read. Show next to timestamp
+If user scrolls up and new messages arrive, show a floating "↓ New messages" button that jumps to bottom
+
+
+ACCESSIBILITY:
+
+No font below 11px (timestamps), 13px (metadata), 14px (message body)
+Color contrast must pass WCAG AA — no light text on light green bubbles
+Enter key sends message
+Visible focus states on all interactive elements
+
+
+DO NOT CHANGE:
+
+Individual DM section — leave exactly as-is
+Any backend logic, authentication, or data structure
+The tab navigation between Team Channel and DMs
+Any existing functionality — UI/UX enhancement only
+
+
+AFTER IMPLEMENTING: Verify bubbles align correctly (my messages right, others left), chat auto-scrolls, and fonts are readable at 14px minimum. Show me a summary of every file you changed.

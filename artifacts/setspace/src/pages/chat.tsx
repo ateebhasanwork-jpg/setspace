@@ -31,7 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { playMessageSound } from "@/lib/sounds";
-import { getUserAvatarStyle, getUserNameColor } from "@/lib/user-colors";
+import { getUserAvatarStyle, getUserNameColor, getUserNameColorLight } from "@/lib/user-colors";
 
 type ReactionGroup = { emoji: string; count: number; userIds: string[] };
 type LocalMessage = Message & { _optimistic?: boolean; reactions?: ReactionGroup[] };
@@ -189,17 +189,19 @@ function formatDateLabel(dateStr: string): string {
   return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 }
 
-function DateSeparator({ label }: { label: string }) {
+function DateSeparator({ label, light = false }: { label: string; light?: boolean }) {
   return (
     <div className="flex items-center gap-3 py-2">
-      <div className="flex-1 h-px bg-white/10" />
+      <div className="flex-1 h-px" style={{ background: light ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.10)" }} />
       <span
         className="text-[11px] font-semibold tracking-wide px-3 py-1 rounded-full shrink-0"
-        style={{ background: "rgb(18, 22, 38)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={light
+          ? { background: "#D1D5DB", color: "#6B7280" }
+          : { background: "rgb(18, 22, 38)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
       >
         {label}
       </span>
-      <div className="flex-1 h-px bg-white/10" />
+      <div className="flex-1 h-px" style={{ background: light ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.10)" }} />
     </div>
   );
 }
@@ -210,22 +212,24 @@ function Avatar({
   userId,
   size = "sm",
   visible = true,
+  lightBg = false,
 }: {
   name?: string | null;
   profileImage?: string | null;
   userId?: string;
   size?: "sm" | "md";
   visible?: boolean;
+  lightBg?: boolean;
 }) {
   const photo = resolveProfileImage(profileImage);
   const cls = size === "sm" ? "w-10 h-10 text-sm" : "w-11 h-11 text-sm";
   const avatarStyle = userId
-    ? getUserAvatarStyle(userId)
+    ? getUserAvatarStyle(userId, lightBg)
     : { backgroundColor: "rgba(99,102,241,0.18)", borderColor: "rgba(99,102,241,0.30)", color: "#a5b4fc" };
   if (!visible) return <div className={`${cls} rounded-full shrink-0 opacity-0`} />;
   if (photo)
     return (
-      <img src={photo} alt="" className={`${cls} rounded-full object-cover border-2 border-white/15 shrink-0`} />
+      <img src={photo} alt="" className={`${cls} rounded-full object-cover border-2 shrink-0`} style={{ borderColor: lightBg ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.15)" }} />
     );
   return (
     <div
@@ -274,15 +278,14 @@ function MessageContent({
               `${(u.firstName ?? "").toLowerCase()}${(u.lastName ?? "").toLowerCase()}` === name
           );
           if (matched) {
-            const isMe = matched.id === currentUserId;
+            const isMentionedMe = matched.id === currentUserId;
             return (
               <span
                 key={i}
-                className={`font-semibold rounded-sm px-0.5 ${
-                  isMe
-                    ? "bg-indigo-500/30 text-indigo-200"
-                    : "text-indigo-300"
-                }`}
+                className="font-semibold rounded px-0.5"
+                style={isMentionedMe
+                  ? { background: "rgba(99,102,241,0.18)", color: "#3730a3" }
+                  : { color: "#4338CA" }}
               >
                 {part}
               </span>
@@ -300,18 +303,18 @@ function QuotedReply({ parent, isMe }: { parent: LocalMessage; isMe: boolean }) 
   const author = parent.author as (typeof parent.author & { firstName?: string | null }) | undefined;
   return (
     <div
-      className={`flex gap-2 mb-2 pb-2 border-b text-[11px] leading-snug ${
-        isMe
-          ? "border-white/20 text-white/60"
-          : "border-indigo-500/30 text-muted-foreground"
-      }`}
+      className="flex gap-2 mb-2 pb-2 text-[11px] leading-snug"
+      style={{
+        borderBottom: `1px solid ${isMe ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.08)"}`,
+        color: "#6B7280",
+      }}
     >
-      <div className={`w-0.5 rounded-full shrink-0 ${isMe ? "bg-white/40" : "bg-indigo-400"}`} />
+      <div className="w-0.5 rounded-full shrink-0" style={{ background: isMe ? "#16a34a" : "#6366f1" }} />
       <div className="min-w-0">
-        <span className={`font-semibold block ${isMe ? "text-white/80" : "text-indigo-300"}`}>
+        <span className="font-semibold block" style={{ color: isMe ? "#065f46" : "#4338CA" }}>
           {author?.firstName ?? "Unknown"}
         </span>
-        <span className="line-clamp-2 opacity-80">
+        <span className="line-clamp-2" style={{ color: "#4B5563" }}>
           {parent.content.length > 100 ? parent.content.slice(0, 100) + "…" : parent.content}
         </span>
       </div>
@@ -361,7 +364,7 @@ function MessageBubble({
   const reactions = msg.reactions ?? [];
   const showName = !isMe && (position === "solo" || position === "first");
   const showAvatar = !isMe && (position === "solo" || position === "last");
-  const nameColor = getUserNameColor(msg.authorId);
+  const nameColor = getUserNameColorLight(msg.authorId);
   const shape = getBubbleShape(isMe, position);
 
   return (
@@ -372,50 +375,40 @@ function MessageBubble({
     >
       {showName && (
         <span
-          className="text-[13px] font-bold mb-1 ml-[52px]"
+          className="text-[13px] font-semibold mb-1 ml-[52px]"
           style={{ color: nameColor }}
         >
           {author?.firstName} {author?.lastName}
         </span>
       )}
-      <div className={`flex items-end gap-2.5 max-w-[78%] ${isMe ? "flex-row-reverse" : ""}`}>
+      <div className={`flex items-end gap-2 max-w-[75%] ${isMe ? "flex-row-reverse" : ""}`}>
         {!isMe && (
           <Avatar
             name={author?.firstName}
             profileImage={author?.profileImage}
             userId={msg.authorId}
             visible={showAvatar}
+            lightBg
           />
         )}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           <div
-            className={`px-4 py-3 ${shape} ${
-              isMe
-                ? "bg-primary text-primary-foreground"
-                : "text-foreground"
-            }`}
-            style={!isMe ? {
-              background: "rgb(22, 26, 44)",
-              borderLeft: `3px solid ${nameColor}`,
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderLeftWidth: "3px",
-              borderLeftColor: nameColor,
-            } : undefined}
+            className={`px-3.5 py-2.5 ${shape}`}
+            style={isMe
+              ? { background: "#DCF8C6", color: "#111827" }
+              : { background: "#FFFFFF", color: "#111827", boxShadow: "0 1px 2px rgba(0,0,0,0.10)" }
+            }
           >
             {parentMsg && <QuotedReply parent={parentMsg} isMe={isMe} />}
             {msg.content && (
-              <p className="text-[15px] whitespace-pre-wrap leading-relaxed tracking-[0.01em]">
+              <p className="text-[15px] whitespace-pre-wrap leading-[1.5]">
                 <MessageContent content={msg.content} users={users} currentUserId={currentUserId} />
               </p>
             )}
             {msg.attachmentUrl && msg.attachmentName && (
               <AttachmentPreview url={msg.attachmentUrl} name={msg.attachmentName} isMe={isMe} />
             )}
-            <span
-              className={`text-[11px] block mt-1.5 text-right ${
-                isMe ? "text-primary-foreground/60" : "text-muted-foreground"
-              }`}
-            >
+            <span className="text-[11px] block mt-1 text-right" style={{ color: "#6B7280" }}>
               {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
@@ -430,11 +423,10 @@ function MessageBubble({
                     key={r.emoji}
                     onClick={() => onReact(msg.id, r.emoji)}
                     title={`${r.count} reaction${r.count !== 1 ? "s" : ""}`}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-all ${
-                      iReacted
-                        ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-200"
-                        : "bg-white/8 border-white/10 text-foreground hover:bg-white/15"
-                    }`}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm transition-all"
+                    style={iReacted
+                      ? { background: "rgba(37,211,102,0.20)", border: "1px solid rgba(37,211,102,0.45)", color: "#15803d" }
+                      : { background: "#F3F4F6", border: "1px solid #E5E7EB", color: "#374151" }}
                   >
                     <span>{r.emoji}</span>
                     <span className="text-[11px] font-medium">{r.count}</span>
@@ -446,12 +438,11 @@ function MessageBubble({
 
           {/* Action bar: reply + react + delete */}
           {!msg._optimistic && (
-            <div className={`flex items-center gap-2 ${isMe ? "self-end" : "self-start ml-1"}`}>
+            <div className={`flex items-center gap-1.5 ${isMe ? "self-end" : "self-start ml-1"}`}>
               <button
                 onClick={() => onReply(msg)}
-                className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-opacity ${
-                  hovered ? "opacity-100" : "opacity-0"
-                }`}
+                className="flex items-center gap-1 text-[11px] transition-opacity rounded px-1.5 py-0.5"
+                style={{ color: "#6B7280", opacity: hovered ? 1 : 0, background: hovered ? "rgba(0,0,0,0.06)" : "transparent" }}
               >
                 <CornerDownRight className="w-3 h-3" /> Reply
               </button>
@@ -459,17 +450,15 @@ function MessageBubble({
               <div className="relative" ref={pickerRef}>
                 <button
                   onClick={() => setPickerOpen((o) => !o)}
-                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-indigo-400 transition-all ${
-                    hovered || pickerOpen ? "opacity-100" : "opacity-0"
-                  }`}
+                  className="flex items-center gap-1 text-[11px] transition-all rounded px-1.5 py-0.5"
+                  style={{ color: "#6B7280", opacity: hovered || pickerOpen ? 1 : 0, background: hovered || pickerOpen ? "rgba(0,0,0,0.06)" : "transparent" }}
                 >
                   <SmilePlus className="w-3.5 h-3.5" />
                 </button>
                 {pickerOpen && (
                   <div
-                    className={`absolute z-50 bottom-full mb-1.5 bg-card border border-white/10 rounded-xl shadow-xl p-2 flex gap-1 ${
-                      isMe ? "right-0" : "left-0"
-                    }`}
+                    className={`absolute z-50 bottom-full mb-1.5 rounded-2xl shadow-lg p-2 flex gap-1 ${isMe ? "right-0" : "left-0"}`}
+                    style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}
                   >
                     {QUICK_EMOJIS.map((e) => (
                       <button
@@ -479,7 +468,10 @@ function MessageBubble({
                           onReact(msg.id, e);
                           setPickerOpen(false);
                         }}
-                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-white/10 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg transition-colors"
+                        style={{ background: "transparent" }}
+                        onMouseEnter={ev => (ev.currentTarget.style.background = "#F3F4F6")}
+                        onMouseLeave={ev => (ev.currentTarget.style.background = "transparent")}
                       >
                         {e}
                       </button>
@@ -491,9 +483,8 @@ function MessageBubble({
               {canDelete && (
                 <button
                   onClick={() => { if (confirm("Delete this message?")) onDelete(msg.id); }}
-                  className={`flex items-center gap-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all ${
-                    hovered ? "opacity-100" : "opacity-30"
-                  }`}
+                  className="flex items-center gap-1 text-[11px] transition-all rounded px-1.5 py-0.5"
+                  style={{ color: "#6B7280", opacity: hovered ? 1 : 0.2 }}
                   title="Delete message"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -896,8 +887,8 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-5 py-5"
-        style={{ background: "rgb(9, 11, 19)" }}
+        className="flex-1 overflow-y-auto px-4 py-4"
+        style={{ background: "#F0F2F5" }}
       >
         {topLevel.map((msg, i, arr) => {
           const isMe = msg.authorId === user.id;
@@ -916,7 +907,7 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
           const isNewGroup = position === "solo" || position === "first";
           return (
             <div key={msg.id} className={isNewGroup && i > 0 && !showDate ? "mt-4" : "mt-0.5"}>
-              {showDate && <div className={i > 0 ? "mt-4 mb-3" : "mb-3"}><DateSeparator label={msgDate} /></div>}
+              {showDate && <div className={i > 0 ? "mt-4 mb-3" : "mb-3"}><DateSeparator label={msgDate} light /></div>}
               <MessageBubble
                 msg={msg}
                 isMe={isMe}
@@ -988,24 +979,24 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
 
       {/* Reply banner */}
       {replyTo && (
-        <div className="px-4 pt-3 pb-2 flex items-center gap-3 bg-black/20 border-t border-white/5 text-sm text-muted-foreground shrink-0">
-          <CornerDownRight className="w-4 h-4 shrink-0 text-indigo-400" />
+        <div className="px-4 pt-2.5 pb-2 flex items-center gap-3 text-sm shrink-0" style={{ background: "#F8FAFC", borderTop: "1px solid #E5E7EB" }}>
+          <CornerDownRight className="w-4 h-4 shrink-0" style={{ color: "#25D366" }} />
           <div className="flex-1 min-w-0">
-            <span className="text-indigo-400 font-semibold text-xs">
+            <span className="font-semibold text-xs" style={{ color: "#15803d" }}>
               Replying to {(replyTo.author as User | undefined)?.firstName ?? "message"}
             </span>
-            <p className="truncate text-xs text-foreground/70 mt-0.5">
+            <p className="truncate text-xs mt-0.5" style={{ color: "#6B7280" }}>
               {replyTo.content.slice(0, 80)}{replyTo.content.length > 80 ? "…" : ""}
             </p>
           </div>
-          <button onClick={() => setReplyTo(null)} className="shrink-0 hover:text-foreground">
+          <button onClick={() => setReplyTo(null)} className="shrink-0" style={{ color: "#9CA3AF" }}>
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* Input area */}
-      <div className="p-4 border-t border-white/8 shrink-0" style={{ background: "rgb(12, 14, 24)" }}>
+      <div className="px-3 py-3 shrink-0" style={{ background: "#FFFFFF", borderTop: "1px solid #E5E7EB" }}>
         <div className="relative">
           {/* Mention autocomplete */}
           {mentionSearch !== null && (
@@ -1018,24 +1009,24 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
           )}
           {/* Recording indicator */}
           {voice.recording && (
-            <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-sm">
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl text-sm" style={{ background: "#FEF2F2", border: "1px solid #FECACA" }}>
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-              <span className="text-red-400 text-xs font-medium">Recording {formatRecordTime(voice.seconds)}</span>
-              <button onClick={voice.stop} className="ml-auto text-red-400 hover:text-red-300 flex items-center gap-1 text-xs">
+              <span className="text-xs font-medium" style={{ color: "#DC2626" }}>Recording {formatRecordTime(voice.seconds)}</span>
+              <button onClick={voice.stop} className="ml-auto flex items-center gap-1 text-xs" style={{ color: "#DC2626" }}>
                 <Square className="w-3.5 h-3.5" /> Stop
               </button>
             </div>
           )}
           {/* Pending attachment preview */}
           {pendingFile && (
-            <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-white/8 border border-white/10 text-sm">
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl text-sm" style={{ background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
               {IMAGE_EXTS.test(pendingFile.name)
-                ? <ImageIcon className="w-4 h-4 text-indigo-400 shrink-0" />
+                ? <ImageIcon className="w-4 h-4 shrink-0" style={{ color: "#25D366" }} />
                 : pendingFile.name.startsWith("voice-note")
-                ? <Mic className="w-4 h-4 text-green-400 shrink-0" />
-                : <FileText className="w-4 h-4 text-indigo-400 shrink-0" />}
-              <span className="flex-1 truncate text-foreground text-xs">{pendingFile.name.startsWith("voice-note") ? "Voice note ready" : pendingFile.name}</span>
-              <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-muted-foreground hover:text-foreground">
+                ? <Mic className="w-4 h-4 shrink-0" style={{ color: "#25D366" }} />
+                : <FileText className="w-4 h-4 shrink-0" style={{ color: "#6B7280" }} />}
+              <span className="flex-1 truncate text-xs" style={{ color: "#374151" }}>{pendingFile.name.startsWith("voice-note") ? "Voice note ready" : pendingFile.name}</span>
+              <button onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} style={{ color: "#9CA3AF" }}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1047,33 +1038,28 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); }}
           />
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send();
-            }}
-            className="flex gap-2"
+            onSubmit={(e) => { e.preventDefault(); send(); }}
+            className="flex items-end gap-2"
           >
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={voice.recording}
-              className="h-12 w-10 flex items-center justify-center rounded-xl border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40"
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors shrink-0 disabled:opacity-40"
+              style={{ color: "#6B7280" }}
               title="Attach file"
             >
-              <Paperclip className="w-4 h-4" />
+              <Paperclip className="w-5 h-5" />
             </button>
             <button
               type="button"
               onClick={voice.recording ? voice.stop : voice.start}
               disabled={uploading}
-              className={`h-12 w-10 flex items-center justify-center rounded-xl border transition-colors shrink-0 ${
-                voice.recording
-                  ? "border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20"
-                  : "border-white/10 text-muted-foreground hover:text-green-400 hover:bg-white/8"
-              }`}
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors shrink-0"
+              style={{ color: voice.recording ? "#DC2626" : "#6B7280" }}
               title={voice.recording ? "Stop recording" : "Record voice note"}
             >
-              {voice.recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {voice.recording ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
             <textarea
               ref={inputRef}
@@ -1085,27 +1071,28 @@ function GroupChat({ user, users }: { user: User; users: User[] }) {
                 e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
               }}
               onKeyDown={(e) => {
-                if (e.key === "Escape" && mentionSearch !== null) {
-                  setMentionSearch(null);
-                  return;
-                }
-                if (e.key === "Enter" && !e.shiftKey && mentionSearch === null) {
-                  e.preventDefault();
-                  send();
-                }
+                if (e.key === "Escape" && mentionSearch !== null) { setMentionSearch(null); return; }
+                if (e.key === "Enter" && !e.shiftKey && mentionSearch === null) { e.preventDefault(); send(); }
               }}
-              placeholder={replyTo ? "Write a reply… (@ to mention)" : "Type a message… (@ to mention)"}
-              className="flex-1 bg-card/50 border border-white/10 focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-xl resize-none px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground leading-5"
-              style={{ minHeight: "48px", maxHeight: "120px" }}
+              placeholder="Type a message..."
+              className="flex-1 resize-none outline-none px-4 py-2.5 text-[15px] leading-[1.5]"
+              style={{
+                minHeight: "42px", maxHeight: "120px",
+                background: "#F0F2F5", borderRadius: "24px",
+                color: "#111827", border: "none",
+              }}
               autoComplete="off"
             />
-            <Button
+            <button
               type="submit"
               disabled={(!content.trim() && !pendingFile) || uploading || voice.recording}
-              className="h-12 w-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 p-0"
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
+              style={{ background: "#25D366" }}
             >
-              {uploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
-            </Button>
+              {uploading
+                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Send className="w-4 h-4 text-white" />}
+            </button>
           </form>
         </div>
       </div>
@@ -1561,9 +1548,13 @@ export default function TeamChat() {
             </button>
             {view === "group" ? (
               <>
-                <Hash className="w-4 h-4 text-indigo-400" />
-                <span className="font-semibold text-sm">Team Channel</span>
-                <span className="hidden sm:inline text-xs text-muted-foreground ml-1">— Type @ to mention someone</span>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: "rgba(37,211,102,0.15)" }}>
+                  <Hash className="w-4 h-4" style={{ color: "#25D366" }} />
+                </div>
+                <div className="min-w-0">
+                  <span className="font-semibold text-sm block">team-channel</span>
+                  <span className="text-[11px] text-muted-foreground">{(users ?? []).length} members · Type @ to mention</span>
+                </div>
               </>
             ) : (
               <>
