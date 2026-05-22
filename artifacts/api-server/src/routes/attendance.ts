@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { attendanceTable } from "@workspace/db/schema";
 import { eq, and, isNull, lt } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { getCachedUsers, getUserMap, getCachedScheduleSlots, invalidateByPrefix, getCached } from "../lib/cache";
 
 const ATTENDANCE_TTL_MS = 2 * 60_000; // 2 minutes
@@ -250,7 +250,7 @@ router.post("/attendance/clock-out", async (req, res) => {
   }
 });
 
-router.delete("/attendance/:id", requireAdminOrHR, async (req, res) => {
+router.delete("/attendance/:id", requireManager, async (req, res) => {
   try {
     await db.delete(attendanceTable).where(eq(attendanceTable.id, parseInt(String(req.params.id))));
     invalidateByPrefix("leaderboard:");

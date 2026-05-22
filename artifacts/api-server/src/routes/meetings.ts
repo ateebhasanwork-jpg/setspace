@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { meetingsTable, meetingAttendeesTable, notificationsTable } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import nodemailer from "nodemailer";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { getCachedUsers, getCachedUser, getUserMap, getCached, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
@@ -98,7 +98,7 @@ router.get("/meetings/:meetingId", async (req, res) => {
   }
 });
 
-router.post("/meetings", requireAdminOrHR, async (req, res) => {
+router.post("/meetings", requireManager, async (req, res) => {
   try {
     const { title, description, scheduledAt, duration, meetingUrl, attendeeIds } = req.body;
     const [meeting] = await db.insert(meetingsTable).values({
@@ -151,7 +151,7 @@ router.post("/meetings", requireAdminOrHR, async (req, res) => {
   }
 });
 
-router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
+router.patch("/meetings/:meetingId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.meetingId));
     const { title, description, scheduledAt, duration, meetingUrl, attendeeIds } = req.body;
@@ -211,7 +211,7 @@ router.patch("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
   }
 });
 
-router.delete("/meetings/:meetingId", requireAdminOrHR, async (req, res) => {
+router.delete("/meetings/:meetingId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.meetingId));
     await db.delete(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, id));

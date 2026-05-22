@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tasksTable, taskCommentsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { broadcastSse } from "../lib/sse";
 import { notifyUser } from "../lib/notify";
 import { getCachedUsers, getCachedUser, getUserMap, getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
@@ -145,7 +145,7 @@ router.patch("/tasks/:taskId", async (req, res) => {
   }
 });
 
-router.delete("/tasks/:taskId", requireAdminOrHR, async (req, res) => {
+router.delete("/tasks/:taskId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.taskId));
     await db.delete(tasksTable).where(eq(tasksTable.id, id));

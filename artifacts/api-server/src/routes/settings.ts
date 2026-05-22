@@ -2,12 +2,12 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { appSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 
 const router: IRouter = Router();
 
 /** GET /api/settings — returns all app settings as { key: value } */
-router.get("/settings", requireAdminOrHR, async (_req, res) => {
+router.get("/settings", requireManager, async (_req, res) => {
   try {
     const rows = await db.select().from(appSettingsTable);
     const out: Record<string, string> = {};
@@ -19,7 +19,7 @@ router.get("/settings", requireAdminOrHR, async (_req, res) => {
 });
 
 /** PATCH /api/settings — upsert or delete settings (admin/HR only) */
-router.patch("/settings", requireAdminOrHR, async (req, res) => {
+router.patch("/settings", requireManager, async (req, res) => {
   try {
     const updates = req.body as Record<string, string | null>;
     for (const [key, value] of Object.entries(updates)) {

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { scheduleSlotsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { getCachedUsers, getCachedScheduleSlots, invalidateScheduleSlots } from "../lib/cache";
 
 const router: IRouter = Router();
@@ -87,7 +87,7 @@ export async function seedSchedules() {
 }
 
 /** GET /api/schedules — all slots with user info (admin/HR) */
-router.get("/schedules", requireAdminOrHR, async (_req, res) => {
+router.get("/schedules", requireManager, async (_req, res) => {
   try {
     const [slots, users] = await Promise.all([
       getCachedScheduleSlots(),
@@ -101,7 +101,7 @@ router.get("/schedules", requireAdminOrHR, async (_req, res) => {
 });
 
 /** PUT /api/schedules/:userId/:dayOfWeek — upsert a slot (admin/HR) */
-router.put("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res) => {
+router.put("/schedules/:userId/:dayOfWeek", requireManager, async (req, res) => {
   try {
     const userId = req.params.userId;
     const dayOfWeek = parseInt(req.params.dayOfWeek);
@@ -122,7 +122,7 @@ router.put("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res) =
 });
 
 /** DELETE /api/schedules/:userId/:dayOfWeek (admin/HR) */
-router.delete("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res) => {
+router.delete("/schedules/:userId/:dayOfWeek", requireManager, async (req, res) => {
   try {
     await db.delete(scheduleSlotsTable).where(
       and(
@@ -138,7 +138,7 @@ router.delete("/schedules/:userId/:dayOfWeek", requireAdminOrHR, async (req, res
 });
 
 /** POST /api/schedules/seed — re-run seed (admin/HR) */
-router.post("/schedules/seed", requireAdminOrHR, async (_req, res) => {
+router.post("/schedules/seed", requireManager, async (_req, res) => {
   await seedSchedules();
   invalidateScheduleSlots();
   res.json({ ok: true });

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { kpisTable, kpiEntriesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
 
 const router: IRouter = Router();
@@ -35,7 +35,7 @@ router.get("/kpis", async (req, res) => {
   }
 });
 
-router.post("/kpis", requireAdminOrHR, async (req, res) => {
+router.post("/kpis", requireManager, async (req, res) => {
   try {
     const { name, description, unit, targetValue, userId, period } = req.body;
     const [kpi] = await db.insert(kpisTable).values({
@@ -49,7 +49,7 @@ router.post("/kpis", requireAdminOrHR, async (req, res) => {
   }
 });
 
-router.patch("/kpis/:kpiId", requireAdminOrHR, async (req, res) => {
+router.patch("/kpis/:kpiId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.kpiId));
     const { name, description, unit, targetValue, period } = req.body;
@@ -69,7 +69,7 @@ router.patch("/kpis/:kpiId", requireAdminOrHR, async (req, res) => {
   }
 });
 
-router.delete("/kpis/:kpiId", requireAdminOrHR, async (req, res) => {
+router.delete("/kpis/:kpiId", requireManager, async (req, res) => {
   try {
     await db.delete(kpisTable).where(eq(kpisTable.id, parseInt(String(req.params.kpiId))));
     invalidateKpiCaches();
@@ -118,7 +118,7 @@ router.get("/kpi-entries", async (req, res) => {
   }
 });
 
-router.post("/kpi-entries", requireAdminOrHR, async (req, res) => {
+router.post("/kpi-entries", requireManager, async (req, res) => {
   try {
     const { kpiId, userId, actualValue, notes, recordedAt } = req.body;
     const [entry] = await db.insert(kpiEntriesTable).values({

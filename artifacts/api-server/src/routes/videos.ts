@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { videoProjectsTable, videoVersionsTable, videoCommentsTable, videoShareTokensTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { syncToFrameio, isFrameioConfigured } from "../lib/frameio";
 import { getFrameioRootAssetId } from "./frameio";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -96,7 +96,7 @@ router.get("/video-projects/:projectId", async (req, res) => {
   }
 });
 
-router.patch("/video-projects/:projectId", requireAdminOrHR, async (req, res) => {
+router.patch("/video-projects/:projectId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.projectId));
     const { title, clientName, description, status } = req.body;
@@ -116,7 +116,7 @@ router.patch("/video-projects/:projectId", requireAdminOrHR, async (req, res) =>
   }
 });
 
-router.delete("/video-projects/:projectId", requireAdminOrHR, async (req, res) => {
+router.delete("/video-projects/:projectId", requireManager, async (req, res) => {
   try {
     await db.delete(videoProjectsTable).where(eq(videoProjectsTable.id, parseInt(String(req.params.projectId))));
     res.status(204).send();
@@ -160,7 +160,7 @@ router.post("/video-projects/:projectId/versions/from-link", async (req, res) =>
 });
 
 // Update review link on an existing version
-router.patch("/video-versions/:versionId/review-link", requireAdminOrHR, async (req, res) => {
+router.patch("/video-versions/:versionId/review-link", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.versionId));
     const { reviewLink } = req.body;
@@ -175,7 +175,7 @@ router.patch("/video-versions/:versionId/review-link", requireAdminOrHR, async (
 });
 
 // Delete a version
-router.delete("/video-versions/:versionId", requireAdminOrHR, async (req, res) => {
+router.delete("/video-versions/:versionId", requireManager, async (req, res) => {
   try {
     await db.delete(videoVersionsTable).where(eq(videoVersionsTable.id, parseInt(String(req.params.versionId))));
     res.status(204).send();
@@ -264,7 +264,7 @@ async function syncVersionToFrameio(
   }
 }
 
-router.post("/video-versions/:versionId/approve", requireAdminOrHR, async (req, res) => {
+router.post("/video-versions/:versionId/approve", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.versionId));
     const [updated] = await db.update(videoVersionsTable).set({ status: "approved" }).where(eq(videoVersionsTable.id, id)).returning();
@@ -279,7 +279,7 @@ router.post("/video-versions/:versionId/approve", requireAdminOrHR, async (req, 
   }
 });
 
-router.post("/video-versions/:versionId/request-revision", requireAdminOrHR, async (req, res) => {
+router.post("/video-versions/:versionId/request-revision", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.versionId));
     const [updated] = await db.update(videoVersionsTable).set({ status: "needs_revision" }).where(eq(videoVersionsTable.id, id)).returning();
@@ -341,7 +341,7 @@ router.post("/video-versions/:versionId/comments", async (req, res) => {
   }
 });
 
-router.post("/video-comments/:commentId/resolve", requireAdminOrHR, async (req, res) => {
+router.post("/video-comments/:commentId/resolve", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.commentId));
     const [updated] = await db.update(videoCommentsTable).set({ isResolved: true }).where(eq(videoCommentsTable.id, id)).returning();
@@ -356,7 +356,7 @@ router.post("/video-comments/:commentId/resolve", requireAdminOrHR, async (req, 
 });
 
 // Share Tokens
-router.post("/video-versions/:versionId/share-token", requireAdminOrHR, async (req, res) => {
+router.post("/video-versions/:versionId/share-token", requireManager, async (req, res) => {
   try {
     const versionId = parseInt(String(req.params.versionId));
     const token = crypto.randomBytes(32).toString("hex");

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { approvedLeavesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 
 const router: IRouter = Router();
 
@@ -10,7 +10,7 @@ const router: IRouter = Router();
  * GET /api/approved-leaves/:userId
  * Returns all approved leaves for a given employee. Admin/HR only.
  */
-router.get("/approved-leaves/:userId", requireAdminOrHR, async (req, res) => {
+router.get("/approved-leaves/:userId", requireManager, async (req, res) => {
   try {
     const { userId } = req.params;
     const leaves = await db.select().from(approvedLeavesTable)
@@ -28,7 +28,7 @@ router.get("/approved-leaves/:userId", requireAdminOrHR, async (req, res) => {
  * Add an approved leave day for an employee. Admin/HR only.
  * Body: { userId, date (YYYY-MM-DD), note? }
  */
-router.post("/approved-leaves", requireAdminOrHR, async (req, res) => {
+router.post("/approved-leaves", requireManager, async (req, res) => {
   try {
     const { userId, date, note } = req.body as { userId: string; date: string; note?: string };
     if (!userId || !date) return res.status(400).json({ error: "userId and date are required" });
@@ -52,7 +52,7 @@ router.post("/approved-leaves", requireAdminOrHR, async (req, res) => {
  * DELETE /api/approved-leaves/:id
  * Remove an approved leave entry by its ID. Admin/HR only.
  */
-router.delete("/approved-leaves/:id", requireAdminOrHR, async (req, res) => {
+router.delete("/approved-leaves/:id", requireManager, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     await db.delete(approvedLeavesTable).where(eq(approvedLeavesTable.id, id));

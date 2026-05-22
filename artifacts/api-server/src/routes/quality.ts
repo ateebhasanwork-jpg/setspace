@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { qualityChecksTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdminOrHR } from "../middleware/roles";
+import { requireManager } from "../middleware/roles";
 import { notifyUser } from "../lib/notify";
 import { getCachedUsers, getUserMap, getCached, invalidateByPrefix, invalidateResult } from "../lib/cache";
 
@@ -33,7 +33,7 @@ router.get("/quality-checks", async (req, res) => {
   }
 });
 
-router.post("/quality-checks", requireAdminOrHR, async (req, res) => {
+router.post("/quality-checks", requireManager, async (req, res) => {
   try {
     const { taskId, submitterId, rating, feedback, status, videoVersionId, revisionCount } = req.body;
     const [check] = await db.insert(qualityChecksTable).values({
@@ -68,7 +68,7 @@ router.post("/quality-checks", requireAdminOrHR, async (req, res) => {
   }
 });
 
-router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
+router.patch("/quality-checks/:checkId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.checkId));
     const { rating, feedback, status, revisionCount } = req.body;
@@ -106,7 +106,7 @@ router.patch("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
   }
 });
 
-router.delete("/quality-checks/:checkId", requireAdminOrHR, async (req, res) => {
+router.delete("/quality-checks/:checkId", requireManager, async (req, res) => {
   try {
     const id = parseInt(String(req.params.checkId));
     await db.delete(qualityChecksTable).where(eq(qualityChecksTable.id, id));
