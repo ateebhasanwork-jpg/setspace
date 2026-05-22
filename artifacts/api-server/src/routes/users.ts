@@ -27,10 +27,12 @@ router.get("/users/:userId", async (req, res) => {
   }
 });
 
-// Create a new user (admin only)
+const MANAGER_ROLES = ["admin", "hr", "coordinator"];
+
+// Create a new user (managers only)
 router.post("/users", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
-  if (req.user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
+  if (!MANAGER_ROLES.includes(req.user.role)) { res.status(403).json({ error: "Manager access required" }); return; }
   try {
     const { username, password, firstName, lastName, role, department, title } = req.body as Record<string, string>;
     if (!username || !password || !firstName || !lastName) {
@@ -47,7 +49,7 @@ router.post("/users", async (req, res) => {
       username: username.toLowerCase().trim(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      role: (role as "admin" | "hr" | "employee") || "employee",
+      role: (role as "admin" | "hr" | "coordinator" | "employee") || "employee",
       department: department || null,
       title: title || null,
       passwordHash,
@@ -67,7 +69,7 @@ router.post("/users", async (req, res) => {
 
 router.delete("/users/:userId", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
-  if (req.user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
+  if (!MANAGER_ROLES.includes(req.user.role)) { res.status(403).json({ error: "Manager access required" }); return; }
   if (req.params.userId === req.user.id) { res.status(400).json({ error: "Cannot delete yourself" }); return; }
   try {
     await db.delete(usersTable).where(eq(usersTable.id, req.params.userId));
@@ -81,7 +83,7 @@ router.delete("/users/:userId", async (req, res) => {
 router.patch("/users/:userId", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   const isSelf = req.user.id === req.params.userId;
-  const isManager = req.user.role === "admin" || req.user.role === "hr";
+  const isManager = MANAGER_ROLES.includes(req.user.role);
   if (!isSelf && !isManager) { res.status(403).json({ error: "Forbidden" }); return; }
   try {
     const { firstName, lastName, role, department, title, profileImage, profileSetup } = req.body;
@@ -138,10 +140,10 @@ router.post("/users/me/password", async (req, res) => {
   }
 });
 
-// Admin: reset another user's password
+// Manager: reset another user's password
 router.post("/users/:userId/password", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
-  if (req.user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
+  if (!MANAGER_ROLES.includes(req.user.role)) { res.status(403).json({ error: "Manager access required" }); return; }
   try {
     const { newPassword } = req.body as Record<string, string>;
     if (!newPassword || newPassword.length < 6) {

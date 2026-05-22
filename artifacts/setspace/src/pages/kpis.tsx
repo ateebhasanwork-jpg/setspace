@@ -269,9 +269,9 @@ function PersonalPerformanceView({ userId, firstName, month, year, asAdmin, full
 export default function KPIs() {
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
 
-  const isAdminOrHR =
-    (currentUser as { role?: string } | undefined)?.role === "admin" ||
-    (currentUser as { role?: string } | undefined)?.role === "hr";
+  const _role = (currentUser as { role?: string } | undefined)?.role;
+  const isAdminOrHR = _role === "admin" || _role === "hr";
+  const canManage = isAdminOrHR || _role === "coordinator";
   const canSeePayroll = isAdminOrHR;
 
   const now = new Date();
@@ -551,7 +551,7 @@ export default function KPIs() {
     return <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading...</div>;
   }
 
-  if (!isAdminOrHR) {
+  if (!canManage) {
     const myId = (currentUser as { id?: string } | undefined)?.id ?? "";
     const myFirst = (currentUser as { firstName?: string } | undefined)?.firstName ?? "";
     return (

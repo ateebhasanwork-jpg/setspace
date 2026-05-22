@@ -30,7 +30,8 @@ export default function QualityChecks() {
 
   const isManager =
     (currentUser as { role?: string } | undefined)?.role === "admin" ||
-    (currentUser as { role?: string } | undefined)?.role === "hr";
+    (currentUser as { role?: string } | undefined)?.role === "hr" ||
+    (currentUser as { role?: string } | undefined)?.role === "coordinator";
 
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);

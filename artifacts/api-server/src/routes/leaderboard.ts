@@ -144,8 +144,8 @@ router.get("/leaderboard", async (req, res) => {
           ? (onTimeLogins / scheduledLoginDays) * 100
           : 75; // neutral if no schedule
 
-        // ── Composite ──
-        const score = onTimeScore * 0.40 + qualityScore * 0.25 + attendanceScore * 0.20 + punctualityScore * 0.15;
+        // ── Composite — equal thirds: Attendance 33.33%, Quality 33.33%, On-Time 33.34% ──
+        const score = attendanceScore * 0.3333 + qualityScore * 0.3333 + onTimeScore * 0.3334;
 
         return {
           userId: user.id,

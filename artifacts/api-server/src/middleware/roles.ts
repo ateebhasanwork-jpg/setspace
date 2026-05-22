@@ -23,3 +23,17 @@ export function requireAdminOrHR(req: Request, res: Response, next: NextFunction
   }
   next();
 }
+
+/** admin + hr + coordinator — full management access except payroll */
+export function requireManager(req: Request, res: Response, next: NextFunction): void {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const MANAGER_ROLES = ["admin", "hr", "coordinator"];
+  if (!MANAGER_ROLES.includes(req.user.role)) {
+    res.status(403).json({ error: "Manager access required" });
+    return;
+  }
+  next();
+}

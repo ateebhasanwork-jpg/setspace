@@ -73,6 +73,21 @@ function resolveProfileImage(url: string | null | undefined): string | null {
 }
 
 /* ── Employee of the Month Banner ────────────────────────────── */
+const EOM_QUOTES = [
+  "Your dedication sets the standard. Keep inspiring the team.",
+  "Hard work and consistency are the foundations of excellence.",
+  "Leaders don't just deliver results — they lift everyone around them.",
+  "Excellence is never an accident. It's the result of high intention.",
+  "The secret of getting ahead is getting started — and never stopping.",
+  "Your work speaks volumes. Keep raising the bar.",
+  "Outstanding performance is not a moment, it's a habit.",
+  "True leaders make those around them better.",
+  "Success is the sum of small efforts repeated every single day.",
+  "Your commitment is what separates the good from the great.",
+  "Behind every great team is someone who leads by example.",
+  "Discipline is the bridge between goals and accomplishment.",
+];
+
 function EmployeeOfMonthBanner() {
   const now = new Date();
   const { data: leaderboard } = useGetLeaderboard({ month: now.getMonth() + 1, year: now.getFullYear() });
@@ -82,6 +97,7 @@ function EmployeeOfMonthBanner() {
 
   const monthName = now.toLocaleString("default", { month: "long" });
   const year = now.getFullYear();
+  const quote = EOM_QUOTES[(year * 12 + now.getMonth()) % EOM_QUOTES.length];
   const photo = resolveProfileImage((winner.user as any)?.profileImage);
   const avatarStyle = getUserAvatarStyle(winner.userId);
   const name = `${winner.user?.firstName ?? ""} ${winner.user?.lastName ?? ""}`.trim();
@@ -116,6 +132,9 @@ function EmployeeOfMonthBanner() {
           <p className="text-xl font-display font-bold text-foreground leading-tight">{name}</p>
           <p className="text-sm text-muted-foreground mt-0.5">
             {winner.score} pts · {(winner as any).totalTasks ?? 0} tasks completed
+          </p>
+          <p className="text-[11px] mt-2 italic leading-relaxed" style={{ color: "hsl(45,60%,65%)" }}>
+            "{quote}"
           </p>
         </div>
         <div className="hidden sm:flex items-center gap-0.5 shrink-0">
@@ -853,7 +872,7 @@ function EmployeeDashboard({ userId }: { userId: string }) {
 ══════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const { user: authUser } = useAuth();
-  const isAdminOrHr = authUser?.role === "admin" || authUser?.role === "hr";
+  const isAdminOrHr = authUser?.role === "admin" || authUser?.role === "hr" || authUser?.role === "coordinator";
 
   if (!authUser) {
     return (

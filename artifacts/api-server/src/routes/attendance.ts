@@ -17,9 +17,12 @@ function pktDow(d: Date): number {
   return new Date(d.getTime() + PKT_OFFSET_MS).getUTCDay();
 }
 
+/** Today's calendar date in PKT (UTC+5) — avoids wrong-day records for midnight-crossers */
 function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  return new Date(Date.now() + PKT_OFFSET_MS).toISOString().split("T")[0];
 }
+
+const MAX_SESSION_SECONDS = 16 * 3600; // hard cap: no single session can exceed 16 h
 
 function computeTotalSeconds(r: typeof attendanceTable.$inferSelect): number {
   const base = r.accumulatedSeconds ?? 0;
@@ -61,7 +64,7 @@ function formatRecord(
 ) {
   const totalSeconds = computeTotalSeconds(r);
   const { isLate, lateMinutes } = computeLate(r.clockIn, slot);
-  const scheduledShiftHours = slot?.shiftHours ?? 4;
+  const scheduledShiftHours = slot?.shiftHours ?? 8;
   return {
     ...r,
     clockIn: r.clockIn.toISOString(),
@@ -225,7 +228,10 @@ router.post("/attendance/clock-out", async (req, res) => {
 
     const sessionStart = existing.lastClockIn ?? existing.clockIn;
     const now = new Date();
-    const sessionSeconds = Math.floor((now.getTime() - sessionStart.getTime()) / 1000);
+    const sessionSeconds = Math.min(
+      Math.floor((now.getTime() - sessionStart.getTime()) / 1000),
+      MAX_SESSION_SECONDS
+    );
     const newAccumulated = (existing.accumulatedSeconds ?? 0) + sessionSeconds;
 
     const [updated] = await db.update(attendanceTable)

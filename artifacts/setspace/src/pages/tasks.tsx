@@ -237,7 +237,7 @@ function TaskComments({ taskId }: { taskId: number }) {
 
 export default function Tasks() {
   const { user: authUser } = useAuth();
-  const isAdminOrHR = authUser?.role === "admin" || authUser?.role === "hr";
+  const isAdminOrHR = authUser?.role === "admin" || authUser?.role === "hr" || authUser?.role === "coordinator";
 
   // SSE "tasks" event in use-live-events.ts invalidates immediately on any task change
   const { data: tasks, isLoading, isFetching } = useListTasks({ query: {} });

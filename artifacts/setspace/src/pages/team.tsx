@@ -30,12 +30,13 @@ function resolveProfileImage(profileImage: string | null | undefined): string | 
   return `/api/storage/objects/${subPath}`;
 }
 
-type Role = "admin" | "hr" | "employee";
+type Role = "admin" | "hr" | "coordinator" | "employee";
 
 const ROLE_CONFIG: Record<Role, { label: string; icon: React.ElementType; cls: string }> = {
-  admin:    { label: "Admin",    icon: Shield,    cls: "bg-purple-900/50 text-purple-300 border-purple-700/50" },
-  hr:       { label: "HR",       icon: UserCheck, cls: "bg-blue-900/50 text-blue-300 border-blue-700/50" },
-  employee: { label: "Employee", icon: User,      cls: "bg-zinc-800 text-zinc-300 border-zinc-700" },
+  admin:       { label: "Admin",       icon: Shield,    cls: "bg-purple-900/50 text-purple-300 border-purple-700/50" },
+  hr:          { label: "HR",          icon: UserCheck, cls: "bg-blue-900/50 text-blue-300 border-blue-700/50" },
+  coordinator: { label: "Coordinator", icon: UserCheck, cls: "bg-emerald-900/50 text-emerald-300 border-emerald-700/50" },
+  employee:    { label: "Employee",    icon: User,      cls: "bg-zinc-800 text-zinc-300 border-zinc-700" },
 };
 
 function RoleBadge({ role }: { role: string }) {
@@ -519,7 +520,7 @@ export default function TeamManagement() {
   const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
 
   const isAdmin = (currentUser as { role?: string } | undefined)?.role === "admin";
-  const isManager = isAdmin || (currentUser as { role?: string } | undefined)?.role === "hr";
+  const isManager = isAdmin || (currentUser as { role?: string } | undefined)?.role === "hr" || (currentUser as { role?: string } | undefined)?.role === "coordinator";
 
   const displayUsers: UserRow[] = (users ?? (rawUsers as UserRow[] | undefined) ?? []);
 

@@ -34,7 +34,10 @@ import {
   LogOut,
   UserCircle,
   Users,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "@/hooks/use-theme";
 
 /* ── Unread Counts Context ────────────────────────────────────── */
 interface UnreadCounts {
@@ -130,7 +133,9 @@ function SidebarInner() {
   const { setOpenMobile } = useSidebar();
   const imgUrl = profileImageUrl(user?.profileImage);
   const initial = user?.firstName?.[0] ?? user?.username?.[0] ?? "U";
-  const isManager = (user as { role?: string } | null)?.role === "admin" || (user as { role?: string } | null)?.role === "hr";
+  const role = (user as { role?: string } | null)?.role;
+  const isManager = role === "admin" || role === "hr" || role === "coordinator";
+  const { theme, toggle: toggleTheme } = useTheme();
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar/95 backdrop-blur-md">
@@ -174,6 +179,12 @@ function SidebarInner() {
             <UserCircle className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
           </div>
         </Link>
+        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-accent mb-1" onClick={toggleTheme}>
+          {theme === "dark"
+            ? <><Sun className="w-4 h-4 mr-2" />Light mode</>
+            : <><Moon className="w-4 h-4 mr-2" />Dark mode</>
+          }
+        </Button>
         <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => logout()}>
           <LogOut className="w-4 h-4 mr-2" />
           Logout

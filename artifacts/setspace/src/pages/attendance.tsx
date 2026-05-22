@@ -83,7 +83,8 @@ export default function Attendance() {
 
   const isManager =
     (currentUser as { role?: string } | undefined)?.role === "admin" ||
-    (currentUser as { role?: string } | undefined)?.role === "hr";
+    (currentUser as { role?: string } | undefined)?.role === "hr" ||
+    (currentUser as { role?: string } | undefined)?.role === "coordinator";
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
