@@ -567,7 +567,7 @@ export default function TeamManagement() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Manage roles, access, and team members.</p>
         </div>
-        {isAdmin && (
+        {isManager && (
           <Button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
@@ -615,7 +615,7 @@ export default function TeamManagement() {
               <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Department / Title</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Role</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Joined</th>
-              {isAdmin && <th className="px-4 py-3 w-24 text-muted-foreground font-medium text-left">Actions</th>}
+              {isManager && <th className="px-4 py-3 w-24 text-muted-foreground font-medium text-left">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -659,7 +659,7 @@ export default function TeamManagement() {
 
                     {/* Role */}
                     <td className="px-4 py-3">
-                      {isAdmin && !isSelf ? (
+                      {isManager && !isSelf ? (
                         <RoleDropdown
                           userId={u.id}
                           currentRole={u.role}
@@ -677,7 +677,7 @@ export default function TeamManagement() {
                     </td>
 
                     {/* Actions */}
-                    {isAdmin && (
+                    {isManager && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           {!isSelf && (
@@ -712,7 +712,7 @@ export default function TeamManagement() {
       </div>
 
       {/* Work Schedules */}
-      {isAdmin && (
+      {isManager && (
         <div className="pt-4 border-t border-border/30">
           <WorkSchedules users={displayUsers} />
         </div>
