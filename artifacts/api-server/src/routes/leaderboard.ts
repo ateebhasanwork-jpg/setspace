@@ -117,12 +117,28 @@ router.get("/leaderboard", async (req, res) => {
         }
 
         // Hours actually worked (accumulatedSeconds covers full session for closed records)
-        const workedSeconds = attendanceRecords.reduce((sum, r) => sum + (r.accumulatedSeconds ?? 0), 0);
+        const workedSeconds = attendanceRecords.reduce((sum, r) => {
+          const base = r.accumulatedSeconds ?? 0;
+          // Include live elapsed time for any open (not yet clocked-out) session
+          if (!r.clockOut) {
+            const sessionStart = r.lastClockIn ?? r.clockIn;
+            const elapsed = Math.min(
+              Math.floor((Date.now() - sessionStart.getTime()) / 1000),
+              16 * 3600
+            );
+            return sum + base + elapsed;
+          }
+          return sum + base;
+        }, 0);
         const workedHours = workedSeconds / 3600;
 
-        const attendanceScore = expectedHours > 0
-          ? Math.min((workedHours / expectedHours) * 100, 100)
-          : attendanceRecords.length > 0 ? 75 : 0;
+        // Attendance score = days present vs scheduled working days
+        // This ensures an employee who clocks in every scheduled day scores 100,
+        // regardless of whether their accumulated-seconds are fully settled.
+        const presentDays = attendanceRecords.length;
+        const attendanceScore = userWorkingDays > 0
+          ? Math.min((presentDays / userWorkingDays) * 100, 100)
+          : presentDays > 0 ? 75 : 0;
 
         // ── Punctuality (15%) — on-time clock-ins ──
         let onTimeLogins = 0;

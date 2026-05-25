@@ -123,8 +123,20 @@ router.get("/attendance", async (req, res) => {
 router.get("/attendance/today", async (req, res) => {
   if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
-    const [record] = await db.select().from(attendanceTable)
-      .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, todayStr())));
+    const today = todayStr();
+    let [record] = await db.select().from(attendanceTable)
+      .where(and(eq(attendanceTable.userId, req.user.id), eq(attendanceTable.date, today)));
+
+    // If no record for today, fall back to any open (not clocked-out) session from a previous day
+    // This handles the case where an employee was clocked in when the PKT calendar day rolled over
+    if (!record) {
+      const openRecords = await db.select().from(attendanceTable)
+        .where(and(eq(attendanceTable.userId, req.user.id), isNull(attendanceTable.clockOut)));
+      if (openRecords.length > 0) {
+        record = openRecords.sort((a, b) => b.clockIn.getTime() - a.clockIn.getTime())[0];
+      }
+    }
+
     if (!record) { res.status(404).json({ error: "No attendance record for today" }); return; }
 
     const dow = pktDow(record.clockIn);
