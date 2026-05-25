@@ -30,7 +30,13 @@ router.get("/leaderboard", async (req, res) => {
 
     const data = await getCached(cacheKey, 15 * 60_000, async () => {
       const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0, 23, 59, 59);
+      const fullMonthEnd = new Date(year, month, 0, 23, 59, 59);
+      // For the current month, cap at today (PKT) so future unworked days
+      // don't reduce the attendance score. Past months use the full month end.
+      const todayPKT = new Date(Date.now() + PKT_OFFSET_MS);
+      const todayEnd = new Date(Date.UTC(todayPKT.getUTCFullYear(), todayPKT.getUTCMonth(), todayPKT.getUTCDate(), 23, 59, 59) - PKT_OFFSET_MS);
+      const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+      const endDate = isCurrentMonth && todayEnd < fullMonthEnd ? todayEnd : fullMonthEnd;
 
       const [users, allAttendance, allQuality, allTasks, allSlots] = await Promise.all([
         getCachedUsers(),
