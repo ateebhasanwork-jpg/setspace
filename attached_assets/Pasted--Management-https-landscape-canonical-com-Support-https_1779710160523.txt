@@ -1,0 +1,202 @@
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Mon May 25 11:52:34 AM UTC 2026
+
+  System load:  0.0                Processes:             153
+  Usage of /:   25.4% of 37.23GB   Users logged in:       1
+  Memory usage: 33%                IPv4 address for eth0: 204.168.194.113
+  Swap usage:   0%                 IPv6 address for eth0: 2a01:4f9:c013:690a::1
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+37 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+*** System restart required ***
+Last login: Fri May 22 19:20:30 2026 from 119.73.104.163
+root@Setspace:~# nginx -t && systemctl restart nginx
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+root@Setspace:~# certbot renew --force-renewal && systemctl restart nginx
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Processing /etc/letsencrypt/renewal/app.setspace.agency.conf
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Renewing an existing certificate for app.setspace.agency
+Reloading nginx server after certificate renewal
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Processing /etc/letsencrypt/renewal/outreach.setspace.agency.conf
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Renewing an existing certificate for outreach.setspace.agency
+Reloading nginx server after certificate renewal
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Processing /etc/letsencrypt/renewal/setspace.agency.conf
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Renewing an existing certificate for setspace.agency and www.setspace.agency
+Reloading nginx server after certificate renewal
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Congratulations, all renewals succeeded:
+  /etc/letsencrypt/live/app.setspace.agency/fullchain.pem (success)
+  /etc/letsencrypt/live/outreach.setspace.agency/fullchain.pem (success)
+  /etc/letsencrypt/live/setspace.agency/fullchain.pem (success)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@Setspace:~# pm2 list
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ setspace-api       │ fork     │ 82   │ online    │ 0%       │ 99.3mb   │
+│ 1  │ setspace-website   │ fork     │ 7    │ online    │ 0%       │ 85.7mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+root@Setspace:~# systemctl status nginx
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-05-25 11:53:27 UTC; 2min 8s ago
+       Docs: man:nginx(8)
+    Process: 1172444 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 1172446 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 1172447 (nginx)
+      Tasks: 3 (limit: 4538)
+     Memory: 5.7M (peak: 6.4M)
+        CPU: 1.205s
+     CGroup: /system.slice/nginx.service
+             ├─1172447 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─1172448 "nginx: worker process"
+             └─1172449 "nginx: worker process"
+
+May 25 11:53:27 Setspace systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server.>
+May 25 11:53:27 Setspace systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+...skipping...
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-05-25 11:53:27 UTC; 2min 8s ago
+       Docs: man:nginx(8)
+    Process: 1172444 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 1172446 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 1172447 (nginx)
+      Tasks: 3 (limit: 4538)
+     Memory: 5.7M (peak: 6.4M)
+        CPU: 1.205s
+     CGroup: /system.slice/nginx.service
+             ├─1172447 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─1172448 "nginx: worker process"
+             └─1172449 "nginx: worker process"
+
+May 25 11:53:27 Setspace systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server.>
+May 25 11:53:27 Setspace systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+...skipping...
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-05-25 11:53:27 UTC; 2min 8s ago
+       Docs: man:nginx(8)
+    Process: 1172444 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 1172446 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 1172447 (nginx)
+      Tasks: 3 (limit: 4538)
+     Memory: 5.7M (peak: 6.4M)
+        CPU: 1.205s
+     CGroup: /system.slice/nginx.service
+             ├─1172447 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─1172448 "nginx: worker process"
+             └─1172449 "nginx: worker process"
+
+May 25 11:53:27 Setspace systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server.>
+May 25 11:53:27 Setspace systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+...skipping...
+
+                   SUMMARY OF LESS COMMANDS
+
+      Commands marked with * may be preceded by a number, N.
+      Notes in parentheses indicate the behavior if N is given.
+      A key preceded by a caret indicates the Ctrl key; thus ^K is ctrl-K.
+
+  h  H                 Display this help.
+  q  :q  Q  :Q  ZZ     Exit.
+ ---------------------------------------------------------------------------
+
+                           MOVING
+
+  e  ^E  j  ^N  CR  *  Forward  one line   (or N lines).
+  y  ^Y  k  ^K  ^P  *  Backward one line   (or N lines).
+  f  ^F  ^V  SPACE  *  Forward  one window (or N lines).
+  b  ^B  ESC-v      *  Backward one window (or N lines).
+  z                 *  Forward  one window (and set window to N).
+  w                 *  Backward one window (and set window to N).
+  ESC-SPACE         *  Forward  one window, but don't stop at end-of-file.
+  d  ^D             *  Forward  one half-window (and set half-window to N).
+  u  ^U             *  Backward one half-window (and set half-window to N).
+  ESC-)  RightArrow *  Right one half screen width (or N positions).
+  ESC-(  LeftArrow  *  Left  one half screen width (or N positions).
+  ESC-}  ^RightArrow   Right to last column displayed.
+  ESC-{  ^LeftArrow    Left  to first column.
+  F                    Forward forever; like "tail -f".
+  ESC-F                Like F but stop when search pattern is found.
+  r  ^R  ^L            Repaint screen.
+...skipping...
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-05-25 11:53:27 UTC; 2min 8s ago
+       Docs: man:nginx(8)
+    Process: 1172444 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 1172446 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 1172447 (nginx)
+      Tasks: 3 (limit: 4538)
+     Memory: 5.7M (peak: 6.4M)
+        CPU: 1.205s
+     CGroup: /system.slice/nginx.service
+             ├─1172447 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─1172448 "nginx: worker process"
+             └─1172449 "nginx: worker process"
+
+May 25 11:53:27 Setspace systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server.>
+May 25 11:53:27 Setspace systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+lines 1-17/17 (END)
